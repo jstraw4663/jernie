@@ -1,2 +1,2 @@
-# jernie
+# Jernie
 Jernie Travel App Respository
