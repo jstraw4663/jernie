@@ -209,7 +209,7 @@ const stops = [
       {type:"warning", text:"🚗 Cadillac Summit Road requires a vehicle reservation via Recreation.gov (May 21–Oct 25). Opens 2 days prior at 10am EST. Set a reminder — or just hike up on foot. No reservation needed for hikers."},
       {type:"info", text:"🥾 Late May = end of mud season. Expect wet/muddy trails especially at lower elevations. Waterproof hiking boots are not optional."},
       {type:"tip", text:"🎟️ Buy an America the Beautiful National Parks Pass ($80) before you go. Covers Acadia's $35 entrance fee plus every other national park for a year."},
-      {type:"warning", text:"📵 T-Mobile coverage is limited in Bar Harbor and spotty throughout Acadia. Download offline maps before you leave. T-Mobile offers a free 3-month e-SIM trial on select plans — worth activating before the trip if you're on a different carrier.", link:{label:"T-Mobile Free Trial e-SIM →", url:"https://www.t-mobile.com/ipad/free-trial"}},
+      {type:"warning", text:"📵 Cell service is limited in Bar Harbor and spotty throughout Acadia. Download offline maps before you leave. T-Mobile offers a free trial e-SIM — worth activating before the trip if you're on a different carrier.", link:{label:"T-Mobile Free Trial e-SIM →", url:"https://www.t-mobile.com/offers/free-trial"}},
     ]
   },
 
