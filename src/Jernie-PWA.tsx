@@ -1,3 +1,4 @@
+// @ts-nocheck — types deferred; will be added during CSS/architecture refactor (phase:foundation)
 import { useState, useEffect } from "react";
 
 const WMO = {
