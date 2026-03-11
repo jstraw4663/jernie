@@ -209,6 +209,7 @@ const stops = [
       {type:"warning", text:"🚗 Cadillac Summit Road requires a vehicle reservation via Recreation.gov (May 21–Oct 25). Opens 2 days prior at 10am EST. Set a reminder — or just hike up on foot. No reservation needed for hikers."},
       {type:"info", text:"🥾 Late May = end of mud season. Expect wet/muddy trails especially at lower elevations. Waterproof hiking boots are not optional."},
       {type:"tip", text:"🎟️ Buy an America the Beautiful National Parks Pass ($80) before you go. Covers Acadia's $35 entrance fee plus every other national park for a year."},
+      {type:"warning", text:"📵 T-Mobile coverage is limited in Bar Harbor and spotty throughout Acadia. Download offline maps before you leave. T-Mobile offers a free 3-month e-SIM trial on select plans — worth activating before the trip if you're on a different carrier.", link:{label:"T-Mobile Free Trial e-SIM →", url:"https://www.t-mobile.com/ipad/free-trial"}},
     ]
   },
 
@@ -331,9 +332,12 @@ async function fetchFlightStatuses(
 
 // ── Sub-components ────────────────────────────────────────────
 
-function AlertBox({type, text}: {type:string, text:string}) {
+function AlertBox({type, text, link}: {type:string, text:string, link?:{label:string, url:string}}) {
   const s = ({warning:{bg:"#FFF8E7",bd:"#E8A020"},info:{bg:"#EBF4F8",bd:"#2D6A8F"},tip:{bg:"#EDFAF1",bd:"#1B7A4A"}}as any)[type]||{bg:"#EBF4F8",bd:"#2D6A8F"};
-  return <div style={{background:s.bg,borderLeft:"4px solid "+s.bd,borderRadius:"0 8px 8px 0",padding:"12px 16px",marginBottom:"10px",fontSize:"0.87rem",lineHeight:1.55,color:"#2a2a2a"}}>{text}</div>;
+  return <div style={{background:s.bg,borderLeft:"4px solid "+s.bd,borderRadius:"0 8px 8px 0",padding:"12px 16px",marginBottom:"10px",fontSize:"0.87rem",lineHeight:1.55,color:"#2a2a2a"}}>
+    {text}
+    {link&&<div style={{marginTop:"8px"}}><a href={link.url} target="_blank" rel="noopener noreferrer" style={{color:s.bd,fontWeight:"bold",fontSize:"0.83rem"}}>{link.label}</a></div>}
+  </div>;
 }
 
 function SecHead({color, label}: {color:string, label:string}) {
