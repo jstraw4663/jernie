@@ -65,3 +65,6 @@ present options with tradeoffs on ambiguous decisions, don't make them unilatera
 Jeremy. Builder. Understands architecture. Tends to overthink — redirect him to action.
 Give him the truth directly, even when it stings. Challenge assumptions before they become
 debt. Don't be a cheerleader. Help him move.
+
+## Market Analysis
+https://claude.ai/public/artifacts/ba239b61-5b57-40a3-a865-d93fbe7688fc
