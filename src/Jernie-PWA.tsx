@@ -284,30 +284,97 @@ const stops = [
 
 // ── API Functions ─────────────────────────────────────────────
 
+function readCache(key) {
+  try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : null; }
+  catch { return null; }
+}
+function writeCache(key, data) {
+  try { localStorage.setItem(key, JSON.stringify({ data, cachedAt: Date.now() })); }
+  catch {}
+}
+
+function deriveFlightGroups() {
+  const groups: Record<string,any> = {};
+  stops.forEach(stop => {
+    const year = stop.wStart.split("-")[0];
+    stop.bookings.forEach((b:any) => {
+      if (!b.flights) return;
+      b.flights.forEach((f:any) => {
+        const dateKey = new Date(f.date + " " + year).toISOString().split("T")[0];
+        if (!groups[dateKey]) groups[dateKey] = { dateKey, flights: [] };
+        if (!groups[dateKey].flights.find((x:any) => x.key === f.key)) {
+          groups[dateKey].flights.push({
+            key: f.key,
+            flight: f.airline + " " + f.num.replace(" ",""),
+            route: f.route,
+            date: f.date + " " + year,
+            schedDep: f.dep,
+            schedArr: f.arr,
+          });
+        }
+      });
+    });
+  });
+  return groups;
+}
+
+function isWithinFlightWindow(dateKey: string, flights: any[]) {
+  // TODO: harden date parsing pre-Phase 2
+  let earliest = Infinity;
+  flights.forEach(f => {
+    const t = Date.parse(dateKey + " " + f.schedDep);
+    if (!isNaN(t) && t < earliest) earliest = t;
+  });
+  if (!isFinite(earliest)) return false;
+  const now = Date.now();
+  return now >= earliest - 48 * 3600000 && now <= earliest + 24 * 3600000;
+}
+
 async function fetchWeatherForStop(s: typeof stops[0]) {
+  const key = "jernie_weather_" + s.id;
+  const cached = readCache(key);
+  if (cached && (Date.now() - cached.cachedAt) < 3 * 3600000) {
+    return { data: cached.data, fromCache: true };
+  }
+  if (!navigator.onLine) {
+    return cached ? { data: cached.data, fromCache: true } : null;
+  }
   try {
     const url = "https://api.open-meteo.com/v1/forecast?latitude=" + s.lat + "&longitude=" + s.lon + "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&temperature_unit=fahrenheit&timezone=America%2FNew_York&start_date=" + s.wStart + "&end_date=" + s.wEnd;
     const r = await fetch(url);
     const d = await r.json();
-    if (d.error || !d.daily?.time?.length) return null;
-    return d.daily;
-  } catch { return null; }
+    if (d.error || !d.daily?.time?.length) return cached ? { data: cached.data, fromCache: true } : null;
+    writeCache(key, d.daily);
+    return { data: d.daily, fromCache: false };
+  } catch {
+    return cached ? { data: cached.data, fromCache: true } : null;
+  }
 }
 
-async function fetchFlightStatuses(
-  setStatus: (m: Record<string,any>) => void,
+async function fetchFlightStatusGroup(
+  dateKey: string,
+  setStatus: (fn: (prev: Record<string,any>) => Record<string,any>) => void,
   setLoading: (b: boolean) => void,
-  setUpdated: (d: Date) => void
+  setLastUpdated: (fn: (prev: Record<string,any>) => Record<string,any>) => void
 ) {
+  const groups = deriveFlightGroups();
+  const group = groups[dateKey];
+  if (!group) return;
+
   setLoading(true);
+  const cacheKey = "jernie_flights_" + dateKey;
+
+  if (!navigator.onLine) {
+    const cached = readCache(cacheKey);
+    if (cached) setStatus(prev => ({ ...prev, ...cached.data }));
+    setLastUpdated(prev => ({ ...prev, [dateKey]: cached ? new Date(cached.cachedAt) : new Date() }));
+    setLoading(false);
+    return;
+  }
+
   const sysPrompt = "You are a flight status assistant. Search for the current real-time status of each flight. Return ONLY a valid JSON array with no markdown, no backticks, no explanation. Each element must include: {\"key\":\"\",\"status\":\"On Time|Delayed|Cancelled|Scheduled\",\"actualDep\":\"\",\"actualArr\":\"\",\"gate\":\"\",\"terminal\":\"\",\"delayMin\":0}. If real-time data is unavailable use status Scheduled and empty strings for actual times.";
-  const flights = [
-    {key:"WN351",  flight:"Southwest WN351",         route:"Charlotte CLT to Baltimore BWI",           date:"May 22 2026", schedDep:"8:20 AM",  schedArr:"9:50 AM"},
-    {key:"WN2365", flight:"Southwest WN2365",         route:"Baltimore BWI to Portland Maine PWM",      date:"May 22 2026", schedDep:"10:40 AM", schedArr:"12:10 PM"},
-    {key:"AA1463", flight:"American Airlines AA1463", route:"Bangor BGR to Charlotte CLT",              date:"May 29 2026", schedDep:"2:22 PM",  schedArr:"5:17 PM"},
-    {key:"DL5254", flight:"Delta DL5254",             route:"Bangor BGR to New York LaGuardia LGA",     date:"May 29 2026", schedDep:"12:15 PM", schedArr:"1:57 PM"},
-  ];
-  const userMsg = "Get current status for these flights and return a JSON array only: " + JSON.stringify(flights);
+  const userMsg = "Get current status for these flights and return a JSON array only: " + JSON.stringify(group.flights);
+
   try {
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method:"POST",
@@ -324,10 +391,15 @@ async function fetchFlightStatuses(
     const arr = JSON.parse(txt.replace(/```json|```/g,"").trim());
     const map: Record<string,any> = {};
     arr.forEach((f:any) => { map[f.key] = f; });
-    setStatus(map);
-  } catch(e) { setStatus({}); }
+    writeCache(cacheKey, map);
+    setStatus(prev => ({ ...prev, ...map }));
+  } catch(e) {
+    const cached = readCache(cacheKey);
+    if (cached) setStatus(prev => ({ ...prev, ...cached.data }));
+  }
+
+  setLastUpdated(prev => ({ ...prev, [dateKey]: new Date() }));
   setLoading(false);
-  setUpdated(new Date());
 }
 
 // ── Sub-components ────────────────────────────────────────────
@@ -1000,10 +1072,31 @@ export default function MaineGuide() {
   });
 
   const [active, setActive] = useState("portland");
-  const [weatherData, setWeatherData] = useState<Record<string,any>>({});
-  const [flightStatus, setFlightStatus] = useState<Record<string,any>>({});
-  const [flightLoading, setFlightLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date|null>(null);
+  const [weatherData, setWeatherData] = useState<Record<string,any>>(() => {
+    const init: Record<string,any> = {};
+    stops.forEach(s => {
+      const c = readCache("jernie_weather_" + s.id);
+      if (c) init[s.id] = c.data;
+    });
+    return init;
+  });
+  const [flightStatus, setFlightStatus] = useState<Record<string,any>>(() => {
+    const init: Record<string,any> = {};
+    Object.keys(deriveFlightGroups()).forEach(dk => {
+      const c = readCache("jernie_flights_" + dk);
+      if (c) Object.assign(init, c.data);
+    });
+    return init;
+  });
+  const [flightLoading, setFlightLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Record<string,Date>>(() => {
+    const init: Record<string,Date> = {};
+    Object.keys(deriveFlightGroups()).forEach(dk => {
+      const c = readCache("jernie_flights_" + dk);
+      if (c) init[dk] = new Date(c.cachedAt);
+    });
+    return init;
+  });
   const [travelOpen, setTravelOpen] = useState(true);
   const [eatOpen, setEatOpen] = useState(true);
   const [doOpen, setDoOpen] = useState(true);
@@ -1012,10 +1105,15 @@ export default function MaineGuide() {
 
   useEffect(()=>{
     stops.forEach(async s=>{
-      const d = await fetchWeatherForStop(s);
-      if(d) setWeatherData(prev=>({...prev,[s.id]:d}));
+      const result = await fetchWeatherForStop(s);
+      if(result) setWeatherData(prev=>({...prev,[s.id]:result.data}));
     });
-    fetchFlightStatuses(setFlightStatus,setFlightLoading,setLastUpdated);
+    const groups = deriveFlightGroups();
+    Object.entries(groups).forEach(([dateKey, group]: [string, any]) => {
+      if(isWithinFlightWindow(dateKey, group.flights)) {
+        fetchFlightStatusGroup(dateKey, setFlightStatus, setFlightLoading, setLastUpdated);
+      }
+    });
   },[]);
 
   useEffect(()=>{
@@ -1069,13 +1167,45 @@ export default function MaineGuide() {
           open={travelOpen}
           onToggle={()=>setTravelOpen(v=>!v)}
           rightSlot={hasFlights&&(
-            <button onClick={(e)=>{e.stopPropagation();fetchFlightStatuses(setFlightStatus,setFlightLoading,setLastUpdated);}} disabled={flightLoading}
+            <button onClick={(e)=>{
+              e.stopPropagation();
+              const year = stop.wStart.split("-")[0];
+              const dateKeys = [...new Set(
+                stop.bookings
+                  .filter((b:any)=>b.flights)
+                  .flatMap((b:any)=>b.flights.map((f:any)=>
+                    new Date(f.date+" "+year).toISOString().split("T")[0]
+                  ))
+              )] as string[];
+              dateKeys.forEach(dk=>fetchFlightStatusGroup(dk,setFlightStatus,setFlightLoading,setLastUpdated));
+            }} disabled={flightLoading}
               style={{background:"transparent",border:"1px solid "+stop.accent+"50",borderRadius:"6px",padding:"3px 10px",fontSize:"0.72rem",color:stop.accent,cursor:flightLoading?"default":"pointer",opacity:flightLoading?0.5:1,fontFamily:"Georgia,serif"}}>
               {flightLoading?"⏳ Checking…":"↻ Refresh"}
             </button>
           )}
         >
-          {hasFlights&&lastUpdated&&<div style={{fontSize:"0.7rem",color:"#bbb",textAlign:"right",marginBottom:"10px"}}>Last checked: {lastUpdated.toLocaleTimeString()}</div>}
+          {hasFlights&&(()=>{
+            const year = stop.wStart.split("-")[0];
+            const dateKeys = [...new Set(
+              stop.bookings
+                .filter((b:any)=>b.flights)
+                .flatMap((b:any)=>b.flights.map((f:any)=>
+                  new Date(f.date+" "+year).toISOString().split("T")[0]
+                ))
+            )] as string[];
+            const relevantTimestamps = dateKeys.map(dk=>lastUpdated[dk]).filter(Boolean);
+            const mostRecent = relevantTimestamps.length>0
+              ? new Date(Math.max(...relevantTimestamps.map(d=>d.getTime())))
+              : null;
+            const inWindow = dateKeys.some(dk=>isWithinFlightWindow(dk,(deriveFlightGroups()[dk]||{flights:[]}).flights));
+            if(!mostRecent&&!inWindow) return <div style={{fontSize:"0.7rem",color:"#bbb",textAlign:"right",marginBottom:"10px"}}>Live status begins 48hrs before departure</div>;
+            if(!mostRecent&&flightLoading) return null;
+            if(mostRecent) {
+              const prefix = !navigator.onLine?"Offline · ":"";
+              return <div style={{fontSize:"0.7rem",color:"#bbb",textAlign:"right",marginBottom:"10px"}}>{prefix}Last checked: {mostRecent.toLocaleTimeString()}</div>;
+            }
+            return null;
+          })()}
           <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
             {stop.id==="swh" && <>
               <HotelCard accent={stop.accent} label="🏠 Jeremy & Jennie's Accommodations" hotel={stop.hotel} hotelUrl={stop.hotelUrl} hotelAddr={stop.hotelAddr} note={stop.hotelNote} hotelConfirmation={stop.hotelConfirmation}/>
