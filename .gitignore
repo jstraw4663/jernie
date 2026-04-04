@@ -16,6 +16,11 @@ dist-ssr
 scripts/
 working/
 
+# Trip data — managed separately from code deploys.
+# Never commit this. Production data lives on the deployed site;
+# a git push would overwrite it. Update deliberately via Netlify Drop.
+public/trip.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

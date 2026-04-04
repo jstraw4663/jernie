@@ -2,6 +2,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTripData } from "./hooks/useTripData";
 import { useSharedTripState } from "./hooks/useSharedTripState";
+import { EditableItinerary } from "./components/EditableItinerary";
+import { DayPickerModal } from "./components/DayPickerModal";
 import type { Booking, Group, Place, Stop, TripData } from "./types";
 
 const FLIGHT_STATUS_URL = (import.meta as any).env?.VITE_FLIGHT_STATUS_URL ?? "/.netlify/functions/flight-status";
@@ -317,14 +319,21 @@ function WeatherStrip({stop, weatherData}: any) {
   </div>;
 }
 
-function PlaceCard({place, accent}: {place:Place, accent:string}) {
+function PlaceCard({place, accent, onAddToItinerary}: {place:Place, accent:string, onAddToItinerary?:(place:Place)=>void}) {
   const isRestaurant = place.category === "restaurant";
   const isAllTrails = place.url?.includes("alltrails.com");
   const isHike = place.category === "hike";
   const showMust = isRestaurant && place.must;
 
   return (
-    <div style={{background:"#fff",borderRadius:"10px",padding:"15px 18px",border:"1px solid "+(showMust?accent+"40":"#e0ddd6"),display:"flex",gap:"13px",alignItems:"flex-start",boxShadow:showMust?"0 2px 10px "+accent+"12":"none"}}>
+    <div style={{background:"#fff",borderRadius:"10px",padding:"15px 18px",border:"1px solid "+(showMust?accent+"40":"#e0ddd6"),display:"flex",gap:"13px",alignItems:"flex-start",boxShadow:showMust?"0 2px 10px "+accent+"12":"none",position:"relative"}}>
+      {onAddToItinerary&&(
+        <button
+          onClick={()=>onAddToItinerary(place)}
+          title="Add to itinerary"
+          style={{position:"absolute",top:"10px",right:"10px",width:"24px",height:"24px",borderRadius:"50%",background:accent,color:"#fff",border:"none",cursor:"pointer",fontSize:"1rem",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",padding:0,zIndex:1}}
+        >+</button>
+      )}
       {isRestaurant&&(
         showMust
           ?<div style={{background:accent,color:"#fff",fontSize:"0.58rem",letterSpacing:"0.1em",textTransform:"uppercase",padding:"3px 7px",borderRadius:"4px",whiteSpace:"nowrap",marginTop:"3px",flexShrink:0}}>Must</div>
@@ -371,14 +380,14 @@ function getActivityDisplayGroup(place: Place): string {
   return "Nature & Culture";
 }
 
-function PlaceList({places, accent, isActivities}: {places:Place[], accent:string, isActivities?:boolean}) {
+function PlaceList({places, accent, isActivities, onAddToItinerary}: {places:Place[], accent:string, isActivities?:boolean, onAddToItinerary?:(place:Place)=>void}) {
   // Activities with groupable categories (hikes, on-the-water) get section headers
   const hasGroups = isActivities && places.some(p => p.category === "hike" || p.subcategory === "on-the-water");
 
   if (!hasGroups) {
     return (
       <div style={{display:"flex",flexDirection:"column",gap:"11px"}}>
-        {places.map((p)=><PlaceCard key={p.id} place={p} accent={accent}/>)}
+        {places.map((p)=><PlaceCard key={p.id} place={p} accent={accent} onAddToItinerary={onAddToItinerary}/>)}
       </div>
     );
   }
@@ -402,7 +411,7 @@ function PlaceList({places, accent, isActivities}: {places:Place[], accent:strin
             <div style={{flex:1,height:"1px",background:accent+"20"}}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
-            {grouped[g].map((p)=><PlaceCard key={p.id} place={p} accent={accent}/>)}
+            {grouped[g].map((p)=><PlaceCard key={p.id} place={p} accent={accent} onAddToItinerary={onAddToItinerary}/>)}
           </div>
         </div>
       ))}
@@ -764,7 +773,9 @@ export default function MaineGuide() {
   // Prod:  "maine-2026" (set in Netlify environment variables)
   // Phase 2: replace with trip ID from router when multi-trip support is added.
   const tripId = (import.meta as any).env?.VITE_TRIP_ID ?? "maine-2026";
-  const { confirms, packing, setConfirm, setPacking, resetPacking } = useSharedTripState(tripId);
+  const { confirms, packing, setConfirm, setPacking, resetPacking,
+          itineraryOrder, customItems, timeOverrides, reservationTimes, initializeOrder, setDayOrder, moveItem,
+          addCustomItem, deleteCustomItem, setTimeOverride, setReservationTime } = useSharedTripState(tripId);
   const [unlocked, setUnlocked] = useState(()=>{
     try { return sessionStorage.getItem(SESSION_KEY) === "1"; } catch { return false; }
   });
@@ -777,6 +788,7 @@ export default function MaineGuide() {
   const [travelOpen, setTravelOpen] = useState(true);
   const [eatOpen, setEatOpen] = useState(true);
   const [doOpen, setDoOpen] = useState(true);
+  const [addPlaceContext, setAddPlaceContext] = useState<Place|null>(null);
   // Memoized so useCountdown's [departure] dependency stays stable — prevents interval churn
   // Must be at top level (before early returns) to satisfy Rules of Hooks
   const departure = useMemo(() => data ? new Date(data.trip.departure) : null, [data?.trip?.departure]);
@@ -932,17 +944,26 @@ export default function MaineGuide() {
           </div>
         )}
 
-        <DailyItinerary stop={stop} data={data} confirms={confirms} onConfirm={setConfirm}/>
+        <EditableItinerary
+          stop={stop} data={data}
+          confirms={confirms} onConfirm={setConfirm}
+          itineraryOrder={itineraryOrder} customItems={customItems}
+          timeOverrides={timeOverrides} reservationTimes={reservationTimes}
+          setDayOrder={setDayOrder} moveItem={moveItem}
+          addCustomItem={addCustomItem} deleteCustomItem={deleteCustomItem}
+          initializeOrder={initializeOrder} setTimeOverride={setTimeOverride}
+          setReservationTime={setReservationTime}
+        />
 
         {/* Where to Eat */}
         {active==="barharbor" ? (
           <CollapsibleSection color={stop.accent} label="🍽️ Where to Eat" open={eatOpen} onToggle={()=>setEatOpen(v=>!v)}>
-            <PlaceList places={restaurants} accent={stop.accent}/>
+            <PlaceList places={restaurants} accent={stop.accent} onAddToItinerary={p=>setAddPlaceContext(p)}/>
           </CollapsibleSection>
         ) : (
           <div style={{marginBottom:"28px"}}>
             <SecHead color={stop.accent} label="🍽️ Where to Eat"/>
-            <PlaceList places={restaurants} accent={stop.accent}/>
+            <PlaceList places={restaurants} accent={stop.accent} onAddToItinerary={p=>setAddPlaceContext(p)}/>
           </div>
         )}
 
@@ -950,12 +971,12 @@ export default function MaineGuide() {
         {activities.length > 0 && (
           active==="barharbor" ? (
             <CollapsibleSection color={stop.accent} label="📍 What to Do" open={doOpen} onToggle={()=>setDoOpen(v=>!v)}>
-              <PlaceList places={activities} accent={stop.accent} isActivities/>
+              <PlaceList places={activities} accent={stop.accent} isActivities onAddToItinerary={p=>setAddPlaceContext(p)}/>
             </CollapsibleSection>
           ) : (
             <div style={{marginBottom:"28px"}}>
               <SecHead color={stop.accent} label="📍 What to Do"/>
-              <PlaceList places={activities} accent={stop.accent} isActivities/>
+              <PlaceList places={activities} accent={stop.accent} isActivities onAddToItinerary={p=>setAddPlaceContext(p)}/>
             </div>
           )
         )}
@@ -968,6 +989,19 @@ export default function MaineGuide() {
         Maine Coast · May 2026 · 🌊
       </div>
     </div>
+
+    {/* Global DayPickerModal — addPlace mode */}
+    <DayPickerModal
+      isOpen={!!addPlaceContext}
+      onClose={()=>setAddPlaceContext(null)}
+      mode="addPlace"
+      place={addPlaceContext||undefined}
+      allDays={data.itinerary_days}
+      stops={data.stops}
+      onAddPlace={(place, toDayId)=>{
+        addCustomItem(toDayId, "", place.name + (place.note ? " — " + place.note : ""), place.id);
+      }}
+    />
     </>
   );
 }
