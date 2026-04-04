@@ -3,6 +3,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useTripData } from "./hooks/useTripData";
 import type { Booking, Group, Place, Stop, TripData } from "./types";
 
+const FLIGHT_STATUS_URL = (import.meta as any).env?.VITE_FLIGHT_STATUS_URL ?? "/.netlify/functions/flight-status";
+
 const WMO: Record<number,{e:string,d:string}> = {
   0:{e:"☀️",d:"Clear"},1:{e:"🌤️",d:"Mostly Clear"},2:{e:"⛅",d:"Partly Cloudy"},3:{e:"☁️",d:"Overcast"},
   45:{e:"🌫️",d:"Foggy"},48:{e:"🌫️",d:"Foggy"},51:{e:"🌦️",d:"Drizzle"},53:{e:"🌦️",d:"Drizzle"},
@@ -87,6 +89,8 @@ async function fetchWeatherForStop(s: Stop) {
   if (cached && (Date.now() - cached.cachedAt) < 3 * 3600000) {
     return { data: cached.data, fromCache: true };
   }
+  const daysUntilTrip = Math.ceil((new Date(s.weather_start).getTime() - Date.now()) / 86400000);
+  if (daysUntilTrip > 16) return null;
   if (!navigator.onLine) {
     return cached ? { data: cached.data, fromCache: true } : null;
   }
@@ -109,6 +113,7 @@ async function fetchFlightStatusGroupWithData(
   setLoading: (b: boolean) => void,
   setLastUpdated: (fn: (prev: Record<string,any>) => Record<string,any>) => void
 ) {
+  if (!flights || flights.length === 0) { setLoading(false); return; }
   setLoading(true);
   const cacheKey = "jernie_flights_" + dateKey;
 
@@ -121,7 +126,7 @@ async function fetchFlightStatusGroupWithData(
   }
 
   try {
-    const resp = await fetch("/.netlify/functions/flight-status", {
+    const resp = await fetch(FLIGHT_STATUS_URL, {
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({ flights })

@@ -15,11 +15,10 @@ exports.handler = async (event) => {
     return { statusCode: 500, body: JSON.stringify({ error: "API key not configured" }) };
   }
 
-  let flights;
-  try {
-    ({ flights } = JSON.parse(event.body));
-  } catch {
-    return { statusCode: 400, body: JSON.stringify({ error: "Invalid request body" }) };
+  const body = event.body ? JSON.parse(event.body) : {};
+  const flights = body.flights;
+  if (!flights || flights.length === 0) {
+    return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) };
   }
 
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
