@@ -1,6 +1,7 @@
 // @ts-nocheck — types deferred; will be added during CSS/architecture refactor (phase:foundation)
 import { useState, useEffect, useMemo } from "react";
 import { useTripData } from "./hooks/useTripData";
+import { useSharedTripState } from "./hooks/useSharedTripState";
 import type { Booking, Group, Place, Stop, TripData } from "./types";
 
 const FLIGHT_STATUS_URL = (import.meta as any).env?.VITE_FLIGHT_STATUS_URL ?? "/.netlify/functions/flight-status";
@@ -425,19 +426,8 @@ function CollapsibleSection({color, label, open, onToggle, children, rightSlot}:
   );
 }
 
-function DailyItinerary({stop, data}: {stop:Stop, data:TripData}) {
+function DailyItinerary({stop, data, confirms, onConfirm}: {stop:Stop, data:TripData, confirms:Record<string,boolean>, onConfirm:(id:string, value:boolean)=>void}) {
   const [openDay, setOpenDay] = useState(0);
-  const LS_KEY = "jernie_confirmed_" + stop.id;
-  const [userConfirmed, setUserConfirmed] = useState<Record<string,boolean>>(()=>{
-    try { return JSON.parse(localStorage.getItem(LS_KEY)||"{}"); } catch { return {}; }
-  });
-  const toggleConfirm = (key: string) => {
-    setUserConfirmed(prev => {
-      const next = {...prev, [key]: !prev[key]};
-      try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch {}
-      return next;
-    });
-  };
 
   const days = data.itinerary_days.filter(d => d.stop_id === stop.id);
   const itemsByDay = useMemo(() => {
@@ -469,13 +459,13 @@ function DailyItinerary({stop, data}: {stop:Stop, data:TripData}) {
             {openDay===di&&(
               <div style={{padding:"0 18px 14px 18px",borderTop:"1px solid "+stop.accent+"15"}}>
                 {items.map((item,ii)=>{
-                  const isLocked = item.locked || userConfirmed[item.id];
+                  const isLocked = item.locked || confirms[item.id];
                   return (
                   <div key={item.id} style={{display:"flex",gap:"12px",padding:"10px 0",borderBottom:ii<items.length-1?"1px dashed #f0ede6":"none",alignItems:"flex-start"}}>
                     <div style={{minWidth:"96px",flexShrink:0,display:"flex",flexDirection:"column",gap:"5px",paddingTop:"2px"}}>
                       <div style={{fontSize:"0.7rem",color:"#aaa",lineHeight:1.4,fontStyle:"italic"}}>{item.time}</div>
                       {isLocked ? (
-                        <button onClick={()=>!item.locked&&toggleConfirm(item.id)}
+                        <button onClick={()=>!item.locked&&onConfirm(item.id, !confirms[item.id])}
                           title={item.locked?"Locked in":"Click to unmark"}
                           style={{background:stop.accent,color:"#fff",fontSize:"0.52rem",padding:"2px 6px",borderRadius:"4px",letterSpacing:"0.06em",textTransform:"uppercase",display:"inline-block",width:"fit-content",border:"none",cursor:item.locked?"default":"pointer",fontFamily:"Georgia,serif"}}>
                           ✓ Confirmed
@@ -493,7 +483,7 @@ function DailyItinerary({stop, data}: {stop:Stop, data:TripData}) {
                           {item.alert&&!item.book_now&&(
                             <span style={{background:"#FFF8E7",color:"#b07010",fontSize:"0.52rem",padding:"2px 6px",borderRadius:"4px",letterSpacing:"0.06em",textTransform:"uppercase",border:"1px solid #E8A02050",display:"inline-block",width:"fit-content"}}>⚠ Note</span>
                           )}
-                          <button onClick={()=>toggleConfirm(item.id)}
+                          <button onClick={()=>onConfirm(item.id, !confirms[item.id])}
                             style={{background:"transparent",color:"#bbb",fontSize:"0.52rem",padding:"2px 6px",borderRadius:"4px",letterSpacing:"0.06em",textTransform:"uppercase",border:"1px dashed #ddd",display:"inline-block",width:"fit-content",cursor:"pointer",fontFamily:"Georgia,serif",marginTop:"1px"}}>
                             + Confirm
                           </button>
@@ -554,23 +544,11 @@ function Countdown({departure}: {departure:Date|null}) {
 
 // ── What to Pack ──────────────────────────────────────────────
 
-function WhatToPack({accent, data}: {accent:string, data:TripData}) {
-  const LS_KEY = "jernie_pack";
-  const [checked, setChecked] = useState<Record<string,boolean>>(()=>{
-    try { return JSON.parse(localStorage.getItem(LS_KEY)||"{}"); } catch { return {}; }
-  });
+function WhatToPack({accent, data, packing, onPack, onReset}: {accent:string, data:TripData, packing:Record<string,boolean>, onPack:(id:string,value:boolean)=>void, onReset:()=>void}) {
   const [open, setOpen] = useState(false);
 
-  const toggle = (itemId: string) => {
-    setChecked(prev => {
-      const next = {...prev, [itemId]: !prev[itemId]};
-      try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch {}
-      return next;
-    });
-  };
-
   const totalItems = data.packing_lists.reduce((a,c)=>a+c.items.length,0);
-  const checkedCount = Object.values(checked).filter(Boolean).length;
+  const checkedCount = Object.values(packing).filter(Boolean).length;
 
   return (
     <div style={{marginBottom:"28px"}}>
@@ -589,9 +567,9 @@ function WhatToPack({accent, data}: {accent:string, data:TripData}) {
               </div>
               <div style={{padding:"6px 0"}}>
                 {section.items.map((item,ii)=>{
-                  const done = !!checked[item.id];
+                  const done = !!packing[item.id];
                   return (
-                    <button key={item.id} onClick={()=>toggle(item.id)}
+                    <button key={item.id} onClick={()=>onPack(item.id, !packing[item.id])}
                       style={{width:"100%",display:"flex",alignItems:"center",gap:"12px",padding:"8px 16px",background:"transparent",border:"none",cursor:"pointer",textAlign:"left",fontFamily:"Georgia,serif",borderBottom:ii<section.items.length-1?"1px solid #f5f3ef":"none",transition:"background 0.1s"}}>
                       <div style={{width:"18px",height:"18px",borderRadius:"4px",border:"2px solid "+(done?accent:"#ccc"),background:done?accent:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s"}}>
                         {done&&<span style={{color:"#fff",fontSize:"0.65rem",fontWeight:"bold"}}>✓</span>}
@@ -604,10 +582,7 @@ function WhatToPack({accent, data}: {accent:string, data:TripData}) {
             </div>
           ))}
           {checkedCount > 0 && (
-            <button onClick={()=>{
-              setChecked({});
-              try { localStorage.removeItem(LS_KEY); } catch {}
-            }} style={{alignSelf:"flex-end",background:"transparent",border:"1px solid #e0ddd6",borderRadius:"6px",padding:"4px 12px",fontSize:"0.72rem",color:"#aaa",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+            <button onClick={onReset} style={{alignSelf:"flex-end",background:"transparent",border:"1px solid #e0ddd6",borderRadius:"6px",padding:"4px 12px",fontSize:"0.72rem",color:"#aaa",cursor:"pointer",fontFamily:"Georgia,serif"}}>
               Reset list
             </button>
           )}
@@ -784,6 +759,12 @@ function PinGate({onUnlock}: {onUnlock: ()=>void}) {
 
 export default function MaineGuide() {
   const { data, loading, error } = useTripData();
+  // VITE_TRIP_ID separates dev and prod Firebase paths (both use the same project).
+  // Local: "dev-maine-2026" (set in .env.development.local)
+  // Prod:  "maine-2026" (set in Netlify environment variables)
+  // Phase 2: replace with trip ID from router when multi-trip support is added.
+  const tripId = (import.meta as any).env?.VITE_TRIP_ID ?? "maine-2026";
+  const { confirms, packing, setConfirm, setPacking, resetPacking } = useSharedTripState(tripId);
   const [unlocked, setUnlocked] = useState(()=>{
     try { return sessionStorage.getItem(SESSION_KEY) === "1"; } catch { return false; }
   });
@@ -951,7 +932,7 @@ export default function MaineGuide() {
           </div>
         )}
 
-        <DailyItinerary stop={stop} data={data}/>
+        <DailyItinerary stop={stop} data={data} confirms={confirms} onConfirm={setConfirm}/>
 
         {/* Where to Eat */}
         {active==="barharbor" ? (
@@ -980,7 +961,7 @@ export default function MaineGuide() {
         )}
 
         {/* What to Pack */}
-        <WhatToPack accent={stop.accent} data={data}/>
+        <WhatToPack accent={stop.accent} data={data} packing={packing} onPack={setPacking} onReset={resetPacking}/>
       </div>
 
       <div style={{background:"#0D2B3E",color:"#A8C4D4",textAlign:"center",padding:"22px",fontSize:"0.8rem",letterSpacing:"0.05em"}}>
