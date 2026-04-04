@@ -135,6 +135,15 @@ export interface Alert {
   link: { label: string; url: string } | null;
 }
 
+export interface CustomItem {
+  id: string;              // "custom-{random8}"
+  day_id: string;          // current day (kept in sync on moves)
+  time: string;
+  text: string;
+  source_place_id: string | null;  // set when created from a PlaceCard +
+  created_at: number;      // Date.now()
+}
+
 export interface PackingItem {
   id: string; // stable slug — maps to user_packing_state.item_id in Phase 2
   text: string;
