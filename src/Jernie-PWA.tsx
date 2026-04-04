@@ -120,25 +120,14 @@ async function fetchFlightStatusGroupWithData(
     return;
   }
 
-  const sysPrompt = "You are a flight status assistant. Search for the current real-time status of each flight. Return ONLY a valid JSON array with no markdown, no backticks, no explanation. Each element must include: {\"key\":\"\",\"status\":\"On Time|Delayed|Cancelled|Scheduled\",\"actualDep\":\"\",\"actualArr\":\"\",\"gate\":\"\",\"terminal\":\"\",\"delayMin\":0}. If real-time data is unavailable use status Scheduled and empty strings for actual times.";
-  const userMsg = "Get current status for these flights and return a JSON array only: " + JSON.stringify(flights);
-
   try {
-    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    const resp = await fetch("/.netlify/functions/flight-status", {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        model:"claude-sonnet-4-20250514", max_tokens:1000,
-        tools:[{type:"web_search_20250305",name:"web_search"}],
-        system:sysPrompt,
-        messages:[{role:"user",content:userMsg}]
-      })
+      body:JSON.stringify({ flights })
     });
-    const data = await resp.json();
-    const txt = (data.content||[]).filter((b:any)=>b.type==="text").map((b:any)=>b.text).join("");
-    const arr = JSON.parse(txt.replace(/```json|```/g,"").trim());
-    const map: Record<string,any> = {};
-    arr.forEach((f:any) => { map[f.key] = f; });
+    if (!resp.ok) throw new Error("proxy error");
+    const map = await resp.json();
     writeCache(cacheKey, map);
     setStatus(prev => ({ ...prev, ...map }));
   } catch {
