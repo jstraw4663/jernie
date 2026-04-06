@@ -2,7 +2,7 @@
 
 > This file is the single source of truth for AI context across Claude Code and Claude Web.
 > Repo: https://github.com/jstraw4663/jernie
-> Last updated: April 2026
+> Last updated: April 6, 2026 — v0.2.1
 
 ---
 
@@ -35,7 +35,7 @@ we pivot to the full product. Every decision made during the POC should serve th
 **The POC is not a throwaway. It is the foundation.**
 
 ### Current tech stack
-- Vite 5 + React 18 + TypeScript
+- Vite 5 + React 19 + TypeScript
 - Main component: `src/Jernie-PWA.tsx` (exported as `MaineGuide`, wired via `src/App.tsx`)
 - Itinerary: `src/components/EditableItinerary.tsx` (drag-and-drop, custom items, time overrides)
 - Trip data: `public/trip.json` (static content — committed to git, must stay tracked)
@@ -61,6 +61,9 @@ we pivot to the full product. Every decision made during the POC should serve th
 - Soft time labels on drag ("Morning", "Afternoon", "Evening", etc. — magic midpoint inference)
 - Reservation time prompt on Confirm — saves 🕐 sub-label under confirmed badge, editable
 - Add-to-itinerary from PlaceCard — DayPickerModal for day selection
+- **Edit Mode** (v0.2.1) — long-press any itinerary item → BottomSheet opens with day's items;
+  multi-select, drag reorder, delete custom items, move to another day within same stop;
+  unsaved reorder prompts save/discard on exit; swipe-down-to-dismiss on full header bar
 - Restaurants (must/also, Stacy pill, price, emoji)
 - Activities (AllTrails badges on hikes, grouped Bar Harbor)
 - What to Pack (6 categories, ~41 items, Firebase — real-time sync)
@@ -188,14 +191,14 @@ main        ← production (Netlify deploys from here)
 
 ## Known Issues / Active Risks
 
-- **Inline styles throughout** — every `style={{...}}` is Expo migration debt. Needs
-  refactor to Tailwind (web) before Phase 2. Tracked in GitHub Issues.
+- **Inline styles throughout** — `WeatherStrip`, `FlightRow`, `PlaceCard`, `ItemContent`,
+  and other legacy components still use hardcoded inline styles. New components (v0.2.1+)
+  use design tokens. Full migration is tracked in GitHub Issues — do incrementally, not all at once.
 - **No offline state indicator** — silent failure when refresh attempted without network.
 - **Flight status fetches on every page load** — needs proximity-based guard (see API
   call logic engine issue).
 - **Activity cards lack signal differentiation** — difficulty, duration, type missing.
   Beehive Trail and Old Port render identically.
-- **PROD/QA drift** — Netlify Drop deployment is manual. QA source is ahead of PROD.
 
 ---
 
@@ -246,6 +249,7 @@ Expo migration: CSS transitions → Reanimated, pointer events → Gesture Handl
 | `src/components/ActionBar.tsx` | Edit mode action bar (delete, move) |
 | `src/components/ConfirmDialog.tsx` | Inline confirm/cancel dialog for sheet actions |
 | `src/hooks/useSharedTripState.ts` | Firebase Realtime DB hook — all shared mutable state |
+| `src/hooks/useLongPress.ts` | Cross-platform long-press hook (500ms, cancel on move/leave/unmount) |
 | `src/types.ts` | All TypeScript interfaces (Trip, Stop, Booking, ItineraryItem, CustomItem, etc.) |
 | `public/trip.json` | Trip content data — must stay tracked in git (Netlify build needs it) |
 | `CLAUDE.md` | This file — AI context for Claude Code + Claude Web |
