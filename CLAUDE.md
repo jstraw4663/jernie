@@ -199,14 +199,52 @@ main        ← production (Netlify deploys from here)
 
 ---
 
+## Design System
+
+A token-driven design foundation was added in April 2026. All new and migrated components
+must reference tokens exclusively — no hardcoded colors, spacing, or font sizes.
+
+### Token file
+`src/design/tokens.ts` — single source of truth:
+- `Colors` — navy `#0D2B3E`, surface, text hierarchy, status (danger/success/warning), selection, overlay
+- `Spacing` — 4px base unit scale (xxs → xxxl)
+- `Radius` — sm/md/lg/xl/full
+- `Typography` — Georgia serif, size scale, weight, line-height
+- `Shadow` — elevation levels sm → xl
+- `Animation` — duration, easing curves, and **`mountFrames: 4`**
+
+### mountFrames pattern
+Any component that mounts then animates in (sheets, toasts, drawers) must chain
+`Animation.mountFrames` `requestAnimationFrame` calls before setting its visible state.
+This gives the browser time to paint the start position before the CSS transition fires.
+See `BottomSheet.tsx` for the reference implementation.
+
+### Component library
+| Component | Purpose |
+|-----------|---------|
+| `src/components/BottomSheet.tsx` | Swipe-down-to-dismiss sheet, overlay, drag handle pill |
+| `src/components/SelectableListItem.tsx` | List row with selection bubble + 6-dot drag handle |
+| `src/components/ActionBar.tsx` | Delete + Move action buttons for edit mode |
+| `src/components/ConfirmDialog.tsx` | Inline confirmation that slides up within a sheet |
+
+All components are React-only with no DOM-specific APIs. Platform logic lives in `src/platform/`.
+Expo migration: CSS transitions → Reanimated, pointer events → Gesture Handler, @dnd-kit → react-native-reanimated.
+
+---
+
 ## Key Files
 
 | File | Purpose |
 |------|---------|
 | `src/Jernie-PWA.tsx` | Main PWA component (exported as `MaineGuide`) |
 | `src/App.tsx` | App entry point — renders `MaineGuide` |
-| `src/components/EditableItinerary.tsx` | Drag-and-drop itinerary with custom items, soft times, reservation prompt |
+| `src/design/tokens.ts` | Design token source of truth — colors, spacing, animation |
+| `src/components/EditableItinerary.tsx` | Itinerary with edit mode (long-press → BottomSheet), drag-reorder, delete, move |
 | `src/components/DayPickerModal.tsx` | Day picker modal (move item + add place to itinerary) |
+| `src/components/BottomSheet.tsx` | Native-feeling bottom sheet with swipe-dismiss |
+| `src/components/SelectableListItem.tsx` | Selectable list row with drag handle |
+| `src/components/ActionBar.tsx` | Edit mode action bar (delete, move) |
+| `src/components/ConfirmDialog.tsx` | Inline confirm/cancel dialog for sheet actions |
 | `src/hooks/useSharedTripState.ts` | Firebase Realtime DB hook — all shared mutable state |
 | `src/types.ts` | All TypeScript interfaces (Trip, Stop, Booking, ItineraryItem, CustomItem, etc.) |
 | `public/trip.json` | Trip content data — must stay tracked in git (Netlify build needs it) |
@@ -226,6 +264,11 @@ npm run preview  # preview production build locally
 - Always ask before committing or pushing
 - Commit to `dev` branch, never directly to `main`
 - Use `gh` CLI for GitHub operations (already authenticated as jstraw4663)
+
+### After planning mode or implementation — always test locally first
+**Never auto-deploy.** After any plan is approved and implemented, stop at local testing.
+Run `npm run dev` and verify the feature works at `localhost:5173` before touching any
+deployment command. Deployment only happens when Jeremy explicitly says to deploy.
 
 ---
 
