@@ -5,6 +5,7 @@ import { useSharedTripState } from "./hooks/useSharedTripState";
 import { EditableItinerary } from "./components/EditableItinerary";
 import { DayPickerModal } from "./components/DayPickerModal";
 import type { Booking, Group, Place, Stop, TripData } from "./types";
+import { Colors, Typography, Spacing } from "./design/tokens";
 
 const FLIGHT_STATUS_URL = (import.meta as any).env?.VITE_FLIGHT_STATUS_URL ?? "/.netlify/functions/flight-status";
 
@@ -150,16 +151,20 @@ async function fetchFlightStatusGroupWithData(
 // ── Sub-components ────────────────────────────────────────────
 
 function AlertBox({type, text, link}: {type:string, text:string, link?:{label:string, url:string}}) {
-  const s = ({warning:{bg:"#FFF8E7",bd:"#E8A020"},info:{bg:"#EBF4F8",bd:"#2D6A8F"},tip:{bg:"#EDFAF1",bd:"#1B7A4A"}}as any)[type]||{bg:"#EBF4F8",bd:"#2D6A8F"};
-  return <div style={{background:s.bg,borderLeft:"4px solid "+s.bd,borderRadius:"0 8px 8px 0",padding:"12px 16px",marginBottom:"10px",fontSize:"0.87rem",lineHeight:1.55,color:"#2a2a2a"}}>
+  const s = ({
+    warning: { bg: Colors.warningLight, bd: Colors.warning },
+    tip:     { bg: Colors.successLight, bd: Colors.success },
+    info:    { bg: "#EBF4F8",           bd: "#2D6A8F"      }, // stop-blue, no matching token yet
+  } as any)[type] || { bg: "#EBF4F8", bd: "#2D6A8F" };
+  return <div style={{background:s.bg,borderLeft:`4px solid ${s.bd}`,borderRadius:`0 8px 8px 0`,padding:`${Spacing.md}px ${Spacing.base}px`,marginBottom:Spacing.sm,fontSize:"0.87rem",lineHeight:Typography.lineHeight.normal,color:Colors.textPrimary}}>
     {text}
-    {link&&<div style={{marginTop:"8px"}}><a href={link.url} target="_blank" rel="noopener noreferrer" style={{color:s.bd,fontWeight:"bold",fontSize:"0.83rem"}}>{link.label}</a></div>}
+    {link&&<div style={{marginTop:Spacing.sm}}><a href={link.url} target="_blank" rel="noopener noreferrer" style={{color:s.bd,fontWeight:Typography.weight.bold,fontSize:"0.83rem"}}>{link.label}</a></div>}
   </div>;
 }
 
 function SecHead({color, label}: {color:string, label:string}) {
-  return <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"16px"}}>
-    <div style={{fontWeight:"bold",color,fontSize:"0.78rem",letterSpacing:"0.12em",textTransform:"uppercase"}}>{label}</div>
+  return <div style={{display:"flex",alignItems:"center",gap:Spacing.md,marginBottom:Spacing.base}}>
+    <div style={{fontWeight:Typography.weight.bold,color,fontSize:Typography.size.xs,letterSpacing:"0.12em",textTransform:"uppercase"}}>{label}</div>
     <div style={{flex:1,height:"1px",background:color+"30"}}/>
   </div>;
 }
