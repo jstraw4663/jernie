@@ -3,7 +3,7 @@
 // react-native-reanimated + react-native-gesture-handler.
 // All props and Firebase state are platform-agnostic.
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, type RefObject } from "react";
 import {
   DndContext, DragOverlay, PointerSensor, TouchSensor,
   useSensor, useSensors, closestCenter,
@@ -20,8 +20,9 @@ import { BottomSheet } from "./BottomSheet";
 import { SelectableListItem } from "./SelectableListItem";
 import { ActionBar } from "./ActionBar";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { Colors, Spacing, Typography } from "../design/tokens";
-import { useLongPress } from "../hooks/useLongPress";
+import { DayCard } from "./DayCard";
+import { ItineraryItem as ItineraryItemRow } from "./ItineraryItem";
+import { Animation, Colors, Spacing, Typography } from "../design/tokens";
 
 const appleMaps = (addr: string) => "https://maps.apple.com/?q=" + encodeURIComponent(addr);
 
@@ -49,6 +50,7 @@ interface EditableItineraryProps {
   setTimeOverride: (itemId: string, time: string) => void;
   reservationTimes: Record<string, string>;
   setReservationTime: (itemId: string, time: string) => void;
+  scrollRef: RefObject<HTMLDivElement | null>;
 }
 
 // ── Time inference helpers ─────────────────────────────────────
@@ -266,28 +268,22 @@ function SortableItem({ item, accent, confirms, onConfirm, isLocked, onLongPress
     data: { item },
   });
 
-  const { handlePointerDown, cancel } = useLongPress(onLongPress, isLocked);
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  };
-
   return (
     <div
       ref={setNodeRef}
-      onPointerDown={handlePointerDown}
-      onPointerUp={cancel}
-      onPointerMove={cancel}
-      onPointerLeave={cancel}
-      style={{ ...style, display: "flex", gap: "8px", padding: "10px 0", alignItems: "flex-start", position: "relative", userSelect: "none", WebkitUserSelect: "none" }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
     >
-      <ItemContent
-        item={item} accent={accent} confirms={confirms} onConfirm={onConfirm}
-        isCustom={item._isCustom} displayTime={displayTime} isLocked={isLocked} onTimeSave={onTimeSave}
-        reservationTime={reservationTime} onRequestConfirm={onRequestConfirm} onEditResvTime={onEditResvTime}
-      />
+      <ItineraryItemRow onLongPress={onLongPress} isLocked={isLocked}>
+        <ItemContent
+          item={item} accent={accent} confirms={confirms} onConfirm={onConfirm}
+          isCustom={item._isCustom} displayTime={displayTime} isLocked={isLocked} onTimeSave={onTimeSave}
+          reservationTime={reservationTime} onRequestConfirm={onRequestConfirm} onEditResvTime={onEditResvTime}
+        />
+      </ItineraryItemRow>
     </div>
   );
 }
@@ -339,8 +335,18 @@ export function EditableItinerary({
   stop, data, confirms, onConfirm,
   itineraryOrder, customItems, timeOverrides, reservationTimes,
   setDayOrder, moveItem, addCustomItem, deleteCustomItem, initializeOrder, setTimeOverride, setReservationTime,
+  scrollRef,
 }: EditableItineraryProps) {
   const [openDay, setOpenDay] = useState(0);
+  // Refs for each DayCard — used to scroll the header into view on expand.
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Tracks stop IDs that have already played their entrance stagger, so switching
+  // tabs back to a stop doesn't re-animate. Mutated in useEffect (not during render).
+  const seenStops = useRef(new Set<string>());
+  const isFirstVisit = !seenStops.current.has(stop.id);
+  // Pending rAF IDs and switch timeout — cancelled on remount or rapid tap
+  const pendingRafsRef = useRef<number[]>([]);
+  const switchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   const [addForm, setAddForm] = useState<AddFormState | null>(null);
@@ -356,6 +362,16 @@ export function EditableItinerary({
   const isInitializingRef = useRef(false);
 
   const days = data.itinerary_days.filter(d => d.stop_id === stop.id);
+
+  // Mark this stop as seen after first render (not during render) so isFirstVisit
+  // is stable for the entire render pass and all DayCards get the same value.
+  useEffect(() => { seenStops.current.add(stop.id); }, [stop.id]);
+
+  // Cancel pending rAFs and switch timeout on unmount.
+  useEffect(() => () => {
+    pendingRafsRef.current.forEach(id => cancelAnimationFrame(id));
+    if (switchTimeoutRef.current) clearTimeout(switchTimeoutRef.current);
+  }, []);
 
   // Initialization guard — write Firebase order from trip.json once
   useEffect(() => {
@@ -620,104 +636,129 @@ export function EditableItinerary({
               const isOpen = openDay === di;
               return (
                 <DroppableDay key={day.id} dayId={day.id}>
-                  <div
-                    style={{
-                      border: "1px solid " + stop.accent + (isOpen ? "40" : "20"),
-                      borderRadius: "12px", overflow: "hidden", background: "#fff",
-                      transition: "border-color 0.15s",
+                  <DayCard
+                    ref={el => { cardRefs.current[day.id] = el; }}
+                    day={day}
+                    accent={stop.accent}
+                    isOpen={isOpen}
+                    onToggle={() => {
+                      if (isOpen) { setOpenDay(-1); return; }
+                      const scrollEl = scrollRef.current;
+                      const card = cardRefs.current[day.id];
+
+                      // Cancel any in-flight rAFs or switch timeout from a prior tap.
+                      pendingRafsRef.current.forEach(id => cancelAnimationFrame(id));
+                      pendingRafsRef.current = [];
+                      if (switchTimeoutRef.current) clearTimeout(switchTimeoutRef.current);
+
+                      // Scroll card header to just below sticky nav, disable overflow-anchor
+                      // so iOS doesn't "correct" our position during Framer Motion's
+                      // height:auto measurement, then wait mountFrames rAFs before expanding.
+                      const doScrollAndOpen = () => {
+                        if (scrollEl && card) {
+                          const navEl = document.querySelector('[data-sticky-nav]') as HTMLElement | null;
+                          const navHeight = (navEl ? navEl.offsetHeight : 120) + 16;
+                          const containerTop = scrollEl.getBoundingClientRect().top;
+                          const cardTop = card.getBoundingClientRect().top;
+                          const targetTop = scrollEl.scrollTop + (cardTop - containerTop) - navHeight;
+                          scrollEl.style.overflowAnchor = 'none';
+                          scrollEl.scrollTop = Math.max(0, targetTop);
+                          const wait = (n: number) => {
+                            if (n <= 0) {
+                              scrollEl.style.overflowAnchor = '';
+                              setOpenDay(di);
+                              return;
+                            }
+                            pendingRafsRef.current.push(requestAnimationFrame(() => wait(n - 1)));
+                          };
+                          wait(Animation.mountFrames);
+                        } else {
+                          setOpenDay(di);
+                        }
+                      };
+
+                      if (openDay !== -1) {
+                        // Another card is open — collapse it first and wait for
+                        // springs.lazy to settle so layout is stable before measuring.
+                        setOpenDay(-1);
+                        switchTimeoutRef.current = setTimeout(doScrollAndOpen, 400);
+                      } else {
+                        doScrollAndOpen();
+                      }
                     }}
+                    index={di}
+                    shouldAnimate={isFirstVisit}
                   >
-                    <button
-                      onClick={() => setOpenDay(isOpen ? -1 : di)}
-                      style={{
-                        width: "100%", padding: "14px 18px", display: "flex", alignItems: "center", gap: "12px",
-                        background: isOpen ? stop.accent + "0A" : "transparent",
-                        border: "none", cursor: "pointer", textAlign: "left",
-                        fontFamily: "Georgia,serif", transition: "background 0.15s",
-                      }}
-                    >
-                      <span style={{ fontSize: "1.25rem", flexShrink: 0 }}>{day.emoji}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: "bold", fontSize: "0.92rem", color: "#1a1a1a" }}>{day.date}</div>
-                        <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px", fontStyle: "italic" }}>{day.label}</div>
-                      </div>
-                      <span style={{ color: stop.accent, fontSize: "0.75rem", display: "inline-block", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▼</span>
-                    </button>
-
-                    {isOpen && (
-                      <div style={{ padding: "0 18px 14px 18px", borderTop: "1px solid " + stop.accent + "15" }}>
-                        <SortableContext items={items.map(it => it.id)} strategy={verticalListSortingStrategy}>
-                          {items.map((item, ii) => {
-                            const isItemLocked = !item._isCustom && ((item as ItineraryItem).locked || confirms[item.id]);
-                            return (
-                              <div key={item.id} style={{ borderBottom: ii < items.length - 1 ? "1px dashed #f0ede6" : "none" }}>
-                                <SortableItem
-                                  item={item} accent={stop.accent} confirms={confirms} onConfirm={onConfirm}
-                                  isLocked={isItemLocked}
-                                  onLongPress={() => {
-                                    setEditModeDay(day.id);
-                                    setSelectedItems(new Set([item.id]));
-                                  }}
-                                  displayTime={getDisplayTime(item)}
-                                  onTimeSave={(t) => setTimeOverride(item.id, t)}
-                                  reservationTime={reservationTimes[item.id] || ""}
-                                  onRequestConfirm={() => openResvPrompt(item.id)}
-                                  onEditResvTime={() => openResvPrompt(item.id, reservationTimes[item.id] || "")}
-                                />
-                              </div>
-                            );
-                          })}
-                        </SortableContext>
-
-                        {/* Inline add form */}
-                        {addForm?.dayId === day.id ? (
-                          <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "10px", paddingTop: "10px", borderTop: "1px dashed #e0ddd6" }}>
-                            <input
-                              placeholder="Time (optional)"
-                              value={addForm.time}
-                              onChange={e => setAddForm(f => f ? { ...f, time: e.target.value } : f)}
-                              style={{ width: "90px", fontSize: "0.8rem", padding: "6px 8px", border: "1px solid #ddd", borderRadius: "6px", fontFamily: "Georgia,serif" }}
-                            />
-                            <input
-                              autoFocus
-                              placeholder="Add item…"
-                              value={addForm.text}
-                              onChange={e => setAddForm(f => f ? { ...f, text: e.target.value } : f)}
-                              onKeyDown={e => {
-                                if (e.key === "Enter" && addForm.text.trim()) {
-                                  addCustomItem(day.id, addForm.time, addForm.text.trim(), null);
-                                  setAddForm(null);
-                                }
-                                if (e.key === "Escape") setAddForm(null);
+                    <SortableContext items={items.map(it => it.id)} strategy={verticalListSortingStrategy}>
+                      {items.map((item, ii) => {
+                        const isItemLocked = !item._isCustom && ((item as ItineraryItem).locked || confirms[item.id]);
+                        return (
+                          <div key={item.id} style={{ borderBottom: ii < items.length - 1 ? "1px dashed #f0ede6" : "none" }}>
+                            <SortableItem
+                              item={item} accent={stop.accent} confirms={confirms} onConfirm={onConfirm}
+                              isLocked={isItemLocked}
+                              onLongPress={() => {
+                                setEditModeDay(day.id);
+                                setSelectedItems(new Set([item.id]));
                               }}
-                              style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: "1px solid #ddd", borderRadius: "6px", fontFamily: "Georgia,serif" }}
+                              displayTime={getDisplayTime(item)}
+                              onTimeSave={(t) => setTimeOverride(item.id, t)}
+                              reservationTime={reservationTimes[item.id] || ""}
+                              onRequestConfirm={() => openResvPrompt(item.id)}
+                              onEditResvTime={() => openResvPrompt(item.id, reservationTimes[item.id] || "")}
                             />
-                            <button
-                              onClick={() => {
-                                if (addForm.text.trim()) addCustomItem(day.id, addForm.time, addForm.text.trim(), null);
-                                setAddForm(null);
-                              }}
-                              style={{ background: stop.accent, color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif" }}
-                            >Add</button>
-                            <button
-                              onClick={() => setAddForm(null)}
-                              style={{ background: "transparent", color: "#bbb", border: "1px solid #ddd", borderRadius: "6px", padding: "6px 10px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif" }}
-                            >✕</button>
                           </div>
-                        ) : (
-                          <button
-                            onClick={() => setAddForm({ dayId: day.id, time: "", text: "" })}
-                            style={{
-                              marginTop: "10px", background: "transparent", border: "1px dashed " + stop.accent + "50",
-                              borderRadius: "6px", padding: "6px 14px", cursor: "pointer",
-                              fontSize: "0.75rem", color: stop.accent + "99", fontFamily: "Georgia,serif",
-                              display: "flex", alignItems: "center", gap: "5px",
-                            }}
-                          >+ Add item</button>
-                        )}
+                        );
+                      })}
+                    </SortableContext>
+
+                    {/* Inline add form */}
+                    {addForm?.dayId === day.id ? (
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "10px", paddingTop: "10px", borderTop: "1px dashed #e0ddd6" }}>
+                        <input
+                          placeholder="Time (optional)"
+                          value={addForm.time}
+                          onChange={e => setAddForm(f => f ? { ...f, time: e.target.value } : f)}
+                          style={{ width: "90px", fontSize: "0.8rem", padding: "6px 8px", border: "1px solid #ddd", borderRadius: "6px", fontFamily: "Georgia,serif" }}
+                        />
+                        <input
+                          autoFocus
+                          placeholder="Add item…"
+                          value={addForm.text}
+                          onChange={e => setAddForm(f => f ? { ...f, text: e.target.value } : f)}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" && addForm.text.trim()) {
+                              addCustomItem(day.id, addForm.time, addForm.text.trim(), null);
+                              setAddForm(null);
+                            }
+                            if (e.key === "Escape") setAddForm(null);
+                          }}
+                          style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: "1px solid #ddd", borderRadius: "6px", fontFamily: "Georgia,serif" }}
+                        />
+                        <button
+                          onClick={() => {
+                            if (addForm.text.trim()) addCustomItem(day.id, addForm.time, addForm.text.trim(), null);
+                            setAddForm(null);
+                          }}
+                          style={{ background: stop.accent, color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif" }}
+                        >Add</button>
+                        <button
+                          onClick={() => setAddForm(null)}
+                          style={{ background: "transparent", color: "#bbb", border: "1px solid #ddd", borderRadius: "6px", padding: "6px 10px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif" }}
+                        >✕</button>
                       </div>
+                    ) : (
+                      <button
+                        onClick={() => setAddForm({ dayId: day.id, time: "", text: "" })}
+                        style={{
+                          marginTop: "10px", background: "transparent", border: "1px dashed " + stop.accent + "50",
+                          borderRadius: "6px", padding: "6px 14px", cursor: "pointer",
+                          fontSize: "0.75rem", color: stop.accent + "99", fontFamily: "Georgia,serif",
+                          display: "flex", alignItems: "center", gap: "5px",
+                        }}
+                      >+ Add item</button>
                     )}
-                  </div>
+                  </DayCard>
                 </DroppableDay>
               );
             })}

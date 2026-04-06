@@ -1,9 +1,11 @@
 // @ts-nocheck — types deferred; will be added during CSS/architecture refactor (phase:foundation)
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTripData } from "./hooks/useTripData";
 import { useSharedTripState } from "./hooks/useSharedTripState";
 import { EditableItinerary } from "./components/EditableItinerary";
-import { DayPickerModal } from "./components/DayPickerModal";
+import { AddToItinerarySheet } from "./components/AddToItinerarySheet";
+import { StickyHeader } from "./components/StickyHeader";
+import { StopNavigator } from "./components/StopNavigator";
 import type { Booking, Group, Place, Stop, TripData } from "./types";
 import { Colors, Typography, Spacing } from "./design/tokens";
 
@@ -162,10 +164,10 @@ function AlertBox({type, text, link}: {type:string, text:string, link?:{label:st
   </div>;
 }
 
-function SecHead({color, label}: {color:string, label:string}) {
+function SecHead({label}: {label:string}) {
   return <div style={{display:"flex",alignItems:"center",gap:Spacing.md,marginBottom:Spacing.base}}>
-    <div style={{fontWeight:Typography.weight.bold,color,fontSize:Typography.size.xs,letterSpacing:"0.12em",textTransform:"uppercase"}}>{label}</div>
-    <div style={{flex:1,height:"1px",background:color+"30"}}/>
+    <div style={{fontWeight:Typography.weight.bold,color:Colors.gold,fontSize:Typography.size.xs,letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:"Georgia,serif"}}>{label}</div>
+    <div style={{flex:1,height:"1px",background:Colors.gold+"30"}}/>
   </div>;
 }
 
@@ -455,7 +457,7 @@ function DailyItinerary({stop, data, confirms, onConfirm}: {stop:Stop, data:Trip
 
   return (
     <div style={{marginBottom:"28px"}}>
-      <SecHead color={stop.accent} label="📅 Daily Itinerary — Loose Plan"/>
+      <SecHead label="📅 Daily Jernie — Loose Plan"/>
       <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
         {days.map((day,di)=>{
           const items = itemsByDay[day.id] || [];
@@ -785,6 +787,7 @@ export default function MaineGuide() {
     try { return sessionStorage.getItem(SESSION_KEY) === "1"; } catch { return false; }
   });
 
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState("portland");
   const [weatherData, setWeatherData] = useState<Record<string,any>>({});
   const [flightStatus, setFlightStatus] = useState<Record<string,any>>({});
@@ -864,6 +867,12 @@ export default function MaineGuide() {
     );
   }
 
+  const activeIndex = data.stops.findIndex(s => s.id === active);
+  const handleSwipe = (dir: 1 | -1) => {
+    const next = data.stops[activeIndex + dir];
+    if (next) setActive(next.id);
+  };
+
   const stop = data.stops.find(s => s.id === active)!;
   const stopBookings = data.bookings.filter(b => b.stop_id === active);
   const stopPlaces = data.places.filter(p => p.stop_id === active);
@@ -874,36 +883,22 @@ export default function MaineGuide() {
 
   return (
     <>
-    <div style={{fontFamily:"Georgia,'Times New Roman',serif",background:"#F5F0E8",minHeight:"100vh",color:"#1a1a1a"}}>
+    <div
+      ref={scrollRef}
+      style={{fontFamily:"Georgia,'Times New Roman',serif",background:"#F5F0E8",color:"#1a1a1a",position:"fixed",inset:0,overflowY:"auto",WebkitOverflowScrolling:"touch",overscrollBehavior:"contain"}}
+    >
 
-      {/* Header */}
-      <div style={{background:"linear-gradient(135deg,#0D2B3E 0%,#1B4D6B 60%,#0D2B3E 100%)",padding:"52px 24px 44px",textAlign:"center",position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(circle at 20% 50%,rgba(255,255,255,0.05) 0%,transparent 60%),radial-gradient(circle at 80% 20%,rgba(255,255,255,0.04) 0%,transparent 50%)"}}/>
-        <div style={{position:"relative",zIndex:1}}>
-          <div style={{fontSize:"0.72rem",letterSpacing:"0.3em",color:"#A8C4D4",textTransform:"uppercase",marginBottom:"14px"}}>{data.trip.dates}</div>
-          <h1 style={{margin:0,fontSize:"clamp(1.9rem,5vw,3.1rem)",fontWeight:"normal",color:"#FDFAF4",lineHeight:1.1,letterSpacing:"-0.01em"}}>{data.trip.name} Trip Guide</h1>
-          <p style={{margin:"10px auto 0",maxWidth:"500px",color:"#7A9FB5",fontSize:"0.88rem",fontStyle:"italic"}}>Portland → Bar Harbor & Acadia → Southwest Harbor</p>
-          <div style={{marginTop:"16px",display:"flex",justifyContent:"center",gap:"24px",flexWrap:"wrap"}}>
-            {[["🦞","Seafood-focused"],["🏔️","Acadia hiking"],["🛏️","Boutique stays"]].map(([e,l])=>(
-              <div key={l} style={{color:"#C8DDE8",fontSize:"0.8rem",letterSpacing:"0.04em"}}>{e} {l}</div>
-            ))}
-          </div>
-          <Countdown departure={departure}/>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div style={{display:"flex",borderBottom:"2px solid #D4C9B0",background:"#EDE8DC",overflowX:"auto"}}>
-        {data.stops.map(s=>(
-          <button key={s.id} onClick={()=>setActive(s.id)} style={{flex:"1 1 auto",minWidth:"110px",padding:"14px 16px",border:"none",background:active===s.id?"#F5F0E8":"transparent",borderBottom:active===s.id?"3px solid "+s.accent:"3px solid transparent",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:"0.88rem",color:active===s.id?s.accent:"#666",fontWeight:active===s.id?"bold":"normal",transition:"all 0.18s",textAlign:"center",lineHeight:1.3}}>
-            <div style={{fontSize:"1.25rem"}}>{s.emoji}</div>
-            <div>{s.city}</div>
-            <div style={{fontSize:"0.72rem",opacity:0.65,marginTop:"2px"}}>{s.dates}</div>
-          </button>
-        ))}
-      </div>
+      <StickyHeader
+        stops={data.stops}
+        active={active}
+        onTabChange={setActive}
+        scrollRef={scrollRef}
+        tripDates={data.trip.dates}
+        headerSlot={<Countdown departure={departure}/>}
+      />
 
       {/* Main */}
+      <StopNavigator stops={data.stops} activeIndex={activeIndex} onSwipe={handleSwipe}>
       <div style={{maxWidth:"780px",margin:"0 auto",padding:"32px 20px 64px"}}>
 
         <LegSummary stop={stop}/>
@@ -958,6 +953,7 @@ export default function MaineGuide() {
           addCustomItem={addCustomItem} deleteCustomItem={deleteCustomItem}
           initializeOrder={initializeOrder} setTimeOverride={setTimeOverride}
           setReservationTime={setReservationTime}
+          scrollRef={scrollRef}
         />
 
         {/* Where to Eat */}
@@ -967,7 +963,7 @@ export default function MaineGuide() {
           </CollapsibleSection>
         ) : (
           <div style={{marginBottom:"28px"}}>
-            <SecHead color={stop.accent} label="🍽️ Where to Eat"/>
+            <SecHead label="🍽️ Where to Eat"/>
             <PlaceList places={restaurants} accent={stop.accent} onAddToItinerary={p=>setAddPlaceContext(p)}/>
           </div>
         )}
@@ -980,7 +976,7 @@ export default function MaineGuide() {
             </CollapsibleSection>
           ) : (
             <div style={{marginBottom:"28px"}}>
-              <SecHead color={stop.accent} label="📍 What to Do"/>
+              <SecHead label="📍 What to Do"/>
               <PlaceList places={activities} accent={stop.accent} isActivities onAddToItinerary={p=>setAddPlaceContext(p)}/>
             </div>
           )
@@ -993,14 +989,14 @@ export default function MaineGuide() {
       <div style={{background:"#0D2B3E",color:"#A8C4D4",textAlign:"center",padding:"22px",fontSize:"0.8rem",letterSpacing:"0.05em"}}>
         Maine Coast · May 2026 · 🌊
       </div>
+      </StopNavigator>
     </div>
 
-    {/* Global DayPickerModal — addPlace mode */}
-    <DayPickerModal
+    {/* Add to jernie — stop-scoped day picker */}
+    <AddToItinerarySheet
       isOpen={!!addPlaceContext}
       onClose={()=>setAddPlaceContext(null)}
-      mode="addPlace"
-      place={addPlaceContext||undefined}
+      place={addPlaceContext}
       allDays={data.itinerary_days}
       stops={data.stops}
       onAddPlace={(place, toDayId)=>{

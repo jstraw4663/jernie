@@ -2,16 +2,16 @@
 // and animated entrance from the bottom. Feels native. CSS transitions only —
 // no PWA-specific libraries that won't port to React Native.
 //
-// Swipe zone covers the full header bar (pill + title row). The overlay is
-// visual-only (pointer-events: none) so swipes/scrolls above the sheet reach
-// the background app. Dismiss via swipe-down or the headerRight button.
+// Swipe zone covers the full header bar (pill + title row). The overlay blocks
+// all background interaction (pointer events + iOS native scroll gestures) while
+// the sheet is open. Dismiss via swipe-down on the header or tap the overlay.
 //
 // PLATFORM NOTE:
 //   - CSS transform/transition → React Native Animated / Reanimated on Expo
 //   - Pointer events on swipe zone → PanResponder / Gesture Handler on RN
 //   - backdrop-filter → not available on RN (use plain rgba background)
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Colors, Spacing, Radius, Animation, Shadow } from '../design/tokens';
 
 export interface BottomSheetProps {
@@ -64,6 +64,31 @@ export function BottomSheet({
     }
   }, [isOpen]);
 
+  // Non-passive touchmove on the sheet panel — the only reliable way to block
+  // iOS from propagating scroll gestures to the background when sheet content
+  // is short (non-scrollable). Passes through when a scrollable child still
+  // has content to reveal so inner-list scrolling keeps working.
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const preventScroll = useCallback((e: TouchEvent) => {
+    let el = e.target as HTMLElement | null;
+    while (el && el !== sheetRef.current) {
+      const { overflowY } = window.getComputedStyle(el);
+      if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight) return;
+      el = el.parentElement;
+    }
+    e.preventDefault();
+  }, []);
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return;
+    if (isVisible) {
+      el.addEventListener('touchmove', preventScroll, { passive: false });
+    } else {
+      el.removeEventListener('touchmove', preventScroll);
+    }
+    return () => el.removeEventListener('touchmove', preventScroll);
+  }, [isVisible, preventScroll]);
+
   // Swipe tracking — activates on the full header bar (pill + title row)
   const dragStartY = useRef<number | null>(null);
   const [swipeDelta, setSwipeDelta] = useState(0);
@@ -108,8 +133,9 @@ export function BottomSheet({
 
   return (
     <>
-      {/* Overlay — visual only, pointer-events: none so swipes reach background */}
+      {/* Overlay — tap dismisses; pointerEvents + touchAction block CSS-layer gestures */}
       <div
+        onClick={onRequestClose}
         style={{
           position: 'fixed',
           inset: 0,
@@ -117,12 +143,14 @@ export function BottomSheet({
           opacity: isVisible ? 1 : 0,
           transition: `opacity ${Animation.duration.sheet} ${Animation.easing.default}`,
           zIndex: 200,
-          pointerEvents: 'none',
+          pointerEvents: isVisible ? 'auto' : 'none',
+          touchAction: isVisible ? 'none' : 'auto',
         }}
       />
 
       {/* Sheet */}
       <div
+        ref={sheetRef}
         role="dialog"
         aria-modal="true"
         style={{
@@ -232,6 +260,10 @@ export function BottomSheet({
             {footer}
           </div>
         )}
+
+        {/* Safe-area spacer — floors at 4px on non-notch devices, defers to
+            env(safe-area-inset-bottom) on iPhone with home indicator */}
+        <div style={{ height: 'max(env(safe-area-inset-bottom), 4px)', flexShrink: 0 }} />
       </div>
     </>
   );

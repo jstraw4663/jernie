@@ -25,7 +25,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  const confirmBg = variant === 'danger' ? Colors.danger : Colors.navy;
+  const confirmBg = variant === 'danger' ? Colors.red : Colors.navy;
 
   return (
     <div
@@ -39,7 +39,10 @@ export function ConfirmDialog({
         borderTopRightRadius: Radius.lg,
         boxShadow: Shadow.lg,
         padding: `${Spacing.lg}px ${Spacing.base}px`,
-        transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
+        // Extra 24px ensures the hidden state clears the safe-area spacer
+        // at the bottom of BottomSheet — without it, the dialog top edge
+        // sits exactly at the spacer boundary and peeks through.
+        transform: isVisible ? 'translateY(0)' : 'translateY(calc(100% + 24px))',
         transition: `transform ${Animation.duration.normal} ${Animation.easing.enter}`,
         zIndex: 10,
         display: 'flex',
