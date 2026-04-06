@@ -304,3 +304,14 @@ outage, and permanent loss of uncommitted files. Do not skip these.
 2. `npm run build` — must pass cleanly
 3. `git diff origin/main...HEAD -- src/` — review every changed file; verify nothing is missing or accidentally reverted
 4. Confirm `public/trip.json` is present and tracked: `git ls-files public/trip.json`
+5. **Update CLAUDE.md** — reflect every shipped feature, changed file, new pattern, or resolved issue before the PR merges. CLAUDE.md must always match what is in `main`.
+
+---
+
+## Starting a New Session — Non-Negotiable
+
+Before writing a single line of code:
+1. `git pull origin dev` — get latest
+2. Read `CLAUDE.md` in full — this is the bible. It contains architecture decisions,
+   active risks, design system rules, and git process. Do not skip this step.
+3. Check `git branch` — never work on `main` or `dev` directly
