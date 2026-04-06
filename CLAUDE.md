@@ -2,7 +2,7 @@
 
 > This file is the single source of truth for AI context across Claude Code and Claude Web.
 > Repo: https://github.com/jstraw4663/jernie
-> Last updated: March 2026
+> Last updated: April 2026
 
 ---
 
@@ -36,26 +36,34 @@ we pivot to the full product. Every decision made during the POC should serve th
 
 ### Current tech stack
 - Vite 5 + React 18 + TypeScript
-- Single component: `src/Jernie-PWA.tsx` (exported as `MaineGuide`, wired via `src/App.tsx`)
-- Trip data: `trip.json` at project root
+- Main component: `src/Jernie-PWA.tsx` (exported as `MaineGuide`, wired via `src/App.tsx`)
+- Itinerary: `src/components/EditableItinerary.tsx` (drag-and-drop, custom items, time overrides)
+- Trip data: `public/trip.json` (static content — committed to git, must stay tracked)
+- Firebase Realtime Database for shared real-time state (confirms, packing, itinerary order, custom items, time overrides, reservation times)
 - PWA with manifest, `sw.js`, lobster icon, navy theme (`#0D2B3E`)
-- Deployed via Netlify Drop
+- Deployed via Netlify (connected to GitHub main branch)
 - PIN gate: `0824` ("Happy Birthday Ford")
 
 ### APIs in use
-- Live weather: Open-Meteo
-- Live flight status: Anthropic API + `web_search` tool
-- `localStorage` for confirm toggles and packing checklist
+- Live weather: Open-Meteo (3-hour client-side cache)
+- Live flight status: Anthropic API + `web_search` tool (48hr proximity guard)
+- Firebase Realtime Database: shared user state across all devices/users in real time
+- `localStorage`: offline cache only — mirrors Firebase state for zero-connectivity fallback
 
 ### Features shipped (QA)
 - Tabs: Portland / Bar Harbor / Southwest Harbor
 - Live weather + flight status with refresh
 - Collapsible Travel section (hotel website links, Maps, confirmation #s)
 - Leg summaries and daily itinerary (collapsible)
-- Confirmed / bookNow / alert badges + Confirm toggle (localStorage)
+- Confirmed / bookNow / alert badges + Confirm toggle (Firebase — real-time sync)
+- Drag-and-drop itinerary reordering (within-day and cross-day, @dnd-kit)
+- Custom itinerary items (add, edit, delete, move — stored in Firebase)
+- Soft time labels on drag ("Morning", "Afternoon", "Evening", etc. — magic midpoint inference)
+- Reservation time prompt on Confirm — saves 🕐 sub-label under confirmed badge, editable
+- Add-to-itinerary from PlaceCard — DayPickerModal for day selection
 - Restaurants (must/also, Stacy pill, price, emoji)
 - Activities (AllTrails badges on hikes, grouped Bar Harbor)
-- What to Pack (6 categories, ~41 items, localStorage)
+- What to Pack (6 categories, ~41 items, Firebase — real-time sync)
 - Tide chart links
 - Countdown
 
@@ -191,17 +199,57 @@ main        ← production (Netlify deploys from here)
 
 ---
 
+## Design System
+
+A token-driven design foundation was added in April 2026. All new and migrated components
+must reference tokens exclusively — no hardcoded colors, spacing, or font sizes.
+
+### Token file
+`src/design/tokens.ts` — single source of truth:
+- `Colors` — navy `#0D2B3E`, surface, text hierarchy, status (danger/success/warning), selection, overlay
+- `Spacing` — 4px base unit scale (xxs → xxxl)
+- `Radius` — sm/md/lg/xl/full
+- `Typography` — Georgia serif, size scale, weight, line-height
+- `Shadow` — elevation levels sm → xl
+- `Animation` — duration, easing curves, and **`mountFrames: 4`**
+
+### mountFrames pattern
+Any component that mounts then animates in (sheets, toasts, drawers) must chain
+`Animation.mountFrames` `requestAnimationFrame` calls before setting its visible state.
+This gives the browser time to paint the start position before the CSS transition fires.
+See `BottomSheet.tsx` for the reference implementation.
+
+### Component library
+| Component | Purpose |
+|-----------|---------|
+| `src/components/BottomSheet.tsx` | Swipe-down-to-dismiss sheet, overlay, drag handle pill |
+| `src/components/SelectableListItem.tsx` | List row with selection bubble + 6-dot drag handle |
+| `src/components/ActionBar.tsx` | Delete + Move action buttons for edit mode |
+| `src/components/ConfirmDialog.tsx` | Inline confirmation that slides up within a sheet |
+
+All components are React-only with no DOM-specific APIs. Platform logic lives in `src/platform/`.
+Expo migration: CSS transitions → Reanimated, pointer events → Gesture Handler, @dnd-kit → react-native-reanimated.
+
+---
+
 ## Key Files
 
 | File | Purpose |
 |------|---------|
 | `src/Jernie-PWA.tsx` | Main PWA component (exported as `MaineGuide`) |
 | `src/App.tsx` | App entry point — renders `MaineGuide` |
-| `trip.json` | Trip data (to be separated from UI — tracked in issues) |
+| `src/design/tokens.ts` | Design token source of truth — colors, spacing, animation |
+| `src/components/EditableItinerary.tsx` | Itinerary with edit mode (long-press → BottomSheet), drag-reorder, delete, move |
+| `src/components/DayPickerModal.tsx` | Day picker modal (move item + add place to itinerary) |
+| `src/components/BottomSheet.tsx` | Native-feeling bottom sheet with swipe-dismiss |
+| `src/components/SelectableListItem.tsx` | Selectable list row with drag handle |
+| `src/components/ActionBar.tsx` | Edit mode action bar (delete, move) |
+| `src/components/ConfirmDialog.tsx` | Inline confirm/cancel dialog for sheet actions |
+| `src/hooks/useSharedTripState.ts` | Firebase Realtime DB hook — all shared mutable state |
+| `src/types.ts` | All TypeScript interfaces (Trip, Stop, Booking, ItineraryItem, CustomItem, etc.) |
+| `public/trip.json` | Trip content data — must stay tracked in git (Netlify build needs it) |
 | `CLAUDE.md` | This file — AI context for Claude Code + Claude Web |
-| `jernie-issues.csv` | GitHub issues batch upload source |
 | `GITHUB-SETUP.md` | GitHub + Claude Code setup guide |
-| `create-issues.sh` | Script to create labels, milestones, and issues in GitHub |
 
 ---
 
@@ -216,3 +264,39 @@ npm run preview  # preview production build locally
 - Always ask before committing or pushing
 - Commit to `dev` branch, never directly to `main`
 - Use `gh` CLI for GitHub operations (already authenticated as jstraw4663)
+
+### After planning mode or implementation — always test locally first
+**Never auto-deploy.** After any plan is approved and implemented, stop at local testing.
+Run `npm run dev` and verify the feature works at `localhost:5173` before touching any
+deployment command. Deployment only happens when Jeremy explicitly says to deploy.
+
+---
+
+## Claude Code Git Rules — Non-Negotiable
+
+These rules exist because one session of ignoring them caused 4 emergency hotfix PRs, a production
+outage, and permanent loss of uncommitted files. Do not skip these.
+
+### Before writing any code
+1. Check current branch: `git branch`
+2. If on `main` or `dev`, cut a feature branch FIRST:
+   `git checkout dev && git pull origin dev && git checkout -b feature/xxx`
+3. Never code directly on `main` or `dev`
+
+### New files
+- Commit new files to the feature branch within the same session they're created
+- Never leave new files untracked across a branch switch — `git clean` will destroy them permanently
+
+### Branch switching
+- Never use `git stash` to switch branches during active work
+- If you need to switch: commit first (WIP commit is fine), then switch
+- Before ANY `git clean` or `git checkout .` run the dry-run first:
+  - `git clean -nd` before `git clean -fd`
+  - `git status` before `git checkout .`
+- Never run `git clean` on directories containing new work
+
+### Pre-deploy checklist (before every PR to main)
+1. `git status` — confirm no untracked files that should be committed
+2. `npm run build` — must pass cleanly
+3. `git diff origin/main...HEAD -- src/` — review every changed file; verify nothing is missing or accidentally reverted
+4. Confirm `public/trip.json` is present and tracked: `git ls-files public/trip.json`

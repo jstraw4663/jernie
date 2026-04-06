@@ -16,30 +16,21 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { Stop, TripData, ItineraryItem, CustomItem } from "../types";
 import { DayPickerModal } from "./DayPickerModal";
+import { BottomSheet } from "./BottomSheet";
+import { SelectableListItem } from "./SelectableListItem";
+import { ActionBar } from "./ActionBar";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { Colors, Spacing, Typography } from "../design/tokens";
+import { useLongPress } from "../hooks/useLongPress";
 
 const appleMaps = (addr: string) => "https://maps.apple.com/?q=" + encodeURIComponent(addr);
 
 type ResolvedItem = (ItineraryItem & { _isCustom: false }) | (CustomItem & { _isCustom: true });
 
-interface MenuState {
-  itemId: string;
-  dayId: string;
-  isCustom: boolean;
-  x: number;
-  y: number;
-  confirmDelete: boolean;
-}
-
 interface AddFormState {
   dayId: string;
   time: string;
   text: string;
-}
-
-interface DayPickerContext {
-  mode: "move";
-  itemId: string;
-  fromDayId: string;
 }
 
 interface EditableItineraryProps {
@@ -255,23 +246,27 @@ function ItemContent({ item, accent, confirms, onConfirm, isCustom, displayTime,
 }
 
 // ── SortableItem ──────────────────────────────────────────────
+// Inline read-only view. Long press triggers Edit Mode BottomSheet.
+// Drag reorder now lives inside the sheet (Bundle 3).
 
-function SortableItem({ item, accent, confirms, onConfirm, isLocked, onMenuOpen, displayTime, onTimeSave, reservationTime, onRequestConfirm, onEditResvTime }: {
+function SortableItem({ item, accent, confirms, onConfirm, isLocked, onLongPress, displayTime, onTimeSave, reservationTime, onRequestConfirm, onEditResvTime }: {
   item: ResolvedItem; accent: string; confirms: Record<string, boolean>;
   onConfirm: (id: string, value: boolean) => void;
   isLocked: boolean;
-  onMenuOpen: (itemId: string, isCustom: boolean, e: React.MouseEvent) => void;
+  onLongPress?: () => void;
   displayTime: string;
   onTimeSave: (time: string) => void;
   reservationTime: string;
   onRequestConfirm: () => void;
   onEditResvTime: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
-    disabled: isLocked,
+    disabled: true, // Inline drag disabled — editing happens in the BottomSheet
     data: { item },
   });
+
+  const { handlePointerDown, cancel } = useLongPress(onLongPress, isLocked);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -280,36 +275,60 @@ function SortableItem({ item, accent, confirms, onConfirm, isLocked, onMenuOpen,
   };
 
   return (
-    <div ref={setNodeRef} style={{ ...style, display: "flex", gap: "8px", padding: "10px 0", alignItems: "flex-start", position: "relative" }}>
-      {/* Drag handle */}
-      <div
-        {...(isLocked ? {} : { ...attributes, ...listeners })}
-        style={{
-          cursor: isLocked ? "default" : "grab",
-          color: isLocked ? "transparent" : "#ccc",
-          fontSize: "0.9rem", paddingTop: "3px", flexShrink: 0,
-          touchAction: "none", userSelect: "none", width: "18px", textAlign: "center",
-        }}
-      >
-        {isLocked ? "" : "☰"}
-      </div>
-
+    <div
+      ref={setNodeRef}
+      onPointerDown={handlePointerDown}
+      onPointerUp={cancel}
+      onPointerMove={cancel}
+      onPointerLeave={cancel}
+      style={{ ...style, display: "flex", gap: "8px", padding: "10px 0", alignItems: "flex-start", position: "relative", userSelect: "none", WebkitUserSelect: "none" }}
+    >
       <ItemContent
         item={item} accent={accent} confirms={confirms} onConfirm={onConfirm}
         isCustom={item._isCustom} displayTime={displayTime} isLocked={isLocked} onTimeSave={onTimeSave}
         reservationTime={reservationTime} onRequestConfirm={onRequestConfirm} onEditResvTime={onEditResvTime}
       />
+    </div>
+  );
+}
 
-      {/* ··· menu button */}
-      {!isLocked && (
-        <button
-          onClick={(e) => onMenuOpen(item.id, item._isCustom, e)}
-          style={{ background: "transparent", border: "none", cursor: "pointer", color: "#bbb", fontSize: "1rem", padding: "2px 4px", flexShrink: 0, lineHeight: 1, fontFamily: "Georgia,serif" }}
-          title="Actions"
-        >
-          ···
-        </button>
-      )}
+// ── SheetSortableItem — SelectableListItem + @dnd-kit sortable for the sheet ─
+// Wraps SelectableListItem so the drag handle gets @dnd-kit listeners while
+// keeping SelectableListItem's API platform-agnostic.
+
+function SheetSortableItem({ item, isSelected, isLocked, onToggleSelect, displayTime }: {
+  item: ResolvedItem;
+  isSelected: boolean;
+  isLocked: boolean;
+  onToggleSelect: () => void;
+  displayTime: string;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.id,
+    disabled: isLocked,
+    data: { item },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
+    >
+      <SelectableListItem
+        id={item.id}
+        time={displayTime}
+        label={item.text}
+        isSelected={isSelected}
+        isLocked={isLocked}
+        showDragHandle={!isLocked}
+        onToggleSelect={onToggleSelect}
+        dragListeners={listeners}
+        dragAttributes={attributes}
+      />
     </div>
   );
 }
@@ -324,10 +343,15 @@ export function EditableItinerary({
   const [openDay, setOpenDay] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
-  const [menuState, setMenuState] = useState<MenuState | null>(null);
   const [addForm, setAddForm] = useState<AddFormState | null>(null);
-  const [dayPickerCtx, setDayPickerCtx] = useState<DayPickerContext | null>(null);
+  const [showMovePicker, setShowMovePicker] = useState(false);
   const [resvPrompt, setResvPrompt] = useState<{ itemId: string; draft: string } | null>(null);
+
+  // Edit Mode state — ephemeral UI state, not persisted to Firebase
+  const [editModeDay, setEditModeDay] = useState<string | null>(null);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [pendingOrder, setPendingOrder] = useState<string[] | null>(null);
+  const [confirmMode, setConfirmMode] = useState<'delete' | 'exit' | null>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInitializingRef = useRef(false);
 
@@ -477,32 +501,92 @@ export function EditableItinerary({
     setResvPrompt(null);
   }
 
-  function openMenu(itemId: string, isCustom: boolean, e: React.MouseEvent) {
-    e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setMenuState({ itemId, dayId: findItemDay(itemId) || "", isCustom, x: rect.left, y: rect.bottom + 4, confirmDelete: false });
+  // Derived edit mode items — reflects pendingOrder if a reorder is in progress
+  const baseEditItems = useMemo(
+    () => editModeDay ? resolveOrderedItems(editModeDay) : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [editModeDay, itineraryOrder, customItems, data.itinerary_items]
+  );
+  const editDay = useMemo(
+    () => editModeDay ? days.find(d => d.id === editModeDay) ?? null : null,
+    [editModeDay, days]
+  );
+  const editItems = useMemo<ResolvedItem[]>(
+    () => pendingOrder
+      ? pendingOrder.map(id => baseEditItems.find(i => i.id === id)).filter((i): i is ResolvedItem => !!i)
+      : baseEditItems,
+    [pendingOrder, baseEditItems]
+  );
+
+  function closeEditMode() {
+    setEditModeDay(null);
+    setSelectedItems(new Set());
+    setPendingOrder(null);
+    setConfirmMode(null);
+    setShowMovePicker(false);
   }
 
-  function closeMenu() { setMenuState(null); }
-
-  function handleMove() {
-    if (!menuState) return;
-    setDayPickerCtx({ mode: "move", itemId: menuState.itemId, fromDayId: menuState.dayId });
-    closeMenu();
+  // Called by checkmark button and swipe-down — checks for unsaved reorder
+  function handleRequestClose() {
+    if (pendingOrder !== null) {
+      setConfirmMode('exit');
+    } else {
+      closeEditMode();
+    }
   }
 
-  function handleDeleteRequest() {
-    setMenuState(prev => prev ? { ...prev, confirmDelete: true } : null);
+  function toggleItem(itemId: string) {
+    setSelectedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
   }
 
-  function handleDeleteConfirm() {
-    if (!menuState) return;
-    deleteCustomItem(menuState.itemId, menuState.dayId);
-    closeMenu();
+  function handleSheetDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !editModeDay) return;
+    const currentIds = editItems.map(i => i.id);
+    const oldIndex = currentIds.indexOf(active.id as string);
+    const newIndex = currentIds.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+    setPendingOrder(arrayMove([...currentIds], oldIndex, newIndex));
   }
 
-  function handleMoveItem(itemId: string, fromDayId: string, toDayId: string) {
-    moveItem(itemId, fromDayId, toDayId, Infinity);
+  function handleDeleteConfirmed() {
+    // Only custom items can be deleted; locked/static items are silently skipped
+    editItems.forEach(item => {
+      if (selectedItems.has(item.id) && item._isCustom && editModeDay) {
+        deleteCustomItem(item.id, editModeDay);
+      }
+    });
+    setConfirmMode(null);
+    setSelectedItems(new Set());
+  }
+
+  function handleExitSave() {
+    if (editModeDay && pendingOrder) setDayOrder(editModeDay, pendingOrder);
+    closeEditMode();
+  }
+
+  // Stop-scoping: all sheet items are from one day = one stop (size always ≤ 1).
+  // Multi-stop guard is here for future-proofing when cross-stop edits are added.
+  const selectedStopIds = useMemo(
+    () => editDay ? new Set([editDay.stop_id]) : new Set<string>(),
+    [editDay]
+  );
+  const moveDisabledReason = useMemo(
+    () => selectedStopIds.size > 1 ? "Selected items span multiple stops" : undefined,
+    [selectedStopIds]
+  );
+
+  function handleMoveItems(toDayId: string) {
+    if (!editModeDay) return;
+    selectedItems.forEach(itemId => {
+      moveItem(itemId, editModeDay, toDayId, Infinity);
+    });
+    closeEditMode();
   }
 
   const activeItem = useMemo(() => {
@@ -569,7 +653,11 @@ export function EditableItinerary({
                               <div key={item.id} style={{ borderBottom: ii < items.length - 1 ? "1px dashed #f0ede6" : "none" }}>
                                 <SortableItem
                                   item={item} accent={stop.accent} confirms={confirms} onConfirm={onConfirm}
-                                  isLocked={isItemLocked} onMenuOpen={openMenu}
+                                  isLocked={isItemLocked}
+                                  onLongPress={() => {
+                                    setEditModeDay(day.id);
+                                    setSelectedItems(new Set([item.id]));
+                                  }}
                                   displayTime={getDisplayTime(item)}
                                   onTimeSave={(t) => setTimeOverride(item.id, t)}
                                   reservationTime={reservationTimes[item.id] || ""}
@@ -658,53 +746,92 @@ export function EditableItinerary({
         </DndContext>
       </div>
 
-      {/* Action menu */}
-      {menuState && (
-        <>
-          <div onClick={closeMenu} style={{ position: "fixed", inset: 0, zIndex: 8000 }} />
-          <div style={{
-            position: "fixed",
-            left: Math.min(menuState.x, window.innerWidth - 160),
-            top: menuState.y,
-            zIndex: 8001, background: "#fff", borderRadius: "10px",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.18)", overflow: "hidden", minWidth: "150px",
-          }}>
-            {menuState.confirmDelete ? (
-              <div style={{ padding: "14px 16px" }}>
-                <div style={{ fontSize: "0.82rem", color: "#333", marginBottom: "10px" }}>Delete this item?</div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button onClick={handleDeleteConfirm} style={{ background: "#b91c1c", color: "#fff", border: "none", borderRadius: "6px", padding: "5px 12px", cursor: "pointer", fontSize: "0.78rem", fontFamily: "Georgia,serif" }}>Yes</button>
-                  <button onClick={closeMenu} style={{ background: "transparent", border: "1px solid #ddd", borderRadius: "6px", padding: "5px 12px", cursor: "pointer", fontSize: "0.78rem", fontFamily: "Georgia,serif" }}>No</button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <button
-                  onClick={handleMove}
-                  style={{ width: "100%", textAlign: "left", padding: "12px 16px", border: "none", background: "transparent", cursor: "pointer", fontSize: "0.84rem", fontFamily: "Georgia,serif", borderBottom: menuState.isCustom ? "1px solid #f0f0f0" : "none" }}
-                >↗ Move to day</button>
-                {menuState.isCustom && (
-                  <button
-                    onClick={handleDeleteRequest}
-                    style={{ width: "100%", textAlign: "left", padding: "12px 16px", border: "none", background: "transparent", cursor: "pointer", fontSize: "0.84rem", color: "#b91c1c", fontFamily: "Georgia,serif" }}
-                  >🗑 Delete</button>
-                )}
-              </>
-            )}
+      {/* Edit Mode BottomSheet */}
+      <BottomSheet
+        isOpen={!!editModeDay}
+        onRequestClose={handleRequestClose}
+        title={editDay ? `${editDay.date} · ${editDay.label}` : ""}
+        headerRight={
+          <button
+            onClick={handleRequestClose}
+            aria-label="Done"
+            style={{
+              width: 36, height: 36,
+              border: "none", borderRadius: "50%",
+              background: Colors.navy,
+              color: Colors.textInverse,
+              fontSize: 18, lineHeight: 1,
+              cursor: "pointer", display: "flex",
+              alignItems: "center", justifyContent: "center",
+              fontFamily: Typography.family,
+            }}
+          >
+            ✓
+          </button>
+        }
+        footer={
+          <div style={{ position: "relative" }}>
+            <ConfirmDialog
+              isVisible={confirmMode === 'delete'}
+              message={`Delete ${selectedItems.size} selected item${selectedItems.size !== 1 ? "s" : ""}?`}
+              confirmLabel="Delete"
+              cancelLabel="Keep"
+              variant="danger"
+              onConfirm={handleDeleteConfirmed}
+              onCancel={() => setConfirmMode(null)}
+            />
+            <ConfirmDialog
+              isVisible={confirmMode === 'exit'}
+              message="Save reorder changes?"
+              confirmLabel="Save"
+              cancelLabel="Discard"
+              onConfirm={handleExitSave}
+              onCancel={closeEditMode}
+            />
+            <ActionBar
+              selectedCount={selectedItems.size}
+              onDelete={() => setConfirmMode('delete')}
+              onMove={() => setShowMovePicker(true)}
+              moveDisabledReason={moveDisabledReason}
+            />
           </div>
-        </>
-      )}
+        }
+      >
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleSheetDragEnd}
+        >
+          <SortableContext items={editItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+            <div style={{ padding: `${Spacing.xs}px 0` }}>
+              {editItems.map(item => {
+                const isItemLocked = !item._isCustom && ((item as ItineraryItem).locked || confirms[item.id]);
+                return (
+                  <SheetSortableItem
+                    key={item.id}
+                    item={item}
+                    isSelected={selectedItems.has(item.id)}
+                    isLocked={isItemLocked}
+                    onToggleSelect={() => toggleItem(item.id)}
+                    displayTime={getDisplayTime(item)}
+                  />
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
+      </BottomSheet>
 
-      {/* Day picker modal for Move */}
+      {/* Day picker — Move selected items to another day within the same stop */}
       <DayPickerModal
-        isOpen={!!dayPickerCtx}
-        onClose={() => setDayPickerCtx(null)}
+        isOpen={showMovePicker}
+        onClose={() => setShowMovePicker(false)}
         mode="move"
-        itemId={dayPickerCtx?.itemId}
-        fromDayId={dayPickerCtx?.fromDayId}
+        fromDayId={editModeDay ?? undefined}
         allDays={data.itinerary_days}
         stops={data.stops}
-        onMoveItem={handleMoveItem}
+        filterStopId={editDay?.stop_id}
+        onMoveItems={handleMoveItems}
       />
 
       {/* Reservation time prompt */}
