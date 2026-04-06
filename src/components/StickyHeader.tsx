@@ -20,7 +20,7 @@ import {
   LayoutGroup,
 } from 'framer-motion';
 import type { Stop } from '../types';
-import { Spacing, Typography, Animation } from '../design/tokens';
+import { Colors, Spacing, Typography, Animation } from '../design/tokens';
 
 export interface StickyHeaderProps {
   stops: Stop[];
@@ -29,6 +29,9 @@ export interface StickyHeaderProps {
   /** Ref on the scrolling container — used by useScroll for offset tracking */
   scrollRef: React.RefObject<HTMLDivElement | null>;
   tripDates: string;
+  tripTitle: string;
+  tagline: string;
+  pills: [string, string][];
   /** Rendered inside the expanded header section */
   headerSlot?: React.ReactNode;
 }
@@ -39,6 +42,9 @@ export function StickyHeader({
   onTabChange,
   scrollRef,
   tripDates,
+  tripTitle,
+  tagline,
+  pills,
   headerSlot,
 }: StickyHeaderProps) {
   const { scrollY } = useScroll({
@@ -63,6 +69,8 @@ export function StickyHeader({
   // Header vertical padding shrinks — tighter values so compressed state is smaller
   const headerPaddingTop = useTransform(smoothY, [0, 100], [48, 8]);
   const headerPaddingBottom = useTransform(smoothY, [0, 100], [36, 6]);
+  // Tab button padding compresses with header — 8px reduction top/bottom over first 60px
+  const tabPaddingY = useTransform(smoothY, [0, 60], [Spacing.md, Spacing.xs]);
   return (
     <div
       data-sticky-nav
@@ -127,7 +135,7 @@ export function StickyHeader({
               fontFamily: Typography.family,
             }}
           >
-            Maine Coast Jernie
+            {tripTitle}
           </motion.h1>
 
           {/* Tagline + pills + slot — fade + collapse on scroll */}
@@ -147,7 +155,7 @@ export function StickyHeader({
                 fontStyle: 'italic',
               }}
             >
-              Portland → Bar Harbor & Acadia → Southwest Harbor
+              {tagline}
             </p>
             <div
               style={{
@@ -158,8 +166,7 @@ export function StickyHeader({
                 flexWrap: 'wrap',
               }}
             >
-              {[['🦞', 'Seafood-focused'], ['🏔️', 'Acadia hiking'], ['🛏️', 'Boutique stays']].map(
-                ([e, l]) => (
+              {pills.map(([e, l]) => (
                   <div
                     key={l}
                     style={{ color: '#C8DDE8', fontSize: `${Typography.size.xs}px`, letterSpacing: '0.04em' }}
@@ -203,15 +210,18 @@ export function StickyHeader({
                     flex: '1 1 auto',
                     minWidth: '110px',
                     border: 'none',
-                    background: isActive ? '#F5F0E8' : 'transparent',
+                    background: isActive ? Colors.background : 'transparent',
                     cursor: 'pointer',
                     fontFamily: Typography.family,
-                    color: isActive ? s.accent : '#666',
+                    color: isActive ? s.accent : Colors.textSecondary,
                     fontWeight: isActive ? Typography.weight.bold : Typography.weight.regular,
                     textAlign: 'center',
                     lineHeight: Typography.lineHeight.tight,
                     position: 'relative',
-                    padding: `${Spacing.md}px ${Spacing.base}px`,
+                    paddingTop: tabPaddingY,
+                    paddingBottom: tabPaddingY,
+                    paddingLeft: `${Spacing.base}px`,
+                    paddingRight: `${Spacing.base}px`,
                     fontSize: `${Typography.size.sm - 1}px`,
                     transition: `background ${Animation.duration.fast} ${Animation.easing.default}, color ${Animation.duration.fast} ${Animation.easing.default}`,
                   }}

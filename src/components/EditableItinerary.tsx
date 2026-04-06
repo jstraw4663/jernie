@@ -23,6 +23,8 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { DayCard } from "./DayCard";
 import { ItineraryItem as ItineraryItemRow } from "./ItineraryItem";
 import { Animation, Colors, Spacing, Typography } from "../design/tokens";
+import { Badge } from "./Badge";
+import { ActionButton } from "./ActionButton";
 
 const appleMaps = (addr: string) => "https://maps.apple.com/?q=" + encodeURIComponent(addr);
 
@@ -183,23 +185,20 @@ function ItemContent({ item, accent, confirms, onConfirm, isCustom, displayTime,
       <div style={{ minWidth: "96px", flexShrink: 0, display: "flex", flexDirection: "column", gap: "5px", paddingTop: "2px" }}>
         <TimeLabel displayTime={displayTime} isLocked={isLocked} onSave={onTimeSave} />
         {isCustom ? (
-          <span style={{ fontSize: "0.52rem", background: "#F0F4FF", color: "#3557A0", padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.06em", textTransform: "uppercase", border: "1px solid #3557A020", display: "inline-block", width: "fit-content" }}>
-            ✏ Custom
-          </span>
+          <Badge variant="custom" label="✏ Custom" />
         ) : isLocked ? (
           <>
-            <button
-              onClick={() => !itItem.locked && onConfirm(item.id, !confirms[item.id])}
-              title={itItem.locked ? "Locked in" : "Click to unmark"}
-              style={{ background: accent, color: "#fff", fontSize: "0.52rem", padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.06em", textTransform: "uppercase", display: "inline-block", width: "fit-content", border: "none", cursor: itItem.locked ? "default" : "pointer", fontFamily: "Georgia,serif" }}
-            >
-              ✓ Confirmed
-            </button>
+            <Badge
+              variant="confirmed"
+              accentColor={accent}
+              label="✓ Confirmed"
+              onClick={itItem.locked ? undefined : () => onConfirm(item.id, !confirms[item.id])}
+            />
             {userConfirmed && (
               <div
                 onClick={onEditResvTime}
                 title={reservationTime ? "Edit reservation time" : "Add reservation time"}
-                style={{ fontSize: "0.62rem", color: reservationTime ? "#777" : "#ccc", fontStyle: "italic", cursor: "pointer", lineHeight: 1.3, marginTop: "1px" }}
+                style={{ fontSize: `${Typography.size.xs + 1}px`, color: reservationTime ? Colors.textMuted : Colors.border, fontStyle: "italic", cursor: "pointer", lineHeight: 1.3, marginTop: "1px" }}
               >
                 {reservationTime ? `🕐 ${reservationTime}` : "+ reservation time"}
               </div>
@@ -208,23 +207,23 @@ function ItemContent({ item, accent, confirms, onConfirm, isCustom, displayTime,
         ) : (
           <>
             {itItem.book_now && (
-              itItem.booking_url
-                ? <a href={itItem.booking_url} target="_blank" rel="noopener noreferrer" style={{ background: "#FFF3CD", color: "#7a5800", fontSize: "0.52rem", padding: "2px 8px", borderRadius: "4px", letterSpacing: "0.06em", textTransform: "uppercase", border: "1px solid #F0C040aa", display: "inline-block", width: "fit-content", textDecoration: "none" }}>📅 Book Now</a>
-                : <span style={{ background: "#FFF3CD", color: "#7a5800", fontSize: "0.52rem", padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.06em", textTransform: "uppercase", border: "1px solid #F0C040aa", display: "inline-block", width: "fit-content" }}>📅 Book Now</span>
+              <Badge variant="bookNow" label="📅 Book Now" href={itItem.booking_url ?? undefined} />
             )}
             {itItem.alert && !itItem.book_now && (
-              <span style={{ background: "#FFF8E7", color: "#b07010", fontSize: "0.52rem", padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.06em", textTransform: "uppercase", border: "1px solid #E8A02050", display: "inline-block", width: "fit-content" }}>⚠ Note</span>
+              <Badge variant="alert" label="⚠ Note" />
             )}
-            <button
-              onClick={onRequestConfirm}
-              style={{ background: "transparent", color: "#bbb", fontSize: "0.52rem", padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.06em", textTransform: "uppercase", border: "1px dashed #ddd", display: "inline-block", width: "fit-content", cursor: "pointer", fontFamily: "Georgia,serif", marginTop: "1px" }}
-            >
-              + Confirm
-            </button>
+            <div style={{ marginTop: 1 }}>
+              <ActionButton
+                variant="default"
+                label="+ Confirm"
+                onClick={onRequestConfirm}
+                style={{ fontSize: `${Typography.size.xs - 2}px`, padding: `2px ${Spacing.sm}px`, letterSpacing: '0.06em', textTransform: 'uppercase', border: `1px dashed ${Colors.border}`, background: 'transparent', color: Colors.textMuted, boxShadow: 'none' }}
+              />
+            </div>
           </>
         )}
       </div>
-      <div style={{ fontSize: "0.86rem", color: "#333", lineHeight: 1.55, flex: 1, paddingTop: "2px" }}>
+      <div style={{ fontSize: `${Typography.size.sm}px`, color: Colors.textPrimary, lineHeight: 1.55, flex: 1, paddingTop: "2px" }}>
         {item.text}
         {!isCustom && itItem.addr && (
           <div style={{ marginTop: "5px" }}>
@@ -237,7 +236,7 @@ function ItemContent({ item, accent, confirms, onConfirm, isCustom, displayTime,
         {!isCustom && itItem.tide_url && (
           <div style={{ marginTop: "5px" }}>
             <a href={itItem.tide_url} target="_blank" rel="noopener noreferrer"
-              style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.76rem", color: "#2D6A8F", textDecoration: "none" }}>
+              style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: `${Typography.size.xs + 1}px`, color: Colors.navyLight, textDecoration: "none" }}>
               🌊 Bar Harbor Tide Chart <span style={{ fontSize: "0.68rem", opacity: 0.7 }}>· NOAA</span>
             </a>
           </div>

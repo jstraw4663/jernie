@@ -2,6 +2,9 @@
   "trip": {
     "id": "maine-2026",
     "name": "Maine Coast",
+    "title": "Maine Coast Jernie",
+    "tagline": "Portland → Bar Harbor & Acadia → Southwest Harbor",
+    "pills": [["🦞", "Seafood-focused"], ["🏔️", "Acadia hiking"], ["🛏️", "Boutique stays"]],
     "dates": "May 22\u201329, 2026",
     "departure": "2026-05-22T08:20:00-04:00",
     "member_handles": ["Jeremy", "Jennie", "Stacy", "Justin", "Ford"],

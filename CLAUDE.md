@@ -2,7 +2,7 @@
 
 > This file is the single source of truth for AI context across Claude Code and Claude Web.
 > Repo: https://github.com/jstraw4663/jernie
-> Last updated: April 6, 2026 — v0.2.1
+> Last updated: April 6, 2026 — v0.3.0
 
 ---
 
@@ -60,12 +60,23 @@ we pivot to the full product. Every decision made during the POC should serve th
 - Custom itinerary items (add, edit, delete, move — stored in Firebase)
 - Soft time labels on drag ("Morning", "Afternoon", "Evening", etc. — magic midpoint inference)
 - Reservation time prompt on Confirm — saves 🕐 sub-label under confirmed badge, editable
-- Add-to-itinerary from PlaceCard — DayPickerModal for day selection
+- Add-to-itinerary from PlaceCard — AddToItinerarySheet (BottomSheet-based day picker)
 - **Edit Mode** (v0.2.1) — long-press any itinerary item → BottomSheet opens with day's items;
   multi-select, drag reorder, delete custom items, move to another day within same stop;
   unsaved reorder prompts save/discard on exit; swipe-down-to-dismiss on full header bar
+- **Design System S1–S4** (v0.3.0):
+  - Scroll-driven StickyHeader: title compresses 24px→17px, dates always visible, tab padding animates
+  - StopNavigator: swipe between stops with parallax, 45% threshold, elastic bounce on last stop
+  - DayCard: Framer Motion height:auto expand, springs.lazy, anchors below stops bar (iOS scroll-anchor fix)
+  - BottomSheet: non-passive touchmove blocks background scroll on iOS; safe-area spacer
+  - RestaurantCard: Must badge, emoji, name, subcategory, Stacy badge, star rating, price — all tokens
+  - ActivityCard: emoji, AllTrails badge, difficulty/distance/duration chips — all tokens
+  - Badge + ActionButton component library for all inline badge/button UI
+  - ItemContent migrated to Badge + ActionButton (confirmed, bookNow, alert, custom, + Confirm)
+  - WeatherStrip + FlightRow fully token-migrated (no hardcoded hex)
+  - Trip title/tagline/pills sourced from trip.json (not hardcoded in StickyHeader)
 - Restaurants (must/also, Stacy pill, price, emoji)
-- Activities (AllTrails badges on hikes, grouped Bar Harbor)
+- Activities (AllTrails badges on hikes, difficulty/distance/duration chips, grouped Bar Harbor)
 - What to Pack (6 categories, ~41 items, Firebase — real-time sync)
 - Tide chart links
 - Countdown
@@ -191,21 +202,21 @@ main        ← production (Netlify deploys from here)
 
 ## Known Issues / Active Risks
 
-- **Inline styles throughout** — `WeatherStrip`, `FlightRow`, `PlaceCard`, `ItemContent`,
-  and other legacy components still use hardcoded inline styles. New components (v0.2.1+)
-  use design tokens. Full migration is tracked in GitHub Issues — do incrementally, not all at once.
+- **Bottom bar on all screens (Bug 1 — deferred)** — A colored bar is visible at the bottom
+  of every screen on iOS (including PIN screen). Root cause: viewport height resolution on
+  `position: fixed` elements with `viewport-fit=cover`. Scroll container already uses
+  `position: fixed; inset: 0` to anchor directly to physical viewport. Needs device
+  investigation. Deferred past deploy.
 - **No offline state indicator** — silent failure when refresh attempted without network.
 - **Flight status fetches on every page load** — needs proximity-based guard (see API
   call logic engine issue).
-- **Activity cards lack signal differentiation** — difficulty, duration, type missing.
-  Beehive Trail and Old Port render identically.
 
 ---
 
 ## Design System
 
-A token-driven design foundation was added in April 2026. All new and migrated components
-must reference tokens exclusively — no hardcoded colors, spacing, or font sizes.
+A token-driven design foundation was added in April 2026 (S1–S4). All new and migrated
+components reference tokens exclusively — no hardcoded colors, spacing, or font sizes.
 
 ### Token file
 `src/design/tokens.ts` — single source of truth:
@@ -214,13 +225,19 @@ must reference tokens exclusively — no hardcoded colors, spacing, or font size
 - `Radius` — sm/md/lg/xl/full
 - `Typography` — Georgia serif, size scale, weight, line-height
 - `Shadow` — elevation levels sm → xl
-- `Animation` — duration, easing curves, and **`mountFrames: 4`**
+- `Animation` — duration, easing curves, springs (gentle/snappy/bouncy/lazy), and **`mountFrames: 4`**
 
 ### mountFrames pattern
 Any component that mounts then animates in (sheets, toasts, drawers) must chain
 `Animation.mountFrames` `requestAnimationFrame` calls before setting its visible state.
 This gives the browser time to paint the start position before the CSS transition fires.
 See `BottomSheet.tsx` for the reference implementation.
+
+### iOS scroll-anchor pattern
+When programmatically setting `scrollTop` before a Framer Motion `height: auto` animation,
+set `scrollEl.style.overflowAnchor = 'none'` first, then restore after expansion commits.
+This prevents iOS from undoing the scroll during FM's height measurement reflow.
+See `EditableItinerary.tsx` `onToggle` handler for the reference implementation.
 
 ### Component library
 | Component | Purpose |
@@ -229,6 +246,15 @@ See `BottomSheet.tsx` for the reference implementation.
 | `src/components/SelectableListItem.tsx` | List row with selection bubble + 6-dot drag handle |
 | `src/components/ActionBar.tsx` | Delete + Move action buttons for edit mode |
 | `src/components/ConfirmDialog.tsx` | Inline confirmation that slides up within a sheet |
+| `src/components/Badge.tsx` | Token-driven status/action badges (confirmed/bookNow/alert/note/custom) |
+| `src/components/ActionButton.tsx` | Token-driven button with Framer Motion press animation |
+| `src/components/DayCard.tsx` | Height:auto expand card, springs.lazy, forwardRef |
+| `src/components/ItineraryItem.tsx` | Long-press wrapper using useLongPress hook |
+| `src/components/StickyHeader.tsx` | Scroll-driven compression header with animated tab bar |
+| `src/components/StopNavigator.tsx` | Swipe navigation with parallax + elastic bounce |
+| `src/components/AddToItinerarySheet.tsx` | Stop-scoped day picker using BottomSheet |
+| `src/components/RestaurantCard.tsx` | Token-driven restaurant place card |
+| `src/components/ActivityCard.tsx` | Token-driven activity/hike place card |
 
 All components are React-only with no DOM-specific APIs. Platform logic lives in `src/platform/`.
 Expo migration: CSS transitions → Reanimated, pointer events → Gesture Handler, @dnd-kit → react-native-reanimated.
@@ -242,15 +268,22 @@ Expo migration: CSS transitions → Reanimated, pointer events → Gesture Handl
 | `src/Jernie-PWA.tsx` | Main PWA component (exported as `MaineGuide`) |
 | `src/App.tsx` | App entry point — renders `MaineGuide` |
 | `src/design/tokens.ts` | Design token source of truth — colors, spacing, animation |
+| `src/types.ts` | All TypeScript interfaces (Trip, Stop, Booking, ItineraryItem, CustomItem, etc.) |
 | `src/components/EditableItinerary.tsx` | Itinerary with edit mode (long-press → BottomSheet), drag-reorder, delete, move |
-| `src/components/DayPickerModal.tsx` | Day picker modal (move item + add place to itinerary) |
+| `src/components/StickyHeader.tsx` | Scroll-driven compression header, tab bar with layoutId indicator |
+| `src/components/StopNavigator.tsx` | Swipe navigation, parallax, elastic bounce |
+| `src/components/DayCard.tsx` | Height:auto expand with iOS scroll-anchor fix |
 | `src/components/BottomSheet.tsx` | Native-feeling bottom sheet with swipe-dismiss |
+| `src/components/AddToItinerarySheet.tsx` | Day picker for adding places to itinerary |
+| `src/components/RestaurantCard.tsx` | Restaurant place card |
+| `src/components/ActivityCard.tsx` | Activity/hike place card |
+| `src/components/Badge.tsx` | Status/action badge component |
+| `src/components/ActionButton.tsx` | Token-driven button with press animation |
 | `src/components/SelectableListItem.tsx` | Selectable list row with drag handle |
 | `src/components/ActionBar.tsx` | Edit mode action bar (delete, move) |
 | `src/components/ConfirmDialog.tsx` | Inline confirm/cancel dialog for sheet actions |
 | `src/hooks/useSharedTripState.ts` | Firebase Realtime DB hook — all shared mutable state |
 | `src/hooks/useLongPress.ts` | Cross-platform long-press hook (500ms, cancel on move/leave/unmount) |
-| `src/types.ts` | All TypeScript interfaces (Trip, Stop, Booking, ItineraryItem, CustomItem, etc.) |
 | `public/trip.json` | Trip content data — must stay tracked in git (Netlify build needs it) |
 | `CLAUDE.md` | This file — AI context for Claude Code + Claude Web |
 | `GITHUB-SETUP.md` | GitHub + Claude Code setup guide |

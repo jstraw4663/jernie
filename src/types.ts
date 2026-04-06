@@ -5,6 +5,9 @@
 export interface Trip {
   id: string;
   name: string;
+  title?: string;
+  tagline?: string;
+  pills?: [string, string][];
   dates: string;
   departure: string; // ISO 8601 with timezone offset
   member_handles: string[];

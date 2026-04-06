@@ -4,6 +4,8 @@ import { useTripData } from "./hooks/useTripData";
 import { useSharedTripState } from "./hooks/useSharedTripState";
 import { EditableItinerary } from "./components/EditableItinerary";
 import { AddToItinerarySheet } from "./components/AddToItinerarySheet";
+import { RestaurantCard } from "./components/RestaurantCard";
+import { ActivityCard } from "./components/ActivityCard";
 import { StickyHeader } from "./components/StickyHeader";
 import { StopNavigator } from "./components/StopNavigator";
 import type { Booking, Group, Place, Stop, TripData } from "./types";
@@ -171,25 +173,6 @@ function SecHead({label}: {label:string}) {
   </div>;
 }
 
-function StarRating({rating}: {rating:number}) {
-  const full = Math.floor(rating);
-  const half = rating - full >= 0.3;
-  return <span style={{display:"inline-flex",alignItems:"center",gap:"2px",fontSize:"0.72rem"}}>
-    {[1,2,3,4,5].map(i=>(
-      <span key={i} style={{color:i<=full?"#F59E0B":(i===full+1&&half?"#F59E0B":"#ddd"),fontSize:"0.75rem"}}>
-        {i<=full?"★":(i===full+1&&half?"⯨":"★")}
-      </span>
-    ))}
-    <span style={{color:"#888",marginLeft:"3px",fontFamily:"Georgia,serif"}}>{rating}</span>
-  </span>;
-}
-
-function PriceBadge({price}: {price:string}) {
-  const n = (price||"").length;
-  return <span style={{display:"inline-flex",letterSpacing:"0.01em",fontSize:"0.8rem"}}>
-    {[1,2,3,4].map(i=><span key={i} style={{color:i<=n?"#2A7A47":"#ddd",fontWeight:i<=n?"600":"normal"}}>$</span>)}
-  </span>;
-}
 
 function HotelCard({accent, label, booking}: any) {
   return <div style={{background:"#fff",border:"1px solid "+accent+"30",borderLeft:"5px solid "+accent,borderRadius:"0 12px 12px 0",padding:"18px 22px"}}>
@@ -216,34 +199,34 @@ function FlightRow({f, sMap, loading}: any) {
   const delayed = s?.delayMin > 0;
   const actualDep = s?.actualDep && s.actualDep !== f.dep ? s.actualDep : null;
   const actualArr = s?.actualArr && s.actualArr !== f.arr ? s.actualArr : null;
-  return <div style={{borderTop:"1px solid #f0ede6",paddingTop:"11px",marginTop:"11px"}}>
+  return <div style={{borderTop:`1px solid ${Colors.border}`,paddingTop:"11px",marginTop:"11px"}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"6px",marginBottom:"8px"}}>
       <div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}>
         {f.trackingUrl
-          ? <a href={f.trackingUrl} target="_blank" rel="noopener noreferrer" style={{fontWeight:"bold",fontSize:"0.96rem",color:"#1a1a1a",textDecoration:"none",borderBottom:"1px dotted #aaa"}}>{f.num}</a>
+          ? <a href={f.trackingUrl} target="_blank" rel="noopener noreferrer" style={{fontWeight:"bold",fontSize:"0.96rem",color:Colors.textPrimary,textDecoration:"none",borderBottom:`1px dotted ${Colors.textMuted}`}}>{f.num}</a>
           : <span style={{fontWeight:"bold",fontSize:"0.96rem"}}>{f.num}</span>
         }
-        <span style={{color:"#999",fontSize:"0.8rem"}}>{f.airline}</span>
-        <span style={{color:"#ccc",fontSize:"0.8rem"}}>·</span>
-        <span style={{color:"#666",fontSize:"0.82rem"}}>{f.route}</span>
-        <span style={{color:"#ccc",fontSize:"0.8rem"}}>·</span>
-        <span style={{color:"#999",fontSize:"0.8rem"}}>{f.date}</span>
+        <span style={{color:Colors.textMuted,fontSize:"0.8rem"}}>{f.airline}</span>
+        <span style={{color:Colors.textMuted,fontSize:"0.8rem"}}>·</span>
+        <span style={{color:Colors.textSecondary,fontSize:"0.82rem"}}>{f.route}</span>
+        <span style={{color:Colors.textMuted,fontSize:"0.8rem"}}>·</span>
+        <span style={{color:Colors.textMuted,fontSize:"0.8rem"}}>{f.date}</span>
       </div>
-      {loading?<span style={{fontSize:"0.72rem",color:"#aaa"}}>Checking…</span>:s&&<StatusBadge status={s.status||"Unknown"}/>}
+      {loading?<span style={{fontSize:"0.72rem",color:Colors.textMuted}}>Checking…</span>:s&&<StatusBadge status={s.status||"Unknown"}/>}
     </div>
     <div style={{display:"flex",gap:"20px",flexWrap:"wrap",alignItems:"flex-end"}}>
       {[["Departs",f.dep,actualDep],["Arrives",f.arr,actualArr]].map(([lbl,sched,actual])=>(
         <div key={lbl as string}>
-          <div style={{fontSize:"0.65rem",color:"#bbb",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>{lbl}</div>
+          <div style={{fontSize:"0.65rem",color:Colors.textMuted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>{lbl}</div>
           <div style={{fontWeight:"bold",fontSize:"0.9rem",display:"flex",alignItems:"center",gap:"5px"}}>
-            {actual?<><span style={{textDecoration:"line-through",color:"#ccc",fontWeight:"normal",fontSize:"0.8rem"}}>{sched as string}</span><span style={{color:delayed?"#b07010":"#1B7A4A"}}>{actual}</span></>:sched}
+            {actual?<><span style={{textDecoration:"line-through",color:Colors.textMuted,fontWeight:"normal",fontSize:"0.8rem"}}>{sched as string}</span><span style={{color:delayed?Colors.gold:Colors.success}}>{actual}</span></>:sched}
           </div>
         </div>
       ))}
-      {s?.gate&&<div><div style={{fontSize:"0.65rem",color:"#bbb",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Gate</div><div style={{fontWeight:"bold",fontSize:"0.9rem",color:"#1a1a1a"}}>{s.gate||"TBD"}</div></div>}
-      {!s&&<div><div style={{fontSize:"0.65rem",color:"#bbb",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Gate</div><div style={{fontWeight:"bold",fontSize:"0.9rem",color:"#bbb"}}>TBD</div></div>}
-      {s?.terminal&&<div><div style={{fontSize:"0.65rem",color:"#bbb",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Terminal</div><div style={{fontWeight:"bold",fontSize:"0.9rem"}}>{s.terminal}</div></div>}
-      {delayed&&<div><div style={{fontSize:"0.65rem",color:"#bbb",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Delay</div><div style={{fontWeight:"bold",fontSize:"0.9rem",color:"#b07010"}}>+{s.delayMin} min</div></div>}
+      {s?.gate&&<div><div style={{fontSize:"0.65rem",color:Colors.textMuted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Gate</div><div style={{fontWeight:"bold",fontSize:"0.9rem",color:Colors.textPrimary}}>{s.gate||"TBD"}</div></div>}
+      {!s&&<div><div style={{fontSize:"0.65rem",color:Colors.textMuted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Gate</div><div style={{fontWeight:"bold",fontSize:"0.9rem",color:Colors.textMuted}}>TBD</div></div>}
+      {s?.terminal&&<div><div style={{fontSize:"0.65rem",color:Colors.textMuted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Terminal</div><div style={{fontWeight:"bold",fontSize:"0.9rem"}}>{s.terminal}</div></div>}
+      {delayed&&<div><div style={{fontSize:"0.65rem",color:Colors.textMuted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Delay</div><div style={{fontWeight:"bold",fontSize:"0.9rem",color:Colors.gold}}>+{s.delayMin} min</div></div>}
     </div>
   </div>;
 }
@@ -300,8 +283,8 @@ function WeatherStrip({stop, weatherData}: any) {
       <div style={{background:stop.accent+"08",border:"1px dashed "+stop.accent+"30",borderRadius:"10px",padding:"14px 18px",display:"flex",alignItems:"center",gap:"12px"}}>
         <span style={{fontSize:"1.6rem"}}>📅</span>
         <div>
-          <div style={{fontWeight:"bold",fontSize:"0.85rem",color:"#444"}}>Forecast not yet available</div>
-          <div style={{fontSize:"0.8rem",color:"#888",marginTop:"2px"}}>{daysOut>16?"Opens around "+availDate+" — will auto-populate on refresh.":"Loading weather data…"}</div>
+          <div style={{fontWeight:"bold",fontSize:"0.85rem",color:Colors.textPrimary}}>Forecast not yet available</div>
+          <div style={{fontSize:"0.8rem",color:Colors.textMuted,marginTop:"2px"}}>{daysOut>16?"Opens around "+availDate+" — will auto-populate on refresh.":"Loading weather data…"}</div>
         </div>
       </div>
     ):(
@@ -312,13 +295,13 @@ function WeatherStrip({stop, weatherData}: any) {
           const hi=Math.round(data.temperature_2m_max[i]);
           const lo=Math.round(data.temperature_2m_min[i]);
           const precip=data.precipitation_probability_max[i];
-          return <div key={i} style={{flex:"0 0 auto",minWidth:"84px",background:"#fff",border:"1px solid "+stop.accent+"22",borderRadius:"12px",padding:"12px 10px",textAlign:"center",boxShadow:"0 1px 5px "+stop.accent+"0D"}}>
-            <div style={{fontSize:"0.68rem",fontWeight:"bold",color:"#888",letterSpacing:"0.06em"}}>{DAYS[d.getDay()]}</div>
-            <div style={{fontSize:"0.68rem",color:"#ccc",marginBottom:"7px"}}>{d.getMonth()+1}/{d.getDate()}</div>
+          return <div key={i} style={{flex:"0 0 auto",minWidth:"84px",background:Colors.surface,border:"1px solid "+stop.accent+"22",borderRadius:"12px",padding:"12px 10px",textAlign:"center",boxShadow:"0 1px 5px "+stop.accent+"0D"}}>
+            <div style={{fontSize:"0.68rem",fontWeight:"bold",color:Colors.textMuted,letterSpacing:"0.06em"}}>{DAYS[d.getDay()]}</div>
+            <div style={{fontSize:"0.68rem",color:Colors.textMuted,marginBottom:"7px"}}>{d.getMonth()+1}/{d.getDate()}</div>
             <div style={{fontSize:"1.6rem",lineHeight:1,marginBottom:"5px"}}>{w.e}</div>
-            <div style={{fontSize:"0.68rem",color:"#aaa",marginBottom:"5px"}}>{w.d}</div>
-            <div style={{fontWeight:"bold",fontSize:"0.88rem",color:"#333"}}>{hi}°<span style={{fontWeight:"normal",color:"#bbb",fontSize:"0.78rem"}}> {lo}°</span></div>
-            <div style={{fontSize:"0.7rem",color:precip>50?"#2D6A8F":"#ccc",marginTop:"4px",fontWeight:precip>50?"bold":"normal"}}>💧{precip}%</div>
+            <div style={{fontSize:"0.68rem",color:Colors.textMuted,marginBottom:"5px"}}>{w.d}</div>
+            <div style={{fontWeight:"bold",fontSize:"0.88rem",color:Colors.textPrimary}}>{hi}°<span style={{fontWeight:"normal",color:Colors.textMuted,fontSize:"0.78rem"}}> {lo}°</span></div>
+            <div style={{fontSize:"0.7rem",color:precip>50?Colors.navyLight:Colors.textMuted,marginTop:"4px",fontWeight:precip>50?"bold":"normal"}}>💧{precip}%</div>
           </div>;
         })}
       </div>
@@ -327,57 +310,9 @@ function WeatherStrip({stop, weatherData}: any) {
 }
 
 function PlaceCard({place, accent, onAddToItinerary}: {place:Place, accent:string, onAddToItinerary?:(place:Place)=>void}) {
-  const isRestaurant = place.category === "restaurant";
-  const isAllTrails = place.url?.includes("alltrails.com");
-  const isHike = place.category === "hike";
-  const showMust = isRestaurant && place.must;
-
-  return (
-    <div style={{background:"#fff",borderRadius:"10px",padding:"15px 18px",border:"1px solid "+(showMust?accent+"40":"#e0ddd6"),display:"flex",gap:"13px",alignItems:"flex-start",boxShadow:showMust?"0 2px 10px "+accent+"12":"none",position:"relative"}}>
-      {onAddToItinerary&&(
-        <button
-          onClick={()=>onAddToItinerary(place)}
-          title="Add to itinerary"
-          style={{position:"absolute",top:"10px",right:"10px",width:"24px",height:"24px",borderRadius:"50%",background:accent,color:"#fff",border:"none",cursor:"pointer",fontSize:"1rem",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",padding:0,zIndex:1}}
-        >+</button>
-      )}
-      {isRestaurant&&(
-        showMust
-          ?<div style={{background:accent,color:"#fff",fontSize:"0.58rem",letterSpacing:"0.1em",textTransform:"uppercase",padding:"3px 7px",borderRadius:"4px",whiteSpace:"nowrap",marginTop:"3px",flexShrink:0}}>Must</div>
-          :<div style={{width:"36px",flexShrink:0}}/>
-      )}
-      {!isRestaurant&&(
-        <div style={{fontSize:"1.2rem",flexShrink:0,lineHeight:1,marginTop:"1px",width:"22px",textAlign:"center"}}>{place.emoji}</div>
-      )}
-      <div style={{flex:1}}>
-        <div style={{display:"flex",alignItems:"baseline",gap:"8px",flexWrap:"wrap",marginBottom:"3px"}}>
-          {isRestaurant&&<span style={{fontSize:"1.1rem",lineHeight:1,flexShrink:0}}>{place.emoji}</span>}
-          {place.url
-            ?<a href={place.url} target="_blank" rel="noopener noreferrer" style={{fontWeight:"bold",fontSize:isRestaurant?"0.98rem":"0.94rem",color:"#1a1a1a",textDecoration:"none",borderBottom:"1px dotted #bbb"}}>{place.name}</a>
-            :<span style={{fontWeight:"bold",fontSize:isRestaurant?"0.98rem":"0.94rem"}}>{place.name}</span>
-          }
-          {isRestaurant&&<span style={{fontSize:"0.76rem",color:"#999",fontStyle:"italic"}}>{place.subcategory.replace(/-/g," ")}</span>}
-          {place.attribution_handle==="stacy"&&<span style={{fontSize:"0.6rem",background:"#F3EDF7",color:"#7B4FA6",padding:"1px 7px",borderRadius:"10px",letterSpacing:"0.04em"}}>Stacy's Find</span>}
-          {isHike&&isAllTrails&&<a href={place.url!} target="_blank" rel="noopener noreferrer" style={{fontSize:"0.6rem",background:"#E8F5E9",color:"#2E7D32",padding:"1px 7px",borderRadius:"10px",letterSpacing:"0.04em",textDecoration:"none",border:"1px solid #A5D6A730",display:"inline-flex",alignItems:"center",gap:"3px"}}>🌿 AllTrails</a>}
-          {place.flag&&<span style={{fontSize:"0.6rem",background:"#FFF8E7",color:"#b07010",padding:"1px 7px",borderRadius:"10px",border:"1px solid #E8A02040"}}>⚠ {place.flag}</span>}
-        </div>
-        {isRestaurant&&place.rating!=null&&(
-          <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"4px",flexWrap:"wrap"}}>
-            <StarRating rating={place.rating}/>
-            {place.price&&<PriceBadge price={place.price}/>}
-          </div>
-        )}
-        {isHike&&(place.difficulty||place.duration||place.distance)&&(
-          <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"5px"}}>
-            {place.difficulty&&<span style={{fontSize:"0.62rem",background:place.difficulty==="strenuous"?"#FEF2F2":place.difficulty==="moderate"?"#FFF8E7":"#EDFAF1",color:place.difficulty==="strenuous"?"#b91c1c":place.difficulty==="moderate"?"#b07010":"#1B7A4A",padding:"1px 8px",borderRadius:"10px",fontWeight:"bold",letterSpacing:"0.04em",textTransform:"capitalize"}}>{place.difficulty}</span>}
-            {place.distance&&<span style={{fontSize:"0.62rem",background:"#F0F4FF",color:"#3557A0",padding:"1px 8px",borderRadius:"10px",letterSpacing:"0.04em"}}>📏 {place.distance}</span>}
-            {place.duration&&<span style={{fontSize:"0.62rem",background:"#F5F0FF",color:"#5B3FA6",padding:"1px 8px",borderRadius:"10px",letterSpacing:"0.04em"}}>⏱ {place.duration}</span>}
-          </div>
-        )}
-        {place.note&&<div style={{color:"#555",fontSize:"0.86rem",lineHeight:1.55,marginTop:"3px"}}>{place.note}</div>}
-      </div>
-    </div>
-  );
+  return place.category === "restaurant"
+    ? <RestaurantCard place={place} accent={accent} onAddToItinerary={onAddToItinerary} />
+    : <ActivityCard place={place} accent={accent} onAddToItinerary={onAddToItinerary} />;
 }
 
 function getActivityDisplayGroup(place: Place): string {
@@ -894,6 +829,9 @@ export default function MaineGuide() {
         onTabChange={setActive}
         scrollRef={scrollRef}
         tripDates={data.trip.dates}
+        tripTitle={data.trip.title ?? data.trip.name}
+        tagline={data.trip.tagline ?? ''}
+        pills={data.trip.pills ?? []}
         headerSlot={<Countdown departure={departure}/>}
       />
 
