@@ -140,9 +140,9 @@ export function useSharedTripState(tripId: string) {
   }
 
   // Create custom item and append to day's order
-  function addCustomItem(dayId: string, time: string, text: string, sourcePlaceId: string | null) {
+  function addCustomItem(dayId: string, time: string, text: string, sourcePlaceId: string | null, category?: CustomItem["category"]) {
     const id = "custom-" + rand8();
-    const item: CustomItem = { id, day_id: dayId, time, text, source_place_id: sourcePlaceId, created_at: Date.now() };
+    const item: CustomItem = { id, day_id: dayId, time, text, source_place_id: sourcePlaceId, created_at: Date.now(), ...(category ? { category } : {}) };
     const currentOrder = [...(itineraryOrder[dayId] || [])];
     currentOrder.push(id);
 

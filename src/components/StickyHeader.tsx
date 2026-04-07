@@ -51,32 +51,24 @@ export function StickyHeader({
     container: scrollRef as React.RefObject<HTMLElement>,
   });
 
-  // Low stiffness = gradual, organic compression. Previous value (200) was too
-  // reactive — it snapped at a threshold and spring-bounced on iOS rubber-band.
-  // stiffness 45 / damping 18 — fluid trailing feel, no snap or bounce.
+  // Low stiffness = gradual, organic compression. Fluid trailing feel, no snap or bounce.
   const smoothY = useSpring(scrollY, { stiffness: 45, damping: 18, restDelta: 0.001 });
 
-  // Title compresses 24px → 17px over first 100px of scroll
-  const titleFontSize = useTransform(smoothY, [0, 100], [24, 17]);
-  // Title letter-spacing relaxes as it shrinks
-  const titleLetterSpacing = useTransform(smoothY, [0, 100], [-0.01, 0.01]);
-  // Dates gap tightens as header compresses (keeps dates always visible)
-  const dateMarginBottom = useTransform(smoothY, [0, 100], [Spacing.md, Spacing.xxs]);
-  // Everything below the title (tagline, pills, countdown) fades and collapses.
-  // Extended to 150px for a very gradual transition — no threshold snap.
-  const detailsOpacity = useTransform(smoothY, [0, 100], [1, 0]);
-  const detailsMaxHeight = useTransform(smoothY, [0, 150], [300, 0]);
-  // Header vertical padding shrinks — tighter values so compressed state is smaller
-  const headerPaddingTop = useTransform(smoothY, [0, 100], [48, 8]);
-  const headerPaddingBottom = useTransform(smoothY, [0, 100], [36, 6]);
-  // Tab button padding compresses with header — 8px reduction top/bottom over first 60px
-  const tabPaddingY = useTransform(smoothY, [0, 60], [Spacing.md, Spacing.xs]);
+  const titleFontSize = useTransform(smoothY, [0, 300], [24, 17]);
+  const titleLetterSpacing = useTransform(smoothY, [0, 300], [-0.01, 0.01]);
+  const dateMarginBottom = useTransform(smoothY, [0, 300], [Spacing.md, Spacing.xxs]);
+  const detailsOpacity = useTransform(smoothY, [0, 300], [1, 0]);
+  const detailsMaxHeight = useTransform(smoothY, [0, 350], [300, 0]);
+  const headerPaddingTop = useTransform(smoothY, [0, 300], [48, 8]);
+  const headerPaddingBottom = useTransform(smoothY, [0, 300], [36, 6]);
+  const tabPaddingY = useTransform(smoothY, [0, 180], [Spacing.md, Spacing.xs]);
   return (
     <div
       data-sticky-nav
       style={{
         position: 'sticky',
-        top: 0,
+        top: -1,      // pulls 1px into the container top — closes iOS subpixel rendering gap
+        paddingTop: 1, // compensates so inner layout doesn't shift
         zIndex: 100,
       }}
     >

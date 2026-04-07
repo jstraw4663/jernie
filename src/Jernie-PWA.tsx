@@ -722,6 +722,12 @@ export default function MaineGuide() {
     try { return sessionStorage.getItem(SESSION_KEY) === "1"; } catch { return false; }
   });
 
+  // Sync body background to the active screen so Safari's bottom chrome area
+  // matches: navy on lockscreen, cream on main app.
+  useEffect(() => {
+    document.body.style.background = unlocked ? Colors.background : Colors.navy;
+  }, [unlocked]);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState("portland");
   const [weatherData, setWeatherData] = useState<Record<string,any>>({});

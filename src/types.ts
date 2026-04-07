@@ -143,6 +143,7 @@ export interface CustomItem {
   day_id: string;          // current day (kept in sync on moves)
   time: string;
   text: string;
+  category?: PlaceCategory; // optional — set when user picks a type on add
   source_place_id: string | null;  // set when created from a PlaceCard +
   created_at: number;      // Date.now()
 }

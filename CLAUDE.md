@@ -2,7 +2,7 @@
 
 > This file is the single source of truth for AI context across Claude Code and Claude Web.
 > Repo: https://github.com/jstraw4663/jernie
-> Last updated: April 6, 2026 — v0.3.0
+> Last updated: April 7, 2026 — v0.3.1
 
 ---
 
@@ -75,6 +75,14 @@ we pivot to the full product. Every decision made during the POC should serve th
   - ItemContent migrated to Badge + ActionButton (confirmed, bookNow, alert, custom, + Confirm)
   - WeatherStrip + FlightRow fully token-migrated (no hardcoded hex)
   - Trip title/tagline/pills sourced from trip.json (not hardcoded in StickyHeader)
+- **Pre-deploy polish (v0.3.1)**:
+  - StickyHeader: 300px transform range for gradual compression; spring stiffness 45/damping 18; top: -1px subpixel gap fix
+  - BottomSheet: Framer Motion useMotionValue + useVelocity — velocity-aware swipe dismiss, easeIn tween exit (500ms), safe-area inset in footer padding (no blank spacer)
+  - AddToItinerarySheet: "Add to your Jernie" copy; place name italic/bold; gold star rating + green price tier between name and location
+  - Reservation time auto-format: "700" → "7:00 PM"; context-aware AM/PM via neighbor item scan
+  - Custom item add form: category dropdown (10 types, alphabetical, Other last); category badge on saved items (token colors)
+  - Confirmed indicator: gold circle checkmark in edit-mode drag list (SelectableListItem)
+  - Viewport edge-to-edge: html/body background navy; body syncs to Colors.background on unlock via useEffect
 - Restaurants (must/also, Stacy pill, price, emoji)
 - Activities (AllTrails badges on hikes, difficulty/distance/duration chips, grouped Bar Harbor)
 - What to Pack (6 categories, ~41 items, Firebase — real-time sync)

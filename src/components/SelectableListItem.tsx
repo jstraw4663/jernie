@@ -119,8 +119,27 @@ export function SelectableListItem({
         </div>
       )}
 
-      {/* Locked spacer — keeps layout consistent when bubble is hidden */}
-      {isLocked && <div style={{ flexShrink: 0, width: 22 }} />}
+      {/* Confirmed indicator — gold circle with checkmark, replaces bubble for locked items */}
+      {isLocked && (
+        <div
+          aria-label="Confirmed"
+          style={{
+            flexShrink: 0,
+            width: 22,
+            height: 22,
+            borderRadius: Radius.full,
+            background: Colors.gold,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="2"
+                  strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+      )}
 
       {/* Time + label */}
       <div style={{ flex: 1, minWidth: 0 }}>

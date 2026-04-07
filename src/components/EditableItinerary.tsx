@@ -14,7 +14,7 @@ import {
   SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Stop, TripData, ItineraryItem, CustomItem } from "../types";
+import type { Stop, TripData, ItineraryItem, CustomItem, PlaceCategory } from "../types";
 import { DayPickerModal } from "./DayPickerModal";
 import { BottomSheet } from "./BottomSheet";
 import { SelectableListItem } from "./SelectableListItem";
@@ -34,7 +34,27 @@ interface AddFormState {
   dayId: string;
   time: string;
   text: string;
+  category: PlaceCategory | '';
 }
+
+const CATEGORY_OPTIONS: { value: PlaceCategory | ''; label: string }[] = [
+  { value: '',           label: 'Type (optional)' },
+  { value: 'attraction', label: '🎭 Attraction' },
+  { value: 'bar',        label: '🍻 Bar' },
+  { value: 'beach',      label: '🏖 Beach' },
+  { value: 'hike',       label: '🥾 Hike' },
+  { value: 'museum',     label: '🏛 Museum' },
+  { value: 'restaurant', label: '🍽 Restaurant' },
+  { value: 'shop',       label: '🛍 Shop' },
+  { value: 'sight',      label: '👁 Sight' },
+  { value: 'other',      label: '✏ Other' },
+];
+
+// Emoji used when displaying a saved category label on custom items
+const CATEGORY_EMOJI: Partial<Record<PlaceCategory, string>> = {
+  restaurant: '🍽', bar: '🍻', hike: '🥾', attraction: '🎭',
+  museum: '🏛', sight: '👁', beach: '🏖', shop: '🛍', other: '✏',
+};
 
 interface EditableItineraryProps {
   stop: Stop;
@@ -46,7 +66,7 @@ interface EditableItineraryProps {
   timeOverrides: Record<string, string>;
   setDayOrder: (dayId: string, orderedIds: string[]) => void;
   moveItem: (itemId: string, fromDayId: string, toDayId: string, insertAtIndex: number) => void;
-  addCustomItem: (dayId: string, time: string, text: string, sourcePlaceId: string | null) => void;
+  addCustomItem: (dayId: string, time: string, text: string, sourcePlaceId: string | null, category?: PlaceCategory) => void;
   deleteCustomItem: (itemId: string, dayId: string) => void;
   initializeOrder: (days: TripData["itinerary_days"], items: TripData["itinerary_items"]) => void;
   setTimeOverride: (itemId: string, time: string) => void;
@@ -225,6 +245,11 @@ function ItemContent({ item, accent, confirms, onConfirm, isCustom, displayTime,
       </div>
       <div style={{ fontSize: `${Typography.size.sm}px`, color: Colors.textPrimary, lineHeight: 1.55, flex: 1, paddingTop: "2px" }}>
         {item.text}
+        {isCustom && (item as CustomItem).category && (
+          <div style={{ marginTop: 3, fontSize: `${Typography.size.xs - 1}px`, background: Colors.infoBg, color: Colors.info, padding: '1px 6px', borderRadius: '4px', border: `1px solid ${Colors.info}20`, display: 'inline-block', letterSpacing: '0.04em' }}>
+            {CATEGORY_EMOJI[(item as CustomItem).category!]} {(item as CustomItem).category}
+          </div>
+        )}
         {!isCustom && itItem.addr && (
           <div style={{ marginTop: "5px" }}>
             <a href={appleMaps(itItem.addr)} target="_blank" rel="noopener noreferrer"
@@ -505,9 +530,82 @@ export function EditableItinerary({
     setResvPrompt({ itemId, draft: prefill });
   }
 
+  // Looks at times of items surrounding itemId (up to 3 in each direction)
+  // to infer whether an ambiguous hour (1–11) is AM or PM.
+  function inferAmPm(hour: number, itemId: string): 'AM' | 'PM' {
+    // Find the day and position of this item
+    for (const day of data.itinerary_days) {
+      const ordered = resolveOrderedItems(day.id);
+      const idx = ordered.findIndex(item => item.id === itemId);
+      if (idx === -1) continue;
+
+      const neighbors = ordered.slice(Math.max(0, idx - 3), Math.min(ordered.length, idx + 4));
+      const context = neighbors
+        .map(item => item._isCustom ? (item as CustomItem).time : (item as ItineraryItem).time)
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      const eveningSignals = /\b(pm|evening|dinner|sunset|night|supper)\b/.test(context);
+      const morningSignals = /\b(am|morning|breakfast|sunrise|brunch)\b/.test(context);
+
+      if (eveningSignals && !morningSignals) return 'PM';
+      if (morningSignals && !eveningSignals) return 'AM';
+      break; // found the day but no clear signal — fall through to heuristic
+    }
+
+    // Heuristic: on a trip, 1–5 is almost always PM (lunch/afternoon/dinner),
+    // 6–11 is almost always AM (morning activities).
+    return hour >= 1 && hour <= 5 ? 'PM' : 'AM';
+  }
+
+  // Formats digit-only inputs into 12-hour time strings.
+  // "700" → "7:00 PM", "7" → "7:00 PM", "730" → "7:30 PM", "0630" → "6:30 AM"
+  // AM/PM uses surrounding item context first, then hour heuristic.
+  // Strings with colons, time words, or no digits pass through unchanged.
+  function formatReservationTime(input: string, itemId: string): string {
+    if (!input) return input;
+    if (/[:\s]|am|pm|morning|afternoon|evening|night/i.test(input)) return input;
+    const digits = input.replace(/\D/g, '');
+    if (!digits) return input;
+
+    let h: number, m: number;
+    if (digits.length <= 2) {
+      // "7" or "11" — treat as bare hour
+      h = parseInt(digits, 10);
+      m = 0;
+    } else if (digits.length === 3) {
+      h = parseInt(digits[0], 10);
+      m = parseInt(digits.slice(1), 10);
+    } else if (digits.length === 4) {
+      h = parseInt(digits.slice(0, 2), 10);
+      m = parseInt(digits.slice(2), 10);
+    } else {
+      return input;
+    }
+
+    if (h > 23 || m > 59) return input;
+
+    let ampm: 'AM' | 'PM';
+    let displayH: number;
+    if (h === 0) {
+      ampm = 'AM'; displayH = 12;
+    } else if (h === 12) {
+      ampm = 'PM'; displayH = 12;
+    } else if (h > 12) {
+      ampm = 'PM'; displayH = h - 12;
+    } else {
+      // 1–11: use context
+      ampm = inferAmPm(h, itemId);
+      displayH = h;
+    }
+
+    return `${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
+  }
+
   function handleResvSave() {
     if (!resvPrompt) return;
-    setReservationTime(resvPrompt.itemId, resvPrompt.draft.trim());
+    setReservationTime(resvPrompt.itemId, formatReservationTime(resvPrompt.draft.trim(), resvPrompt.itemId));
     onConfirm(resvPrompt.itemId, true);
     setResvPrompt(null);
   }
@@ -713,42 +811,57 @@ export function EditableItinerary({
 
                     {/* Inline add form */}
                     {addForm?.dayId === day.id ? (
-                      <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "10px", paddingTop: "10px", borderTop: "1px dashed #e0ddd6" }}>
-                        <input
-                          placeholder="Time (optional)"
-                          value={addForm.time}
-                          onChange={e => setAddForm(f => f ? { ...f, time: e.target.value } : f)}
-                          style={{ width: "90px", fontSize: "0.8rem", padding: "6px 8px", border: "1px solid #ddd", borderRadius: "6px", fontFamily: "Georgia,serif" }}
-                        />
-                        <input
-                          autoFocus
-                          placeholder="Add item…"
-                          value={addForm.text}
-                          onChange={e => setAddForm(f => f ? { ...f, text: e.target.value } : f)}
-                          onKeyDown={e => {
-                            if (e.key === "Enter" && addForm.text.trim()) {
-                              addCustomItem(day.id, addForm.time, addForm.text.trim(), null);
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px", paddingTop: "10px", borderTop: `1px dashed ${Colors.border}` }}>
+                        {/* Row 1: time + category */}
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <input
+                            placeholder="⏰ Time (optional)"
+                            value={addForm.time}
+                            onChange={e => setAddForm(f => f ? { ...f, time: e.target.value } : f)}
+                            style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: `1px solid ${Colors.border}`, borderRadius: "6px", fontFamily: "Georgia,serif", minWidth: 0 }}
+                          />
+                          <select
+                            value={addForm.category}
+                            onChange={e => setAddForm(f => f ? { ...f, category: e.target.value as PlaceCategory | '' } : f)}
+                            style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: `1px solid ${Colors.border}`, borderRadius: "6px", fontFamily: "Georgia,serif", background: "#fff", color: addForm.category ? Colors.textPrimary : Colors.textMuted, minWidth: 0, cursor: "pointer" }}
+                          >
+                            {CATEGORY_OPTIONS.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {/* Row 2: text + buttons */}
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                          <input
+                            autoFocus
+                            placeholder="Add item…"
+                            value={addForm.text}
+                            onChange={e => setAddForm(f => f ? { ...f, text: e.target.value } : f)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && addForm.text.trim()) {
+                                addCustomItem(day.id, addForm.time, addForm.text.trim(), null, addForm.category || undefined);
+                                setAddForm(null);
+                              }
+                              if (e.key === "Escape") setAddForm(null);
+                            }}
+                            style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: `1px solid ${Colors.border}`, borderRadius: "6px", fontFamily: "Georgia,serif" }}
+                          />
+                          <button
+                            onClick={() => {
+                              if (addForm.text.trim()) addCustomItem(day.id, addForm.time, addForm.text.trim(), null, addForm.category || undefined);
                               setAddForm(null);
-                            }
-                            if (e.key === "Escape") setAddForm(null);
-                          }}
-                          style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: "1px solid #ddd", borderRadius: "6px", fontFamily: "Georgia,serif" }}
-                        />
-                        <button
-                          onClick={() => {
-                            if (addForm.text.trim()) addCustomItem(day.id, addForm.time, addForm.text.trim(), null);
-                            setAddForm(null);
-                          }}
-                          style={{ background: stop.accent, color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif" }}
-                        >Add</button>
-                        <button
-                          onClick={() => setAddForm(null)}
-                          style={{ background: "transparent", color: "#bbb", border: "1px solid #ddd", borderRadius: "6px", padding: "6px 10px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif" }}
-                        >✕</button>
+                            }}
+                            style={{ background: stop.accent, color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif", flexShrink: 0 }}
+                          >Add</button>
+                          <button
+                            onClick={() => setAddForm(null)}
+                            style={{ background: "transparent", color: Colors.textMuted, border: `1px solid ${Colors.border}`, borderRadius: "6px", padding: "6px 10px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif", flexShrink: 0 }}
+                          >✕</button>
+                        </div>
                       </div>
                     ) : (
                       <button
-                        onClick={() => setAddForm({ dayId: day.id, time: "", text: "" })}
+                        onClick={() => setAddForm({ dayId: day.id, time: "", text: "", category: "" })}
                         style={{
                           marginTop: "10px", background: "transparent", border: "1px dashed " + stop.accent + "50",
                           borderRadius: "6px", padding: "6px 14px", cursor: "pointer",

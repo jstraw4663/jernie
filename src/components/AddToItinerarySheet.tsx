@@ -39,7 +39,7 @@ export function AddToItinerarySheet({
     }
   }
 
-  const title = `Add to jernie`;
+  const title = `Add to your Jernie`;
 
   return (
     <BottomSheet isOpen={isOpen} onRequestClose={onClose} title={title}>
@@ -58,13 +58,45 @@ export function AddToItinerarySheet({
           <div
             style={{
               fontFamily: Typography.family,
-              fontSize: Typography.size.base,
-              fontWeight: Typography.weight.semibold,
+              fontSize: Typography.size.md,
+              fontWeight: Typography.weight.bold,
+              fontStyle: 'italic',
               color: Colors.textPrimary,
+              marginBottom: 2,
             }}
           >
             {place.name}
           </div>
+          {(place.rating != null || place.price) && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: Spacing.xs,
+                marginTop: 2,
+                marginBottom: 2,
+              }}
+            >
+              {place.rating != null && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <span key={i} style={{ color: i <= Math.round(place.rating!) ? '#F59E0B' : Colors.border, fontSize: Typography.size.xs }}>★</span>
+                  ))}
+                  <span style={{ color: Colors.textMuted, fontSize: Typography.size.xs, marginLeft: 2 }}>{place.rating.toFixed(1)}</span>
+                </span>
+              )}
+              {place.rating != null && place.price && (
+                <span style={{ fontSize: Typography.size.xs, color: Colors.textMuted }}>·</span>
+              )}
+              {place.price && (
+                <span style={{ display: 'inline-flex', letterSpacing: '0.01em', fontSize: Typography.size.xs }}>
+                  {[1, 2, 3, 4].map(i => (
+                    <span key={i} style={{ color: i <= place.price!.length ? Colors.success : Colors.border, fontWeight: i <= place.price!.length ? Typography.weight.semibold : Typography.weight.regular }}>$</span>
+                  ))}
+                </span>
+              )}
+            </div>
+          )}
           {stop && (
             <div
               style={{

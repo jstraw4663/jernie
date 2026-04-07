@@ -37,6 +37,8 @@ export const Colors = {
   successLight:  '#D1FAE5',
   gold:          '#C9963A',
   goldLight:     '#FDF0DC',
+  info:          '#3557A0',   // blue text for info/category chips
+  infoBg:        '#F0F4FF',   // light blue background for info/category chips
 
   // Selection — used by SelectableListItem bubble
   selectedFill:    '#0D2B3E',
