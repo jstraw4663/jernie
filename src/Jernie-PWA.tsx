@@ -91,7 +91,7 @@ function isWithinFlightWindow(dateKey: string, flights: any[]) {
   return now >= earliest - 48 * 3600000 && now <= earliest + 24 * 3600000;
 }
 
-async function fetchWeatherForStop(s: Stop) {
+async function fetchWeatherForStop(s: Stop, signal?: AbortSignal) {
   const key = "jernie_weather_" + s.id;
   const cached = readCache(key);
   if (cached && (Date.now() - cached.cachedAt) < 3 * 3600000) {
@@ -104,7 +104,7 @@ async function fetchWeatherForStop(s: Stop) {
   }
   try {
     const url = "https://api.open-meteo.com/v1/forecast?latitude=" + s.lat + "&longitude=" + s.lon + "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&temperature_unit=fahrenheit&timezone=America%2FNew_York&start_date=" + s.weather_start + "&end_date=" + s.weather_end;
-    const r = await fetch(url);
+    const r = await fetch(url, { signal });
     const d = await r.json();
     if (d.error || !d.daily?.time?.length) return cached ? { data: cached.data, fromCache: true } : null;
     writeCache(key, d.daily);
@@ -729,7 +729,14 @@ export default function MaineGuide() {
   }, [unlocked]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState("portland");
+  const ACTIVE_STOP_KEY = "jernie_active_stop";
+  const [active, setActive] = useState(() => {
+    try { return sessionStorage.getItem(ACTIVE_STOP_KEY) || "portland"; } catch { return "portland"; }
+  });
+  const handleSetActive = (id: string) => {
+    try { sessionStorage.setItem(ACTIVE_STOP_KEY, id); } catch {}
+    setActive(id);
+  };
   const [weatherData, setWeatherData] = useState<Record<string,any>>({});
   const [flightStatus, setFlightStatus] = useState<Record<string,any>>({});
   const [flightLoading, setFlightLoading] = useState(false);
@@ -746,17 +753,26 @@ export default function MaineGuide() {
   useEffect(() => {
     if (!data) return;
 
-    // Weather: load cache then fetch
+    // Weather: seed from cache immediately, then fetch all stops in parallel.
+    // Promise.allSettled ensures a single setWeatherData call when all complete —
+    // prevents 3 separate re-renders (one per stop) that could cause scroll jitter on iOS.
     const weatherInit: Record<string,any> = {};
     data.stops.forEach(s => {
       const c = readCache("jernie_weather_" + s.id);
       if (c) weatherInit[s.id] = c.data;
     });
     setWeatherData(weatherInit);
-    data.stops.forEach(async s => {
-      const result = await fetchWeatherForStop(s);
-      if (result) setWeatherData(prev => ({...prev, [s.id]: result.data}));
-    });
+
+    const weatherController = new AbortController();
+    Promise.allSettled(data.stops.map(s => fetchWeatherForStop(s, weatherController.signal)))
+      .then(results => {
+        if (weatherController.signal.aborted) return;
+        const updates: Record<string,any> = {};
+        results.forEach((r, i) => {
+          if (r.status === "fulfilled" && r.value) updates[data.stops[i].id] = r.value.data;
+        });
+        if (Object.keys(updates).length) setWeatherData(prev => ({...prev, ...updates}));
+      });
 
     // Flights: load cache then fetch if within window
     const flightInit: Record<string,any> = {};
@@ -776,6 +792,8 @@ export default function MaineGuide() {
         fetchFlightStatusGroupWithData(dateKey, group.flights, setFlightStatus, setFlightLoading, setLastUpdated);
       }
     });
+
+    return () => weatherController.abort();
   }, [data]);
 
   useEffect(() => {
@@ -811,7 +829,7 @@ export default function MaineGuide() {
   const activeIndex = data.stops.findIndex(s => s.id === active);
   const handleSwipe = (dir: 1 | -1) => {
     const next = data.stops[activeIndex + dir];
-    if (next) setActive(next.id);
+    if (next) handleSetActive(next.id);
   };
 
   const stop = data.stops.find(s => s.id === active)!;
@@ -832,7 +850,7 @@ export default function MaineGuide() {
       <StickyHeader
         stops={data.stops}
         active={active}
-        onTabChange={setActive}
+        onTabChange={handleSetActive}
         scrollRef={scrollRef}
         tripDates={data.trip.dates}
         tripTitle={data.trip.title ?? data.trip.name}

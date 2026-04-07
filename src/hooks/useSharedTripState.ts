@@ -11,6 +11,35 @@ const LS_CUSTOM_ITEMS = "jernie_fb_custom_items";
 const LS_TIME_OVERRIDES = "jernie_fb_time_overrides";
 const LS_RESERVATION_TIMES = "jernie_fb_reservation_times";
 
+// Write queue — survives page reloads while offline.
+// Firebase RTDB keeps its write queue in memory only; on page reload that queue
+// is destroyed. This queue persists writes to localStorage so they can be
+// replayed to Firebase when connectivity is restored after a reload.
+const LS_WRITE_QUEUE = "jernie_write_queue";
+
+type QueuedWrite = { path: string; value: any; ts: number };
+
+function readQueue(): QueuedWrite[] {
+  try { return JSON.parse(localStorage.getItem(LS_WRITE_QUEUE) || "[]"); }
+  catch { return []; }
+}
+function persistQueue(q: QueuedWrite[]) {
+  try { localStorage.setItem(LS_WRITE_QUEUE, JSON.stringify(q)); } catch {}
+}
+function enqueueWrite(path: string, value: any) {
+  const q = readQueue();
+  // Collapse duplicate paths — last local write wins
+  persistQueue([...q.filter(w => w.path !== path), { path, value, ts: Date.now() }]);
+}
+// Batch multiple path→value entries into a single localStorage read+write
+function batchEnqueue(entries: Record<string, any>) {
+  const paths = Object.keys(entries);
+  const ts = Date.now();
+  const q = readQueue().filter(w => !paths.includes(w.path));
+  persistQueue([...q, ...paths.map(p => ({ path: p, value: entries[p], ts }))]);
+}
+function clearQueue() { persistQueue([]); }
+
 function readLS(key: string): Record<string, any> {
   try { return JSON.parse(localStorage.getItem(key) || "{}"); }
   catch { return {}; }
@@ -40,43 +69,71 @@ export function useSharedTripState(tripId: string) {
     const timeRef = ref(db, `trips/${tripId}/state/time_overrides`);
     const resvRef = ref(db, `trips/${tripId}/state/reservation_times`);
 
+    // Flush any writes that were queued offline and survived a page reload.
+    // Firebase's in-memory write queue is destroyed on page reload; this replays
+    // those writes to the server as soon as connectivity is available.
+    const flushQueue = () => {
+      const q = readQueue();
+      if (!q.length) return;
+      const updates: Record<string, any> = {};
+      q.forEach(w => { updates[w.path] = w.value; });
+      update(ref(db), updates)
+        .then(clearQueue)
+        .catch(() => { /* still offline — queue stays, retries on next 'online' event */ });
+    };
+
+    if (navigator.onLine) {
+      flushQueue();
+    }
+    window.addEventListener("online", flushQueue);
+
+    // null-guard: if snap.val() is null the path either doesn't exist yet OR
+    // we're offline and Firebase hasn't sent data. In either case, keep the
+    // localStorage-seeded initial state rather than overwriting with empty.
     const unsubConfirms = onValue(confirmsRef, (snap) => {
-      const val: Record<string, boolean> = snap.val() || {};
+      if (snap.val() === null) return;
+      const val: Record<string, boolean> = snap.val();
       setConfirms(val);
       writeLS(LS_CONFIRMS, val);
     });
 
     const unsubPacking = onValue(packingRef, (snap) => {
-      const val: Record<string, boolean> = snap.val() || {};
+      if (snap.val() === null) return;
+      const val: Record<string, boolean> = snap.val();
       setPacking(val);
       writeLS(LS_PACKING, val);
     });
 
     const unsubOrder = onValue(orderRef, (snap) => {
-      const val: Record<string, string[]> = snap.val() || {};
+      if (snap.val() === null) return;
+      const val: Record<string, string[]> = snap.val();
       setItineraryOrder(val);
       writeLS(LS_ITINERARY_ORDER, val);
     });
 
     const unsubCustom = onValue(customRef, (snap) => {
-      const val: Record<string, CustomItem> = snap.val() || {};
+      if (snap.val() === null) return;
+      const val: Record<string, CustomItem> = snap.val();
       setCustomItems(val);
       writeLS(LS_CUSTOM_ITEMS, val);
     });
 
     const unsubTime = onValue(timeRef, (snap) => {
-      const val: Record<string, string> = snap.val() || {};
+      if (snap.val() === null) return;
+      const val: Record<string, string> = snap.val();
       setTimeOverridesState(val);
       writeLS(LS_TIME_OVERRIDES, val);
     });
 
     const unsubResv = onValue(resvRef, (snap) => {
-      const val: Record<string, string> = snap.val() || {};
+      if (snap.val() === null) return;
+      const val: Record<string, string> = snap.val();
       setReservationTimesState(val);
       writeLS(LS_RESERVATION_TIMES, val);
     });
 
     return () => {
+      window.removeEventListener("online", flushQueue);
       unsubConfirms();
       unsubPacking();
       unsubOrder();
@@ -87,14 +144,20 @@ export function useSharedTripState(tripId: string) {
   }, [tripId]);
 
   function setConfirm(itemId: string, value: boolean) {
-    set(ref(db, `trips/${tripId}/state/confirms/${itemId}`), value);
+    const path = `trips/${tripId}/state/confirms/${itemId}`;
+    enqueueWrite(path, value);
+    set(ref(db, path), value);
   }
 
   function setPack(itemId: string, value: boolean) {
-    set(ref(db, `trips/${tripId}/state/packing/${itemId}`), value);
+    const path = `trips/${tripId}/state/packing/${itemId}`;
+    enqueueWrite(path, value);
+    set(ref(db, path), value);
   }
 
   function resetPacking() {
+    // Full reset: clear the queue entries for packing too
+    persistQueue(readQueue().filter(w => !w.path.includes(`/state/packing`)));
     set(ref(db, `trips/${tripId}/state/packing`), null);
     setPacking({});
     writeLS(LS_PACKING, {});
@@ -112,7 +175,9 @@ export function useSharedTripState(tripId: string) {
 
   // Single-day reorder
   function setDayOrder(dayId: string, orderedIds: string[]) {
-    set(ref(db, `trips/${tripId}/state/itinerary_order/${dayId}`), orderedIds);
+    const path = `trips/${tripId}/state/itinerary_order/${dayId}`;
+    enqueueWrite(path, orderedIds);
+    set(ref(db, path), orderedIds);
   }
 
   // Cross-day/cross-stop move. Uses update() for atomic write.
@@ -136,6 +201,7 @@ export function useSharedTripState(tripId: string) {
       updates[`trips/${tripId}/state/custom_items/${itemId}/day_id`] = toDayId;
     }
 
+    batchEnqueue(updates);
     update(ref(db), updates);
   }
 
@@ -150,6 +216,7 @@ export function useSharedTripState(tripId: string) {
       [`trips/${tripId}/state/custom_items/${id}`]: item,
       [`trips/${tripId}/state/itinerary_order/${dayId}`]: currentOrder,
     };
+    batchEnqueue(updates);
     update(ref(db), updates);
   }
 
@@ -160,17 +227,26 @@ export function useSharedTripState(tripId: string) {
       [`trips/${tripId}/state/itinerary_order/${dayId}`]: newOrder,
       [`trips/${tripId}/state/custom_items/${itemId}`]: null,
     };
+    // Remove any queued write for the deleted item; enqueue the new order
+    persistQueue(readQueue().filter(w => w.path !== `trips/${tripId}/state/custom_items/${itemId}`));
+    enqueueWrite(`trips/${tripId}/state/itinerary_order/${dayId}`, newOrder);
     update(ref(db), updates);
   }
 
-  // Set or clear a time override for any item (base or custom)
-  function setTimeOverride(itemId: string, time: string) {
-    set(ref(db, `trips/${tripId}/state/time_overrides/${itemId}`), time || null);
+  // Set or clear a keyed time field (time_overrides or reservation_times)
+  function setTimePath(stateKey: string, itemId: string, time: string) {
+    const path = `trips/${tripId}/state/${stateKey}/${itemId}`;
+    if (time) enqueueWrite(path, time);
+    else persistQueue(readQueue().filter(w => w.path !== path));
+    set(ref(db, path), time || null);
   }
 
-  // Set or clear a reservation time for any item
+  function setTimeOverride(itemId: string, time: string) {
+    setTimePath("time_overrides", itemId, time);
+  }
+
   function setReservationTime(itemId: string, time: string) {
-    set(ref(db, `trips/${tripId}/state/reservation_times/${itemId}`), time || null);
+    setTimePath("reservation_times", itemId, time);
   }
 
   return {

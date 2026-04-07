@@ -18,6 +18,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { motion, useMotionValue, useVelocity, animate } from 'framer-motion';
 import { Colors, Spacing, Radius, Animation, Shadow } from '../design/tokens';
+import { useSheetContext } from '../contexts/SheetContext';
 
 export interface BottomSheetProps {
   isOpen: boolean;
@@ -45,6 +46,14 @@ export function BottomSheet({
 }: BottomSheetProps) {
   const [mounted, setMounted] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+
+  const { onOpen, onClose } = useSheetContext();
+  useEffect(() => {
+    if (isOpen) {
+      onOpen();
+      return onClose;
+    }
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Single MotionValue drives all vertical position of the sheet.
   // 0 = fully open. Positive values move the sheet down (toward dismiss).

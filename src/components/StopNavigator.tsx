@@ -12,10 +12,11 @@
 //   dragConstraints/spring → withSpring + gestureHandlerRootHOC pattern
 //   AnimatePresence → conditional render + Reanimated shared transitions
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Stop } from '../types';
 import { Animation } from '../design/tokens';
+import { useSheetContext } from '../contexts/SheetContext';
 
 const COMMIT_VELOCITY = 300; // px/s — fling velocity that always commits
 
@@ -50,18 +51,26 @@ export function StopNavigator({
   const isFirst = activeIndex === 0;
   const isLast = activeIndex === stops.length - 1;
 
+  // Disable horizontal drag while any sheet/modal is open — prevents swiping
+  // between stops when a BottomSheet or DayPickerModal is visible.
+  const { openCount } = useSheetContext();
+  const dragEnabled = openCount === 0;
+
   // Track swipe direction so AnimatePresence variants know which way to slide.
-  // Also derived on every render from activeIndex delta to handle tab-click navigation.
+  // useEffect keeps this out of the render phase — calling setState during render
+  // queues an extra re-render and triggers React warnings in StrictMode.
   const prevIndexRef = useRef(activeIndex);
   const [direction, setDirection] = useState(1);
-  if (prevIndexRef.current !== activeIndex) {
-    setDirection(activeIndex > prevIndexRef.current ? 1 : -1);
-    prevIndexRef.current = activeIndex;
-  }
+  useEffect(() => {
+    if (prevIndexRef.current !== activeIndex) {
+      setDirection(activeIndex > prevIndexRef.current ? 1 : -1);
+      prevIndexRef.current = activeIndex;
+    }
+  }, [activeIndex]);
 
   return (
     <motion.div
-      drag="x"
+      drag={dragEnabled ? 'x' : false}
       dragDirectionLock
       // Constrain so Framer Motion springs back to origin on release
       dragConstraints={{ left: 0, right: 0 }}
