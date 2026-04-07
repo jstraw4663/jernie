@@ -2,7 +2,7 @@
 
 > This file is the single source of truth for AI context across Claude Code and Claude Web.
 > Repo: https://github.com/jstraw4663/jernie
-> Last updated: April 7, 2026 — v0.3.1
+> Last updated: April 7, 2026 — v0.3.2
 
 ---
 
@@ -40,7 +40,8 @@ we pivot to the full product. Every decision made during the POC should serve th
 - Itinerary: `src/components/EditableItinerary.tsx` (drag-and-drop, custom items, time overrides)
 - Trip data: `public/trip.json` (static content — committed to git, must stay tracked)
 - Firebase Realtime Database for shared real-time state (confirms, packing, itinerary order, custom items, time overrides, reservation times)
-- PWA with manifest, `sw.js`, lobster icon, navy theme (`#0D2B3E`)
+- PWA with `vite-plugin-pwa` service worker (Workbox generateSW), manifest, lobster icon, navy theme (`#0D2B3E`)
+- `public/_headers`: Netlify cache-control headers — `no-cache` on `sw.js` and `workbox-*.js`
 - Deployed via Netlify (connected to GitHub main branch)
 - PIN gate: `0824` ("Happy Birthday Ford")
 
@@ -48,7 +49,7 @@ we pivot to the full product. Every decision made during the POC should serve th
 - Live weather: Open-Meteo (3-hour client-side cache)
 - Live flight status: Anthropic API + `web_search` tool (48hr proximity guard)
 - Firebase Realtime Database: shared user state across all devices/users in real time
-- `localStorage`: offline cache only — mirrors Firebase state for zero-connectivity fallback
+- `localStorage`: offline cache + write queue — mirrors Firebase state and queues offline writes for replay on reconnect
 
 ### Features shipped (QA)
 - Tabs: Portland / Bar Harbor / Southwest Harbor
@@ -83,6 +84,14 @@ we pivot to the full product. Every decision made during the POC should serve th
   - Custom item add form: category dropdown (10 types, alphabetical, Other last); category badge on saved items (token colors)
   - Confirmed indicator: gold circle checkmark in edit-mode drag list (SelectableListItem)
   - Viewport edge-to-edge: html/body background navy; body syncs to Colors.background on unlock via useEffect
+- **Offline support + refresh fixes (v0.3.2)**:
+  - Service worker via `vite-plugin-pwa` — app fully loads from cache after first online visit
+  - `useSharedTripState` write queue (`jernie_write_queue` in localStorage) — Firebase writes survive page reload while offline; flush-on-reconnect via `window.addEventListener("online")`; null snapshot guard on all 6 `onValue` callbacks
+  - `SheetContext` (`src/contexts/SheetContext.tsx`) — tracks open sheet count; `StopNavigator` disables `drag="x"` when `openCount > 0` (prevents stop swipe while BottomSheet/DayPickerModal is open)
+  - `DayPickerModal` registers with `SheetContext` (its own fixed-position overlay, not BottomSheet-based)
+  - Weather fetch consolidated: `Promise.allSettled` + `AbortController` → single `setWeatherData` call (eliminates 3 independent mid-scroll re-renders)
+  - Active stop persisted to `sessionStorage` (`jernie_active_stop`) — survives iOS PWA cold-start reloads
+  - `StopNavigator`: `setDirection` moved into `useEffect` (eliminates render-phase setState warning)
 - Restaurants (must/also, Stacy pill, price, emoji)
 - Activities (AllTrails badges on hikes, difficulty/distance/duration chips, grouped Bar Harbor)
 - What to Pack (6 categories, ~41 items, Firebase — real-time sync)
@@ -215,9 +224,8 @@ main        ← production (Netlify deploys from here)
   `position: fixed` elements with `viewport-fit=cover`. Scroll container already uses
   `position: fixed; inset: 0` to anchor directly to physical viewport. Needs device
   investigation. Deferred past deploy.
-- **No offline state indicator** — silent failure when refresh attempted without network.
-- **Flight status fetches on every page load** — needs proximity-based guard (see API
-  call logic engine issue).
+- **No offline state indicator** — silent failure when refresh (weather/flight) is attempted without network. No visual feedback that the refresh did nothing.
+- **Flight status fetches on every page load** — proximity guard exists (48hr window) but there is no in-session dedup; navigating between stops can re-trigger fetches. Needs investigation.
 
 ---
 
@@ -263,6 +271,7 @@ See `EditableItinerary.tsx` `onToggle` handler for the reference implementation.
 | `src/components/AddToItinerarySheet.tsx` | Stop-scoped day picker using BottomSheet |
 | `src/components/RestaurantCard.tsx` | Token-driven restaurant place card |
 | `src/components/ActivityCard.tsx` | Token-driven activity/hike place card |
+| `src/contexts/SheetContext.tsx` | Tracks open sheet count; disables StopNavigator drag when > 0 |
 
 All components are React-only with no DOM-specific APIs. Platform logic lives in `src/platform/`.
 Expo migration: CSS transitions → Reanimated, pointer events → Gesture Handler, @dnd-kit → react-native-reanimated.
@@ -290,7 +299,8 @@ Expo migration: CSS transitions → Reanimated, pointer events → Gesture Handl
 | `src/components/SelectableListItem.tsx` | Selectable list row with drag handle |
 | `src/components/ActionBar.tsx` | Edit mode action bar (delete, move) |
 | `src/components/ConfirmDialog.tsx` | Inline confirm/cancel dialog for sheet actions |
-| `src/hooks/useSharedTripState.ts` | Firebase Realtime DB hook — all shared mutable state |
+| `src/hooks/useSharedTripState.ts` | Firebase Realtime DB hook — all shared mutable state + offline write queue |
+| `src/contexts/SheetContext.tsx` | Open sheet count context — consumed by StopNavigator to lock drag |
 | `src/hooks/useLongPress.ts` | Cross-platform long-press hook (500ms, cancel on move/leave/unmount) |
 | `public/trip.json` | Trip content data — must stay tracked in git (Netlify build needs it) |
 | `CLAUDE.md` | This file — AI context for Claude Code + Claude Web |
