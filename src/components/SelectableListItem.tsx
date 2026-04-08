@@ -1,18 +1,21 @@
-// SelectableListItem — an itinerary row with optional selection bubble (left)
-// and drag handle (right, six dots). Used inside the BottomSheet edit mode.
+// SelectableListItem — edit-mode itinerary row inside the BottomSheet.
+// Matches the TimelineItem card visual language: surfaceRaised background,
+// layered shadow, left accent border, category icon + title only (no blurb).
 //
-// Long press (500ms) fires onLongPress when provided.
-// Locked items (locked=true) hide the selection bubble and cannot be selected.
+// Left:   selection bubble (or gold confirmed indicator for locked items)
+// Center: card — bold time label above, category icon + title below
+// Right:  six-dot drag handle
 //
 // PLATFORM NOTE:
-//   - Long press: setTimeout/clearTimeout → PanResponder / Pressable onLongPress on RN
-//   - Drag handle listeners: @dnd-kit SyntheticListenerMap → react-native-reanimated on Expo
-//   - CSS transitions → Animated.View on Expo
+//   Long press: setTimeout → PanResponder / Pressable onLongPress on RN
+//   Drag handle: @dnd-kit SyntheticListenerMap → react-native-reanimated on Expo
+//   CSS transitions → Animated.View on Expo
 
 import React from 'react';
 import type { DraggableAttributes, DraggableSyntheticListeners } from '@dnd-kit/core';
 import { Colors, Spacing, Radius, Typography, Animation } from '../design/tokens';
 import { useLongPress } from '../hooks/useLongPress';
+import { parseItemText } from '../utils/parseItemText';
 
 export interface SelectableListItemProps {
   id: string;
@@ -28,6 +31,10 @@ export interface SelectableListItemProps {
   /** From @dnd-kit useSortable — attach to the drag handle element */
   dragListeners?: DraggableSyntheticListeners;
   dragAttributes?: DraggableAttributes;
+  /** Stop accent color — drives card left border */
+  accent?: string;
+  /** Category emoji icon pre-computed from item.category */
+  categoryIcon?: string;
 }
 
 // Six-dot drag handle icon
@@ -38,11 +45,7 @@ function DragDotsIcon({ color }: { color: string }) {
     borderRadius: Radius.full,
     background: color,
   };
-  const col: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-  };
+  const col: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4 };
   return (
     <div style={{ display: 'flex', gap: 4, alignItems: 'center' }} aria-hidden>
       <div style={col}><div style={dot}/><div style={dot}/><div style={dot}/></div>
@@ -61,6 +64,8 @@ export function SelectableListItem({
   onLongPress,
   dragListeners,
   dragAttributes,
+  accent,
+  categoryIcon,
 }: SelectableListItemProps) {
   const { handlePointerDown, cancel, consumeFired } = useLongPress(onLongPress, isLocked);
 
@@ -68,6 +73,14 @@ export function SelectableListItem({
     if (consumeFired()) return;
     if (!isLocked) onToggleSelect();
   }
+
+  // Title only — no blurb in edit mode
+  const { title } = parseItemText(label);
+
+  // Card left border — gold for confirmed, accent for open
+  const borderColor = isLocked
+    ? `${Colors.gold}90`
+    : accent ? `${accent}30` : Colors.border;
 
   return (
     <div
@@ -80,111 +93,143 @@ export function SelectableListItem({
         display: 'flex',
         alignItems: 'center',
         gap: Spacing.sm,
-        padding: `${Spacing.sm}px ${Spacing.sm}px`,
-        opacity: isLocked ? 0.55 : 1,
+        padding: `${Spacing.xs}px 0`,
         cursor: isLocked ? 'default' : 'pointer',
         userSelect: 'none',
         WebkitUserSelect: 'none',
       }}
     >
-      {/* Selection bubble */}
-      {!isLocked && (
-        <div
-          aria-hidden
-          style={{
-            flexShrink: 0,
-            width: 22,
-            height: 22,
-            borderRadius: Radius.full,
-            border: `2px solid ${isSelected ? Colors.selectedBorder : Colors.unselectedBorder}`,
-            background: isSelected ? Colors.selectedFill : Colors.unselectedFill,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: `background ${Animation.duration.fast} ${Animation.easing.default},
-                         border-color ${Animation.duration.fast} ${Animation.easing.default}`,
-          }}
-        >
-          {isSelected && (
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-              <path
-                d="M2 6l3 3 5-5"
-                stroke={Colors.textInverse}
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+      {/* Selection bubble / confirmed indicator */}
+      <div style={{ flexShrink: 0 }}>
+        {isLocked ? (
+          // Gold checkmark — confirmed item
+          <div
+            aria-label="Confirmed"
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: Radius.full,
+              background: Colors.gold,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+              <path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          )}
-        </div>
-      )}
-
-      {/* Confirmed indicator — gold circle with checkmark, replaces bubble for locked items */}
-      {isLocked && (
-        <div
-          aria-label="Confirmed"
-          style={{
-            flexShrink: 0,
-            width: 22,
-            height: 22,
-            borderRadius: Radius.full,
-            background: Colors.gold,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
-            <path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="2"
-                  strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-      )}
-
-      {/* Time + label */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <span
-          style={{
-            fontFamily: Typography.family,
-            fontSize: Typography.size.sm,
-            color: Colors.textMuted,
-            marginRight: Spacing.xs,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {time}
-        </span>
-        <span
-          style={{
-            fontFamily: Typography.family,
-            fontSize: Typography.size.base,
-            color: Colors.textPrimary,
-          }}
-        >
-          {label}
-        </span>
+          </div>
+        ) : (
+          // Selection bubble
+          <div
+            aria-hidden
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: Radius.full,
+              border: `2px solid ${isSelected ? Colors.selectedBorder : Colors.unselectedBorder}`,
+              background: isSelected ? Colors.selectedFill : Colors.unselectedFill,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: `background ${Animation.duration.fast} ${Animation.easing.default},
+                           border-color ${Animation.duration.fast} ${Animation.easing.default}`,
+            }}
+          >
+            {isSelected && (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                <path
+                  d="M2 6l3 3 5-5"
+                  stroke={Colors.textInverse}
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Drag handle */}
-      {showDragHandle && (
-        <div
-          {...dragListeners}
-          {...dragAttributes}
-          style={{
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 36,
-            height: 44,
-            cursor: 'grab',
-            touchAction: 'none',
-          }}
-          aria-label="Drag to reorder"
-        >
-          <DragDotsIcon color={Colors.textMuted} />
+      {/* Card */}
+      <div style={{
+        flex: 1,
+        minWidth: 0,
+        background: Colors.surfaceRaised,
+        borderRadius: `${Spacing.md}px`,
+        boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+        padding: `${Spacing.sm}px ${Spacing.sm}px ${Spacing.sm}px ${Spacing.md}px`,
+        borderLeft: `3px solid ${borderColor}`,
+        transition: `border-left-color ${Animation.duration.fast} ${Animation.easing.default}`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: Spacing.xs,
+      }}>
+        {/* Text content */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Time label */}
+          <div style={{
+            fontSize: `${Typography.size.xs}px`,
+            fontWeight: Typography.weight.bold,
+            color: isLocked ? Colors.gold : Colors.textPrimary,
+            fontFamily: Typography.family,
+            marginBottom: Spacing.xxs + 1,
+            lineHeight: 1.2,
+          }}>
+            {time || <span style={{ opacity: 0.35, fontWeight: Typography.weight.regular }}>no time set</span>}
+          </div>
+
+          {/* Category icon + title */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: Spacing.xs }}>
+            {categoryIcon && (
+              <span style={{
+                fontSize: `${Typography.size.sm}px`,
+                lineHeight: Typography.lineHeight.normal,
+                flexShrink: 0,
+              }}>
+                {categoryIcon}
+              </span>
+            )}
+            <span style={{
+              fontFamily: Typography.family,
+              fontSize: `${Typography.size.sm}px`,
+              fontWeight: isLocked ? Typography.weight.bold : Typography.weight.medium,
+              color: isLocked ? Colors.textPrimary : Colors.textSecondary,
+              lineHeight: Typography.lineHeight.normal,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>
+              {title}
+            </span>
+          </div>
         </div>
-      )}
+
+        {/* Drag handle — inside the card so all cards are the same width */}
+        {showDragHandle ? (
+          <div
+            {...dragListeners}
+            {...dragAttributes}
+            style={{
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 32,
+              height: 40,
+              cursor: 'grab',
+              touchAction: 'none',
+              marginRight: -Spacing.xxs,
+            }}
+            aria-label="Drag to reorder"
+          >
+            <DragDotsIcon color={Colors.border} />
+          </div>
+        ) : (
+          <div style={{ width: 32, flexShrink: 0 }} />
+        )}
+      </div>
     </div>
   );
 }

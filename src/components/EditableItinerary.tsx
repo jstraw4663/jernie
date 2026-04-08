@@ -14,7 +14,7 @@ import {
   SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Stop, TripData, ItineraryItem, CustomItem, PlaceCategory } from "../types";
+import type { Stop, TripData, ItineraryItem, CustomItem, PlaceCategory, ItineraryCategory } from "../types";
 import { DayPickerModal } from "./DayPickerModal";
 import { BottomSheet } from "./BottomSheet";
 import { SelectableListItem } from "./SelectableListItem";
@@ -23,10 +23,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { DayCard } from "./DayCard";
 import { ItineraryItem as ItineraryItemRow } from "./ItineraryItem";
 import { Animation, Colors, Spacing, Typography } from "../design/tokens";
-import { Badge } from "./Badge";
-import { ActionButton } from "./ActionButton";
-
-const appleMaps = (addr: string) => "https://maps.apple.com/?q=" + encodeURIComponent(addr);
+import { TimelineItem, ITINERARY_CATEGORY_ICON } from "./TimelineItem";
 
 type ResolvedItem = (ItineraryItem & { _isCustom: false }) | (CustomItem & { _isCustom: true });
 
@@ -49,12 +46,6 @@ const CATEGORY_OPTIONS: { value: PlaceCategory | ''; label: string }[] = [
   { value: 'sight',      label: '👁 Sight' },
   { value: 'other',      label: '✏ Other' },
 ];
-
-// Emoji used when displaying a saved category label on custom items
-const CATEGORY_EMOJI: Partial<Record<PlaceCategory, string>> = {
-  restaurant: '🍽', bar: '🍻', hike: '🥾', attraction: '🎭',
-  museum: '🏛', sight: '👁', beach: '🏖', shop: '🛍', other: '✏',
-};
 
 interface EditableItineraryProps {
   stop: Stop;
@@ -140,143 +131,14 @@ function DroppableDay({ dayId, children }: { dayId: string; children: React.Reac
   );
 }
 
-// ── TimeLabel — click-to-edit inline ──────────────────────────
-
-function TimeLabel({ displayTime, isLocked, onSave }: {
-  displayTime: string; isLocked: boolean; onSave: (time: string) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(displayTime);
-
-  if (isLocked || editing === false) {
-    return (
-      <div
-        onClick={isLocked ? undefined : () => { setDraft(displayTime); setEditing(true); }}
-        title={isLocked ? undefined : "Tap to edit time"}
-        style={{
-          fontSize: "0.7rem", color: "#aaa", lineHeight: 1.4, fontStyle: "italic",
-          cursor: isLocked ? "default" : "pointer",
-          minHeight: "1em",
-          borderBottom: isLocked ? "none" : "1px dashed transparent",
-        }}
-        onMouseEnter={e => { if (!isLocked) (e.currentTarget as HTMLElement).style.borderBottomColor = "#ddd"; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderBottomColor = "transparent"; }}
-      >
-        {displayTime || <span style={{ opacity: 0.35 }}>set time</span>}
-      </div>
-    );
-  }
-
-  return (
-    <input
-      autoFocus
-      value={draft}
-      onChange={e => setDraft(e.target.value)}
-      onBlur={() => { onSave(draft.trim()); setEditing(false); }}
-      onKeyDown={e => {
-        if (e.key === "Enter") { onSave(draft.trim()); setEditing(false); }
-        if (e.key === "Escape") setEditing(false);
-      }}
-      placeholder="e.g. 9:00 AM"
-      style={{
-        width: "90px", fontSize: "0.7rem", fontStyle: "italic", color: "#666",
-        border: "1px solid #ccc", borderRadius: "4px", padding: "2px 5px",
-        fontFamily: "Georgia,serif", background: "#fff",
-      }}
-    />
-  );
-}
-
-// ── ItemContent ───────────────────────────────────────────────
-
-function ItemContent({ item, accent, confirms, onConfirm, isCustom, displayTime, isLocked, onTimeSave, reservationTime, onRequestConfirm, onEditResvTime }: {
-  item: ResolvedItem; accent: string; confirms: Record<string, boolean>;
-  onConfirm: (id: string, value: boolean) => void; isCustom: boolean;
-  displayTime: string; isLocked: boolean; onTimeSave: (time: string) => void;
-  reservationTime: string;
-  onRequestConfirm: () => void;
-  onEditResvTime: () => void;
-}) {
-  const itItem = item as ItineraryItem;
-  const userConfirmed = isLocked && !itItem.locked;
-
-  return (
-    <div style={{ display: "flex", gap: "12px", flex: 1, minWidth: 0 }}>
-      <div style={{ minWidth: "96px", flexShrink: 0, display: "flex", flexDirection: "column", gap: "5px", paddingTop: "2px" }}>
-        <TimeLabel displayTime={displayTime} isLocked={isLocked} onSave={onTimeSave} />
-        {isCustom ? (
-          <Badge variant="custom" label="✏ Custom" />
-        ) : isLocked ? (
-          <>
-            <Badge
-              variant="confirmed"
-              accentColor={accent}
-              label="✓ Confirmed"
-              onClick={itItem.locked ? undefined : () => onConfirm(item.id, !confirms[item.id])}
-            />
-            {userConfirmed && (
-              <div
-                onClick={onEditResvTime}
-                title={reservationTime ? "Edit reservation time" : "Add reservation time"}
-                style={{ fontSize: `${Typography.size.xs + 1}px`, color: reservationTime ? Colors.textMuted : Colors.border, fontStyle: "italic", cursor: "pointer", lineHeight: 1.3, marginTop: "1px" }}
-              >
-                {reservationTime ? `🕐 ${reservationTime}` : "+ reservation time"}
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            {itItem.book_now && (
-              <Badge variant="bookNow" label="📅 Book Now" href={itItem.booking_url ?? undefined} />
-            )}
-            {itItem.alert && !itItem.book_now && (
-              <Badge variant="alert" label="⚠ Note" />
-            )}
-            <div style={{ marginTop: 1 }}>
-              <ActionButton
-                variant="default"
-                label="+ Confirm"
-                onClick={onRequestConfirm}
-                style={{ fontSize: `${Typography.size.xs - 2}px`, padding: `2px ${Spacing.sm}px`, letterSpacing: '0.06em', textTransform: 'uppercase', border: `1px dashed ${Colors.border}`, background: 'transparent', color: Colors.textMuted, boxShadow: 'none' }}
-              />
-            </div>
-          </>
-        )}
-      </div>
-      <div style={{ fontSize: `${Typography.size.sm}px`, color: Colors.textPrimary, lineHeight: 1.55, flex: 1, paddingTop: "2px" }}>
-        {item.text}
-        {isCustom && (item as CustomItem).category && (
-          <div style={{ marginTop: 3, fontSize: `${Typography.size.xs - 1}px`, background: Colors.infoBg, color: Colors.info, padding: '1px 6px', borderRadius: '4px', border: `1px solid ${Colors.info}20`, display: 'inline-block', letterSpacing: '0.04em' }}>
-            {CATEGORY_EMOJI[(item as CustomItem).category!]} {(item as CustomItem).category}
-          </div>
-        )}
-        {!isCustom && itItem.addr && (
-          <div style={{ marginTop: "5px" }}>
-            <a href={appleMaps(itItem.addr)} target="_blank" rel="noopener noreferrer"
-              style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.76rem", color: accent, textDecoration: "none" }}>
-              📍 {itItem.addr_label || itItem.addr} <span style={{ fontSize: "0.68rem", opacity: 0.7 }}>· Maps</span>
-            </a>
-          </div>
-        )}
-        {!isCustom && itItem.tide_url && (
-          <div style={{ marginTop: "5px" }}>
-            <a href={itItem.tide_url} target="_blank" rel="noopener noreferrer"
-              style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: `${Typography.size.xs + 1}px`, color: Colors.navyLight, textDecoration: "none" }}>
-              🌊 Bar Harbor Tide Chart <span style={{ fontSize: "0.68rem", opacity: 0.7 }}>· NOAA</span>
-            </a>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+// TimeLabel and ItemContent replaced by TimelineItem component.
 
 // ── SortableItem ──────────────────────────────────────────────
 // Inline read-only view. Long press triggers Edit Mode BottomSheet.
 // Drag reorder now lives inside the sheet (Bundle 3).
 
-function SortableItem({ item, accent, confirms, onConfirm, isLocked, onLongPress, displayTime, onTimeSave, reservationTime, onRequestConfirm, onEditResvTime }: {
-  item: ResolvedItem; accent: string; confirms: Record<string, boolean>;
+function SortableItem({ item, accent, onConfirm, isLocked, onLongPress, displayTime, onTimeSave, reservationTime, onRequestConfirm, index, isLast, animate }: {
+  item: ResolvedItem; accent: string;
   onConfirm: (id: string, value: boolean) => void;
   isLocked: boolean;
   onLongPress?: () => void;
@@ -284,7 +146,9 @@ function SortableItem({ item, accent, confirms, onConfirm, isLocked, onLongPress
   onTimeSave: (time: string) => void;
   reservationTime: string;
   onRequestConfirm: () => void;
-  onEditResvTime: () => void;
+  index: number;
+  isLast: boolean;
+  animate: boolean;
 }) {
   const { setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -302,10 +166,19 @@ function SortableItem({ item, accent, confirms, onConfirm, isLocked, onLongPress
       }}
     >
       <ItineraryItemRow onLongPress={onLongPress} isLocked={isLocked}>
-        <ItemContent
-          item={item} accent={accent} confirms={confirms} onConfirm={onConfirm}
-          isCustom={item._isCustom} displayTime={displayTime} isLocked={isLocked} onTimeSave={onTimeSave}
-          reservationTime={reservationTime} onRequestConfirm={onRequestConfirm} onEditResvTime={onEditResvTime}
+        <TimelineItem
+          item={item}
+          accent={accent}
+          isConfirmed={isLocked}
+          isCustom={item._isCustom}
+          displayTime={displayTime}
+          onTimeSave={onTimeSave}
+          reservationTime={reservationTime}
+          onRequestConfirm={onRequestConfirm}
+          onConfirm={onConfirm}
+          index={index}
+          animate={animate}
+          isLast={isLast}
         />
       </ItineraryItemRow>
     </div>
@@ -316,18 +189,23 @@ function SortableItem({ item, accent, confirms, onConfirm, isLocked, onLongPress
 // Wraps SelectableListItem so the drag handle gets @dnd-kit listeners while
 // keeping SelectableListItem's API platform-agnostic.
 
-function SheetSortableItem({ item, isSelected, isLocked, onToggleSelect, displayTime }: {
+function SheetSortableItem({ item, isSelected, isLocked, onToggleSelect, displayTime, accent }: {
   item: ResolvedItem;
   isSelected: boolean;
   isLocked: boolean;
   onToggleSelect: () => void;
   displayTime: string;
+  accent: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
     disabled: isLocked,
     data: { item },
   });
+
+  const categoryIcon = !item._isCustom
+    ? ITINERARY_CATEGORY_ICON[(item as ItineraryItem).category as ItineraryCategory] ?? undefined
+    : undefined;
 
   return (
     <div
@@ -348,6 +226,8 @@ function SheetSortableItem({ item, isSelected, isLocked, onToggleSelect, display
         onToggleSelect={onToggleSelect}
         dragListeners={listeners}
         dragAttributes={attributes}
+        accent={accent}
+        categoryIcon={categoryIcon}
       />
     </div>
   );
@@ -783,17 +663,19 @@ export function EditableItinerary({
                         doScrollAndOpen();
                       }
                     }}
-                    index={di}
                     shouldAnimate={isFirstVisit}
                   >
                     <SortableContext items={items.map(it => it.id)} strategy={verticalListSortingStrategy}>
                       {items.map((item, ii) => {
                         const isItemLocked = !item._isCustom && ((item as ItineraryItem).locked || confirms[item.id]);
                         return (
-                          <div key={item.id} style={{ borderBottom: ii < items.length - 1 ? "1px dashed #f0ede6" : "none" }}>
                             <SortableItem
-                              item={item} accent={stop.accent} confirms={confirms} onConfirm={onConfirm}
+                              key={item.id}
+                              item={item} accent={stop.accent} onConfirm={onConfirm}
                               isLocked={isItemLocked}
+                              index={ii}
+                              isLast={ii === items.length - 1}
+                              animate={isFirstVisit}
                               onLongPress={() => {
                                 setEditModeDay(day.id);
                                 setSelectedItems(new Set([item.id]));
@@ -802,9 +684,7 @@ export function EditableItinerary({
                               onTimeSave={(t) => setTimeOverride(item.id, t)}
                               reservationTime={reservationTimes[item.id] || ""}
                               onRequestConfirm={() => openResvPrompt(item.id)}
-                              onEditResvTime={() => openResvPrompt(item.id, reservationTimes[item.id] || "")}
                             />
-                          </div>
                         );
                       })}
                     </SortableContext>
@@ -879,19 +759,22 @@ export function EditableItinerary({
           <DragOverlay>
             {activeItem && (
               <div style={{
-                background: "#fff", borderRadius: "8px", padding: "10px 14px",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.15)", display: "flex", gap: "8px",
-                alignItems: "flex-start", opacity: 0.95,
+                background: Colors.surface, borderRadius: "8px", padding: "10px 14px",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.15)", opacity: 0.95,
               }}>
-                <ItemContent
-                  item={activeItem} accent={stop.accent} confirms={confirms} onConfirm={() => {}}
+                <TimelineItem
+                  item={activeItem}
+                  accent={stop.accent}
+                  isConfirmed={false}
                   isCustom={activeItem._isCustom}
                   displayTime={getDisplayTime(activeItem)}
-                  isLocked={false}
                   onTimeSave={() => {}}
                   reservationTime=""
                   onRequestConfirm={() => {}}
-                  onEditResvTime={() => {}}
+                  onConfirm={() => {}}
+                  index={0}
+                  animate={false}
+                  isLast={true}
                 />
               </div>
             )}
@@ -956,7 +839,7 @@ export function EditableItinerary({
           onDragEnd={handleSheetDragEnd}
         >
           <SortableContext items={editItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
-            <div style={{ padding: `${Spacing.xs}px 0` }}>
+            <div style={{ padding: `${Spacing.xs}px ${Spacing.base}px` }}>
               {editItems.map(item => {
                 const isItemLocked = !item._isCustom && ((item as ItineraryItem).locked || confirms[item.id]);
                 return (
@@ -967,6 +850,7 @@ export function EditableItinerary({
                     isLocked={isItemLocked}
                     onToggleSelect={() => toggleItem(item.id)}
                     displayTime={getDisplayTime(item)}
+                    accent={stop.accent}
                   />
                 );
               })}

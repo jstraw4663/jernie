@@ -19,28 +19,26 @@ export interface DayCardProps {
   accent: string;
   isOpen: boolean;
   onToggle: () => void;
-  /** Position in the list — determines stagger delay */
-  index: number;
-  /** True only on first visit to a stop; prevents stagger re-firing on tab switch */
+  /** True only on first visit to a stop; skips entrance animation on tab switch */
   shouldAnimate: boolean;
   children: React.ReactNode;
 }
 
 export const DayCard = React.forwardRef<HTMLDivElement, DayCardProps>(
-  function DayCard({ day, accent, isOpen, onToggle, index, shouldAnimate, children }, ref) {
+  function DayCard({ day, accent, isOpen, onToggle, shouldAnimate, children }, ref) {
   return (
     <motion.div
       ref={ref}
       initial={shouldAnimate ? { opacity: 0, y: 16 } : false}
+      whileInView={shouldAnimate ? { opacity: 1, y: 0 } : undefined}
+      viewport={{ once: true, margin: '-60px' }}
       animate={{
-        opacity: 1,
-        y: 0,
         boxShadow: isOpen ? Shadow.cardHover : Shadow.cardResting,
         borderColor: `${accent}${isOpen ? '35' : '18'}`,
       }}
       transition={{
-        opacity: { type: 'spring', ...Animation.springs.gentle, delay: shouldAnimate ? index * 0.06 : 0 },
-        y:       { type: 'spring', ...Animation.springs.gentle, delay: shouldAnimate ? index * 0.06 : 0 },
+        opacity:     { type: 'spring', ...Animation.springs.gentle, delay: 0.08 },
+        y:           { type: 'spring', ...Animation.springs.gentle, delay: 0.08 },
         boxShadow:   { duration: 0.25, ease: Animation.fm.ease },
         borderColor: { duration: 0.25, ease: Animation.fm.ease },
       }}

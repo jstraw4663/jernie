@@ -84,6 +84,18 @@ export interface ItineraryDay {
   emoji: string;
 }
 
+// Category for curated itinerary items — separate from PlaceCategory (custom items).
+// Covers logistics, meals, outdoor activities, sights, and downtime.
+export type ItineraryCategory =
+  | "restaurant"  // any meal, food stop, coffee
+  | "hike"        // trails, summit walks
+  | "sight"       // lighthouses, scenic spots, landmarks
+  | "activity"    // cruises, tours, sails, spa, events
+  | "travel"      // flights, drives, check-in/out logistics
+  | "lodging"     // hotel check-in / check-out
+  | "leisure"     // free time, walks, relaxed exploration
+  | "other";
+
 export interface ItineraryItem {
   id: string;
   day_id: string;
@@ -96,6 +108,7 @@ export interface ItineraryItem {
   addr_label: string | null;
   tide_url: string | null;
   booking_url: string | null;
+  category: ItineraryCategory | null;
 }
 
 export type PlaceCategory =

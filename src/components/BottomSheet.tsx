@@ -90,11 +90,11 @@ export function BottomSheet({
       // Exit uses a tween with explicit duration — springs are useless here because
       // the force is proportional to the distance (window.innerHeight ≈ 850px),
       // so even low-stiffness springs complete in <200ms and look instantaneous.
-      // 500ms easeIn gives a deliberate, visible glide that accelerates off-screen.
+      // 650ms with a softer easeIn curve gives a deliberate, smooth glide off-screen.
       animate(sheetY, SHEET_OFFSCREEN, {
         type: 'tween',
-        duration: 0.5,
-        ease: [0.4, 0, 0.9, 1],
+        duration: 0.65,
+        ease: [0.4, 0, 0.55, 1],
       });
     }
   }, [isVisible]); // eslint-disable-line react-hooks/exhaustive-deps

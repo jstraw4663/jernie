@@ -8,8 +8,10 @@ import { RestaurantCard } from "./components/RestaurantCard";
 import { ActivityCard } from "./components/ActivityCard";
 import { StickyHeader } from "./components/StickyHeader";
 import { StopNavigator } from "./components/StopNavigator";
+import { ScrollReveal } from "./components/ScrollReveal";
 import type { Booking, Group, Place, Stop, TripData } from "./types";
-import { Colors, Typography, Spacing } from "./design/tokens";
+import { motion } from 'framer-motion';
+import { Colors, Typography, Spacing, Radius, Animation } from "./design/tokens";
 
 const FLIGHT_STATUS_URL = (import.meta as any).env?.VITE_FLIGHT_STATUS_URL ?? "/.netlify/functions/flight-status";
 
@@ -152,18 +154,66 @@ async function fetchFlightStatusGroupWithData(
   setLoading(false);
 }
 
+// ── Entrance animation variants ───────────────────────────────
+// The main content area uses staggerChildren so each section cascades in
+// after unlock. Content only mounts once (behind PIN gate) so initial="hidden"
+// fires exactly once — no re-animation on stop swipe.
+
+const contentContainerVariants = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.045 },
+  },
+};
+
+const contentSectionVariants = {
+  hidden: { opacity: 0, y: 18 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', ...Animation.springs.gentle },
+  },
+};
+
 // ── Sub-components ────────────────────────────────────────────
 
 function AlertBox({type, text, link}: {type:string, text:string, link?:{label:string, url:string}}) {
   const s = ({
-    warning: { bg: Colors.warningLight, bd: Colors.warning },
-    tip:     { bg: Colors.successLight, bd: Colors.success },
-    info:    { bg: "#EBF4F8",           bd: "#2D6A8F"      }, // stop-blue, no matching token yet
-  } as any)[type] || { bg: "#EBF4F8", bd: "#2D6A8F" };
-  return <div style={{background:s.bg,borderLeft:`4px solid ${s.bd}`,borderRadius:`0 8px 8px 0`,padding:`${Spacing.md}px ${Spacing.base}px`,marginBottom:Spacing.sm,fontSize:"0.87rem",lineHeight:Typography.lineHeight.normal,color:Colors.textPrimary}}>
-    {text}
-    {link&&<div style={{marginTop:Spacing.sm}}><a href={link.url} target="_blank" rel="noopener noreferrer" style={{color:s.bd,fontWeight:Typography.weight.bold,fontSize:"0.83rem"}}>{link.label}</a></div>}
-  </div>;
+    warning: { bd: Colors.gold },
+    tip:     { bd: Colors.success },
+    info:    { bd: '#2D6A8F' },
+  } as any)[type] || { bd: '#2D6A8F' };
+  return (
+    <div style={{
+      background: Colors.surfaceRaised,
+      borderRadius: `${Radius.lg}px`,
+      boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+      borderLeft: `3px solid ${s.bd}`,
+      padding: `${Spacing.md}px ${Spacing.base}px`,
+      marginBottom: `${Spacing.sm}px`,
+    }}>
+      <div style={{
+        fontSize: `${Typography.size.sm}px`,
+        lineHeight: Typography.lineHeight.normal,
+        color: Colors.textPrimary,
+        fontFamily: Typography.family,
+      }}>
+        {text}
+      </div>
+      {link && (
+        <div style={{ marginTop: `${Spacing.sm}px` }}>
+          <a href={link.url} target="_blank" rel="noopener noreferrer" style={{
+            color: s.bd,
+            fontWeight: Typography.weight.bold,
+            fontSize: `${Typography.size.xs}px`,
+            fontFamily: Typography.family,
+          }}>
+            {link.label}
+          </a>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function SecHead({label}: {label:string}) {
@@ -175,16 +225,88 @@ function SecHead({label}: {label:string}) {
 
 
 function HotelCard({accent, label, booking}: any) {
-  return <div style={{background:"#fff",border:"1px solid "+accent+"30",borderLeft:"5px solid "+accent,borderRadius:"0 12px 12px 0",padding:"18px 22px"}}>
-    <div style={{fontSize:"0.68rem",letterSpacing:"0.22em",textTransform:"uppercase",color:accent,marginBottom:"6px"}}>{label}</div>
-    {booking.url
-      ? <a href={booking.url} target="_blank" rel="noopener noreferrer" style={{fontWeight:"bold",fontSize:"1rem",marginBottom:"4px",color:"#1a1a1a",textDecoration:"none",borderBottom:"1px dotted #bbb",display:"inline-block"}}>{booking.label}</a>
-      : <div style={{fontWeight:"bold",fontSize:"1rem",marginBottom:"4px",color:"#1a1a1a"}}>{booking.label}</div>
-    }
-    {booking.addr&&<a href={appleMaps(booking.addr)} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:"5px",fontSize:"0.78rem",color:accent,textDecoration:"none",marginBottom:"6px",opacity:0.85,marginTop:"4px"}}>📍 {booking.addr} <span style={{fontSize:"0.7rem",opacity:0.6}}>· Maps</span></a>}
-    {booking.confirmation&&<div style={{fontSize:"0.72rem",color:"#999",marginBottom:"6px",letterSpacing:"0.02em"}}>🎫 Confirmation: <span style={{fontWeight:"bold",color:"#555"}}>{booking.confirmation}</span></div>}
-    {booking.note&&<div style={{color:"#666",fontSize:"0.86rem",lineHeight:1.6,fontStyle:"italic",marginTop:"6px"}}>{booking.note}</div>}
-  </div>;
+  return (
+    <div style={{
+      background: Colors.surfaceRaised,
+      borderRadius: `${Radius.lg}px`,
+      boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+      borderLeft: `3px solid ${accent}`,
+      padding: `${Spacing.md}px ${Spacing.base}px`,
+    }}>
+      <div style={{
+        fontSize: `${Typography.size.xs}px`,
+        fontWeight: Typography.weight.bold,
+        color: accent,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase' as const,
+        fontFamily: Typography.family,
+        marginBottom: `${Spacing.sm}px`,
+      }}>
+        {label}
+      </div>
+      {booking.url
+        ? <a href={booking.url} target="_blank" rel="noopener noreferrer" style={{
+            fontWeight: Typography.weight.bold,
+            fontSize: `${Typography.size.base}px`,
+            color: Colors.textPrimary,
+            textDecoration: 'none',
+            borderBottom: `1px dotted ${Colors.border}`,
+            display: 'inline-block',
+            marginBottom: `${Spacing.xs}px`,
+            fontFamily: Typography.family,
+          }}>
+            {booking.label}
+          </a>
+        : <div style={{
+            fontWeight: Typography.weight.bold,
+            fontSize: `${Typography.size.base}px`,
+            color: Colors.textPrimary,
+            marginBottom: `${Spacing.xs}px`,
+            fontFamily: Typography.family,
+          }}>
+            {booking.label}
+          </div>
+      }
+      {booking.addr && (
+        <a href={appleMaps(booking.addr)} target="_blank" rel="noopener noreferrer" style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: `${Spacing.xs}px`,
+          fontSize: `${Typography.size.xs}px`,
+          color: accent,
+          textDecoration: 'none',
+          marginTop: `${Spacing.xs}px`,
+          marginBottom: `${Spacing.xs}px`,
+          opacity: 0.85,
+          fontFamily: Typography.family,
+        }}>
+          📍 {booking.addr} <span style={{ fontSize: '10px', opacity: 0.6 }}>· Maps</span>
+        </a>
+      )}
+      {booking.confirmation && (
+        <div style={{
+          fontSize: `${Typography.size.xs}px`,
+          color: Colors.textMuted,
+          marginBottom: `${Spacing.xs}px`,
+          fontFamily: Typography.family,
+        }}>
+          🎫 Confirmation: <span style={{ fontWeight: Typography.weight.bold, color: Colors.textSecondary }}>{booking.confirmation}</span>
+        </div>
+      )}
+      {booking.note && (
+        <div style={{
+          color: Colors.textSecondary,
+          fontSize: `${Typography.size.sm}px`,
+          lineHeight: Typography.lineHeight.relaxed,
+          fontStyle: 'italic',
+          marginTop: `${Spacing.xs}px`,
+          fontFamily: Typography.family,
+        }}>
+          {booking.note}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function StatusBadge({status}: {status:string}) {
@@ -199,74 +321,187 @@ function FlightRow({f, sMap, loading}: any) {
   const delayed = s?.delayMin > 0;
   const actualDep = s?.actualDep && s.actualDep !== f.dep ? s.actualDep : null;
   const actualArr = s?.actualArr && s.actualArr !== f.arr ? s.actualArr : null;
-  return <div style={{borderTop:`1px solid ${Colors.border}`,paddingTop:"11px",marginTop:"11px"}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"6px",marginBottom:"8px"}}>
-      <div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}>
-        {f.trackingUrl
-          ? <a href={f.trackingUrl} target="_blank" rel="noopener noreferrer" style={{fontWeight:"bold",fontSize:"0.96rem",color:Colors.textPrimary,textDecoration:"none",borderBottom:`1px dotted ${Colors.textMuted}`}}>{f.num}</a>
-          : <span style={{fontWeight:"bold",fontSize:"0.96rem"}}>{f.num}</span>
-        }
-        <span style={{color:Colors.textMuted,fontSize:"0.8rem"}}>{f.airline}</span>
-        <span style={{color:Colors.textMuted,fontSize:"0.8rem"}}>·</span>
-        <span style={{color:Colors.textSecondary,fontSize:"0.82rem"}}>{f.route}</span>
-        <span style={{color:Colors.textMuted,fontSize:"0.8rem"}}>·</span>
-        <span style={{color:Colors.textMuted,fontSize:"0.8rem"}}>{f.date}</span>
-      </div>
-      {loading?<span style={{fontSize:"0.72rem",color:Colors.textMuted}}>Checking…</span>:s&&<StatusBadge status={s.status||"Unknown"}/>}
-    </div>
-    <div style={{display:"flex",gap:"20px",flexWrap:"wrap",alignItems:"flex-end"}}>
-      {[["Departs",f.dep,actualDep],["Arrives",f.arr,actualArr]].map(([lbl,sched,actual])=>(
-        <div key={lbl as string}>
-          <div style={{fontSize:"0.65rem",color:Colors.textMuted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>{lbl}</div>
-          <div style={{fontWeight:"bold",fontSize:"0.9rem",display:"flex",alignItems:"center",gap:"5px"}}>
-            {actual?<><span style={{textDecoration:"line-through",color:Colors.textMuted,fontWeight:"normal",fontSize:"0.8rem"}}>{sched as string}</span><span style={{color:delayed?Colors.gold:Colors.success}}>{actual}</span></>:sched}
-          </div>
+  const label = (l: string) => (
+    <div style={{
+      fontSize: `${Typography.size.xs}px`,
+      color: Colors.textMuted,
+      textTransform: 'uppercase' as const,
+      letterSpacing: '0.08em',
+      marginBottom: `${Spacing.xxs}px`,
+      fontFamily: Typography.family,
+    }}>{l}</div>
+  );
+  const val = (children: React.ReactNode, color?: string) => (
+    <div style={{
+      fontWeight: Typography.weight.bold,
+      fontSize: `${Typography.size.sm}px`,
+      color: color ?? Colors.textPrimary,
+      display: 'flex',
+      alignItems: 'center',
+      gap: `${Spacing.xs}px`,
+      fontFamily: Typography.family,
+    }}>{children}</div>
+  );
+  return (
+    <div style={{ borderTop: `1px solid ${Colors.border}`, paddingTop: `${Spacing.md}px`, marginTop: `${Spacing.md}px` }}>
+      {/* Flight header: number · airline · route · date + status */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        flexWrap: 'wrap' as const, gap: `${Spacing.xs}px`, marginBottom: `${Spacing.sm}px`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: `${Spacing.xs}px`, flexWrap: 'wrap' as const }}>
+          {f.trackingUrl
+            ? <a href={f.trackingUrl} target="_blank" rel="noopener noreferrer" style={{
+                fontWeight: Typography.weight.bold,
+                fontSize: `${Typography.size.base}px`,
+                color: Colors.textPrimary,
+                textDecoration: 'none',
+                borderBottom: `1px dotted ${Colors.textMuted}`,
+                fontFamily: Typography.family,
+              }}>{f.num}</a>
+            : <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.base}px`, fontFamily: Typography.family }}>{f.num}</span>
+          }
+          <span style={{ color: Colors.textMuted, fontSize: `${Typography.size.xs}px` }}>{f.airline}</span>
+          <span style={{ color: Colors.border }}>·</span>
+          <span style={{ color: Colors.textSecondary, fontSize: `${Typography.size.xs}px` }}>{f.route}</span>
+          <span style={{ color: Colors.border }}>·</span>
+          <span style={{ color: Colors.textMuted, fontSize: `${Typography.size.xs}px` }}>{f.date}</span>
         </div>
-      ))}
-      {s?.gate&&<div><div style={{fontSize:"0.65rem",color:Colors.textMuted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Gate</div><div style={{fontWeight:"bold",fontSize:"0.9rem",color:Colors.textPrimary}}>{s.gate||"TBD"}</div></div>}
-      {!s&&<div><div style={{fontSize:"0.65rem",color:Colors.textMuted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Gate</div><div style={{fontWeight:"bold",fontSize:"0.9rem",color:Colors.textMuted}}>TBD</div></div>}
-      {s?.terminal&&<div><div style={{fontSize:"0.65rem",color:Colors.textMuted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Terminal</div><div style={{fontWeight:"bold",fontSize:"0.9rem"}}>{s.terminal}</div></div>}
-      {delayed&&<div><div style={{fontSize:"0.65rem",color:Colors.textMuted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Delay</div><div style={{fontWeight:"bold",fontSize:"0.9rem",color:Colors.gold}}>+{s.delayMin} min</div></div>}
+        {loading
+          ? <span style={{ fontSize: `${Typography.size.xs}px`, color: Colors.textMuted }}>Checking…</span>
+          : s && <StatusBadge status={s.status || 'Unknown'}/>
+        }
+      </div>
+      {/* Flight stats grid */}
+      <div style={{ display: 'flex', gap: `${Spacing.xl}px`, flexWrap: 'wrap' as const, alignItems: 'flex-end' }}>
+        {(['Departs', 'Arrives'] as const).map((lbl, i) => {
+          const sched = i === 0 ? f.dep : f.arr;
+          const actual = i === 0 ? actualDep : actualArr;
+          return (
+            <div key={lbl}>
+              {label(lbl)}
+              {val(actual
+                ? <><span style={{ textDecoration: 'line-through', color: Colors.textMuted, fontWeight: Typography.weight.regular, fontSize: `${Typography.size.xs}px` }}>{sched}</span><span style={{ color: delayed ? Colors.gold : Colors.success }}>{actual}</span></>
+                : sched
+              )}
+            </div>
+          );
+        })}
+        <div>
+          {label('Gate')}
+          {val(s?.gate || 'TBD', s?.gate ? Colors.textPrimary : Colors.textMuted)}
+        </div>
+        {s?.terminal && (
+          <div>{label('Terminal')}{val(s.terminal)}</div>
+        )}
+        {delayed && (
+          <div>{label('Delay')}{val(`+${s.delayMin} min`, Colors.gold)}</div>
+        )}
+      </div>
     </div>
-  </div>;
+  );
 }
 
 function BookingCard({booking, accent, flightStatus, flightLoading}: any) {
-  return <div style={{background:"#fff",border:"1px solid "+accent+"25",borderRadius:"10px",padding:"15px 18px",display:"flex",gap:"14px",alignItems:"flex-start"}}>
-    <div style={{fontSize:"1.3rem",lineHeight:1,marginTop:"2px",flexShrink:0}}>{booking.icon}</div>
-    <div style={{flex:1}}>
-      <div style={{fontWeight:"bold",color:"#777",fontSize:"0.7rem",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:"8px"}}>
-        {booking.label.includes("Avis") ? (() => {
-          const parts = booking.label.split("Avis");
-          return <>{parts[0]}<span style={{color:"#CC2200"}}>Avis</span>{parts[1]}</>;
-        })() : booking.label}
-      </div>
-      {booking.flights?.map((f:any,i:number)=><FlightRow key={i} f={f} sMap={flightStatus} loading={flightLoading}/>)}
-      {booking.lines?.map((l:string,i:number)=>{
-        const isAddr=l.startsWith("📍");
-        return <div key={i} style={{fontSize:"0.86rem",lineHeight:1.6,marginBottom:"2px",fontWeight:i===0?"600":"normal",color:l.startsWith("⏰")||l.startsWith("📅")?"#666":"#222"}}>
-          {isAddr&&booking.addr?<a href={appleMaps(booking.addr)} target="_blank" rel="noopener noreferrer" style={{color:accent,textDecoration:"none"}}>📍 {l.replace("📍","").trim()} <span style={{fontSize:"0.7rem",opacity:0.7}}>· Open in Maps</span></a>:l}
-        </div>;
-      })}
-      {booking.confirmation_link&&(
-        <div style={{fontSize:"0.86rem",lineHeight:1.6,marginTop:"2px"}}>
-          <a href={booking.confirmation_link.url} target="_blank" rel="noopener noreferrer"
-            style={{color:accent,textDecoration:"none",display:"inline-flex",alignItems:"center",gap:"6px"}}>
-            🎫 {booking.confirmation_link.label}
-            <span style={{fontSize:"0.72rem",opacity:0.7}}>· View Reservation</span>
-          </a>
+  return (
+    <div style={{
+      background: Colors.surfaceRaised,
+      borderRadius: `${Radius.lg}px`,
+      boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+      borderLeft: `3px solid ${accent}60`,
+      padding: `${Spacing.md}px ${Spacing.base}px`,
+      display: 'flex',
+      gap: `${Spacing.md}px`,
+      alignItems: 'flex-start',
+    }}>
+      <div style={{ fontSize: '1.3rem', lineHeight: 1, marginTop: '2px', flexShrink: 0 }}>{booking.icon}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontWeight: Typography.weight.bold,
+          color: Colors.textSecondary,
+          fontSize: `${Typography.size.xs}px`,
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase' as const,
+          marginBottom: `${Spacing.sm}px`,
+          fontFamily: Typography.family,
+        }}>
+          {booking.label.includes("Avis") ? (() => {
+            const parts = booking.label.split("Avis");
+            return <>{parts[0]}<span style={{color:"#CC2200"}}>Avis</span>{parts[1]}</>;
+          })() : booking.label}
         </div>
-      )}
+        {booking.flights?.map((f:any, i:number) => <FlightRow key={i} f={f} sMap={flightStatus} loading={flightLoading}/>)}
+        {booking.lines?.map((l:string, i:number) => {
+          const isAddr = l.startsWith("📍");
+          return (
+            <div key={i} style={{
+              fontSize: `${Typography.size.sm}px`,
+              lineHeight: Typography.lineHeight.normal,
+              marginBottom: `${Spacing.xxs}px`,
+              fontWeight: i === 0 ? Typography.weight.semibold : Typography.weight.regular,
+              color: l.startsWith("⏰") || l.startsWith("📅") ? Colors.textSecondary : Colors.textPrimary,
+              fontFamily: Typography.family,
+            }}>
+              {isAddr && booking.addr
+                ? <a href={appleMaps(booking.addr)} target="_blank" rel="noopener noreferrer" style={{ color: accent, textDecoration: 'none' }}>
+                    📍 {l.replace("📍", "").trim()} <span style={{ fontSize: `${Typography.size.xs}px`, opacity: 0.7 }}>· Open in Maps</span>
+                  </a>
+                : l
+              }
+            </div>
+          );
+        })}
+        {booking.confirmation_link && (
+          <div style={{ fontSize: `${Typography.size.sm}px`, lineHeight: Typography.lineHeight.normal, marginTop: `${Spacing.xxs}px` }}>
+            <a href={booking.confirmation_link.url} target="_blank" rel="noopener noreferrer" style={{
+              color: accent,
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: `${Spacing.xs}px`,
+              fontFamily: Typography.family,
+            }}>
+              🎫 {booking.confirmation_link.label}
+              <span style={{ fontSize: `${Typography.size.xs}px`, opacity: 0.7 }}>· View Reservation</span>
+            </a>
+          </div>
+        )}
+      </div>
     </div>
-  </div>;
+  );
 }
 
 function LegSummary({stop}: {stop:Stop}) {
   if (!stop.summary) return null;
   return (
-    <div style={{background:stop.accent+"0D",borderLeft:"4px solid "+stop.accent,borderRadius:"0 10px 10px 0",padding:"14px 18px",marginBottom:"22px"}}>
-      <div style={{fontSize:"0.68rem",fontWeight:"bold",color:stop.accent,letterSpacing:"0.14em",textTransform:"uppercase",marginBottom:"6px"}}>{stop.emoji} {stop.city} · {stop.dates}</div>
-      <div style={{fontSize:"0.88rem",color:"#3a3a3a",lineHeight:1.65,fontStyle:"italic"}}>{stop.summary}</div>
+    <div style={{
+      background: Colors.surfaceRaised,
+      borderRadius: `${Radius.lg}px`,
+      boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+      borderLeft: `3px solid ${stop.accent}`,
+      padding: `${Spacing.md}px ${Spacing.base}px`,
+      marginBottom: `${Spacing.xl}px`,
+    }}>
+      <div style={{
+        fontSize: `${Typography.size.xs}px`,
+        fontWeight: Typography.weight.bold,
+        color: stop.accent,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase' as const,
+        fontFamily: Typography.family,
+        marginBottom: `${Spacing.xs}px`,
+      }}>
+        {stop.emoji} {stop.city} · {stop.dates}
+      </div>
+      <div style={{
+        fontSize: `${Typography.size.sm}px`,
+        color: Colors.textSecondary,
+        lineHeight: Typography.lineHeight.relaxed,
+        fontStyle: 'italic',
+        fontFamily: Typography.family,
+      }}>
+        {stop.summary}
+      </div>
     </div>
   );
 }
@@ -329,7 +564,11 @@ function PlaceList({places, accent, isActivities, onAddToItinerary}: {places:Pla
   if (!hasGroups) {
     return (
       <div style={{display:"flex",flexDirection:"column",gap:"11px"}}>
-        {places.map((p)=><PlaceCard key={p.id} place={p} accent={accent} onAddToItinerary={onAddToItinerary}/>)}
+        {places.map((p, i)=>(
+          <ScrollReveal key={p.id} index={i} margin="-40px">
+            <PlaceCard place={p} accent={accent} onAddToItinerary={onAddToItinerary}/>
+          </ScrollReveal>
+        ))}
       </div>
     );
   }
@@ -353,7 +592,11 @@ function PlaceList({places, accent, isActivities, onAddToItinerary}: {places:Pla
             <div style={{flex:1,height:"1px",background:accent+"20"}}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
-            {grouped[g].map((p)=><PlaceCard key={p.id} place={p} accent={accent} onAddToItinerary={onAddToItinerary}/>)}
+            {grouped[g].map((p, i)=>(
+              <ScrollReveal key={p.id} index={i} margin="-40px">
+                <PlaceCard place={p} accent={accent} onAddToItinerary={onAddToItinerary}/>
+              </ScrollReveal>
+            ))}
           </div>
         </div>
       ))}
@@ -581,8 +824,12 @@ function TravelSection({stop, stopBookings, groups, flightStatus, flightLoading,
       {hasFlights && !mostRecent && (
         <div style={{fontSize:"0.7rem",color:"#bbb",textAlign:"right",marginBottom:"10px"}}>Live status begins 48hrs before departure</div>
       )}
-      <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
-        {sorted.map(renderBooking)}
+      <div style={{display:"flex",flexDirection:"column",gap:`${Spacing.sm}px`}}>
+        {sorted.map((b: Booking, i: number) => (
+          <ScrollReveal key={b.id} index={i}>
+            {renderBooking(b)}
+          </ScrollReveal>
+        ))}
       </div>
     </>
   );
@@ -861,92 +1108,115 @@ export default function MaineGuide() {
 
       {/* Main */}
       <StopNavigator stops={data.stops} activeIndex={activeIndex} onSwipe={handleSwipe}>
-      <div style={{maxWidth:"780px",margin:"0 auto",padding:"32px 20px 64px"}}>
+      <motion.div
+        style={{maxWidth:"780px",margin:"0 auto",padding:"32px 20px 64px"}}
+        variants={contentContainerVariants}
+        initial="hidden"
+        animate="visible"
+      >
 
-        <LegSummary stop={stop}/>
-        <WeatherStrip stop={stop} weatherData={weatherData}/>
+        <motion.div variants={contentSectionVariants}>
+          <LegSummary stop={stop}/>
+        </motion.div>
+
+        <motion.div variants={contentSectionVariants}>
+          <WeatherStrip stop={stop} weatherData={weatherData}/>
+        </motion.div>
 
         {/* Travel & Accommodations */}
-        <CollapsibleSection
-          color={stop.accent}
-          label="✈️ Travel & Accommodations"
-          open={travelOpen}
-          onToggle={()=>setTravelOpen(v=>!v)}
-          rightSlot={hasFlights&&(
-            <button onClick={(e)=>{
-              e.stopPropagation();
-              const groups = deriveFlightGroups(stopBookings);
-              Object.entries(groups).forEach(([dk, g]: [string, any]) => {
-                fetchFlightStatusGroupWithData(dk, g.flights, setFlightStatus, setFlightLoading, setLastUpdated);
-              });
-            }} disabled={flightLoading}
-              style={{background:"transparent",border:"1px solid "+stop.accent+"50",borderRadius:"6px",padding:"3px 10px",fontSize:"0.72rem",color:stop.accent,cursor:flightLoading?"default":"pointer",opacity:flightLoading?0.5:1,fontFamily:"Georgia,serif"}}>
-              {flightLoading?"⏳ Checking…":"↻ Refresh"}
-            </button>
-          )}
-        >
-          <TravelSection
-            stop={stop}
-            stopBookings={stopBookings}
-            groups={data.groups}
-            flightStatus={flightStatus}
-            flightLoading={flightLoading}
-            lastUpdated={lastUpdated}
-          />
-        </CollapsibleSection>
+        <motion.div variants={contentSectionVariants}>
+          <CollapsibleSection
+            color={stop.accent}
+            label="✈️ Travel & Accommodations"
+            open={travelOpen}
+            onToggle={()=>setTravelOpen(v=>!v)}
+            rightSlot={hasFlights&&(
+              <button onClick={(e)=>{
+                e.stopPropagation();
+                const groups = deriveFlightGroups(stopBookings);
+                Object.entries(groups).forEach(([dk, g]: [string, any]) => {
+                  fetchFlightStatusGroupWithData(dk, g.flights, setFlightStatus, setFlightLoading, setLastUpdated);
+                });
+              }} disabled={flightLoading}
+                style={{background:"transparent",border:"1px solid "+stop.accent+"50",borderRadius:"6px",padding:"3px 10px",fontSize:"0.72rem",color:stop.accent,cursor:flightLoading?"default":"pointer",opacity:flightLoading?0.5:1,fontFamily:"Georgia,serif"}}>
+                {flightLoading?"⏳ Checking…":"↻ Refresh"}
+              </button>
+            )}
+          >
+            <TravelSection
+              stop={stop}
+              stopBookings={stopBookings}
+              groups={data.groups}
+              flightStatus={flightStatus}
+              flightLoading={flightLoading}
+              lastUpdated={lastUpdated}
+            />
+          </CollapsibleSection>
+        </motion.div>
 
         {/* Additional Details */}
-        {stopAlerts.length>0&&(
-          <div style={{marginBottom:"28px"}}>
-            <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"12px"}}>
-              <div style={{fontWeight:"bold",color:stop.accent,fontSize:"0.78rem",letterSpacing:"0.12em",textTransform:"uppercase"}}>📌 Additional Details</div>
-              <div style={{flex:1,height:"1px",background:stop.accent+"30"}}/>
+        {stopAlerts.length > 0 && (
+          <motion.div variants={contentSectionVariants}>
+            <div style={{marginBottom:"28px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"12px"}}>
+                <div style={{fontWeight:"bold",color:stop.accent,fontSize:"0.78rem",letterSpacing:"0.12em",textTransform:"uppercase"}}>📌 Additional Details</div>
+                <div style={{flex:1,height:"1px",background:stop.accent+"30"}}/>
+              </div>
+              {stopAlerts.map((a)=><AlertBox key={a.id} {...a}/>)}
             </div>
-            {stopAlerts.map((a)=><AlertBox key={a.id} {...a}/>)}
-          </div>
+          </motion.div>
         )}
 
-        <EditableItinerary
-          stop={stop} data={data}
-          confirms={confirms} onConfirm={setConfirm}
-          itineraryOrder={itineraryOrder} customItems={customItems}
-          timeOverrides={timeOverrides} reservationTimes={reservationTimes}
-          setDayOrder={setDayOrder} moveItem={moveItem}
-          addCustomItem={addCustomItem} deleteCustomItem={deleteCustomItem}
-          initializeOrder={initializeOrder} setTimeOverride={setTimeOverride}
-          setReservationTime={setReservationTime}
-          scrollRef={scrollRef}
-        />
+        <motion.div variants={contentSectionVariants}>
+          <EditableItinerary
+            stop={stop} data={data}
+            confirms={confirms} onConfirm={setConfirm}
+            itineraryOrder={itineraryOrder} customItems={customItems}
+            timeOverrides={timeOverrides} reservationTimes={reservationTimes}
+            setDayOrder={setDayOrder} moveItem={moveItem}
+            addCustomItem={addCustomItem} deleteCustomItem={deleteCustomItem}
+            initializeOrder={initializeOrder} setTimeOverride={setTimeOverride}
+            setReservationTime={setReservationTime}
+            scrollRef={scrollRef}
+          />
+        </motion.div>
 
         {/* Where to Eat */}
-        {active==="barharbor" ? (
-          <CollapsibleSection color={stop.accent} label="🍽️ Where to Eat" open={eatOpen} onToggle={()=>setEatOpen(v=>!v)}>
-            <PlaceList places={restaurants} accent={stop.accent} onAddToItinerary={p=>setAddPlaceContext(p)}/>
-          </CollapsibleSection>
-        ) : (
-          <div style={{marginBottom:"28px"}}>
-            <SecHead label="🍽️ Where to Eat"/>
-            <PlaceList places={restaurants} accent={stop.accent} onAddToItinerary={p=>setAddPlaceContext(p)}/>
-          </div>
-        )}
-
-        {/* What to Do */}
-        {activities.length > 0 && (
-          active==="barharbor" ? (
-            <CollapsibleSection color={stop.accent} label="📍 What to Do" open={doOpen} onToggle={()=>setDoOpen(v=>!v)}>
-              <PlaceList places={activities} accent={stop.accent} isActivities onAddToItinerary={p=>setAddPlaceContext(p)}/>
+        <motion.div variants={contentSectionVariants}>
+          {active==="barharbor" ? (
+            <CollapsibleSection color={stop.accent} label="🍽️ Where to Eat" open={eatOpen} onToggle={()=>setEatOpen(v=>!v)}>
+              <PlaceList places={restaurants} accent={stop.accent} onAddToItinerary={p=>setAddPlaceContext(p)}/>
             </CollapsibleSection>
           ) : (
             <div style={{marginBottom:"28px"}}>
-              <SecHead label="📍 What to Do"/>
-              <PlaceList places={activities} accent={stop.accent} isActivities onAddToItinerary={p=>setAddPlaceContext(p)}/>
+              <SecHead label="🍽️ Where to Eat"/>
+              <PlaceList places={restaurants} accent={stop.accent} onAddToItinerary={p=>setAddPlaceContext(p)}/>
             </div>
-          )
+          )}
+        </motion.div>
+
+        {/* What to Do */}
+        {activities.length > 0 && (
+          <motion.div variants={contentSectionVariants}>
+            {active==="barharbor" ? (
+              <CollapsibleSection color={stop.accent} label="📍 What to Do" open={doOpen} onToggle={()=>setDoOpen(v=>!v)}>
+                <PlaceList places={activities} accent={stop.accent} isActivities onAddToItinerary={p=>setAddPlaceContext(p)}/>
+              </CollapsibleSection>
+            ) : (
+              <div style={{marginBottom:"28px"}}>
+                <SecHead label="📍 What to Do"/>
+                <PlaceList places={activities} accent={stop.accent} isActivities onAddToItinerary={p=>setAddPlaceContext(p)}/>
+              </div>
+            )}
+          </motion.div>
         )}
 
         {/* What to Pack */}
-        <WhatToPack accent={stop.accent} data={data} packing={packing} onPack={setPacking} onReset={resetPacking}/>
-      </div>
+        <motion.div variants={contentSectionVariants}>
+          <WhatToPack accent={stop.accent} data={data} packing={packing} onPack={setPacking} onReset={resetPacking}/>
+        </motion.div>
+
+      </motion.div>
 
       <div style={{background:"#0D2B3E",color:"#A8C4D4",textAlign:"center",padding:"22px",fontSize:"0.8rem",letterSpacing:"0.05em"}}>
         Maine Coast · May 2026 · 🌊

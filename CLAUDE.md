@@ -2,7 +2,7 @@
 
 > This file is the single source of truth for AI context across Claude Code and Claude Web.
 > Repo: https://github.com/jstraw4663/jernie
-> Last updated: April 7, 2026 — v0.3.2
+> Last updated: April 8, 2026 — v0.3.3
 
 ---
 
@@ -255,6 +255,37 @@ set `scrollEl.style.overflowAnchor = 'none'` first, then restore after expansion
 This prevents iOS from undoing the scroll during FM's height measurement reflow.
 See `EditableItinerary.tsx` `onToggle` handler for the reference implementation.
 
+### Scroll-reveal pattern — non-negotiable for card content
+Every discrete card or list item that renders below the fold **must** be wrapped in
+`<ScrollReveal>`. This is a design language rule, not optional polish.
+
+```tsx
+import { ScrollReveal } from '../components/ScrollReveal';
+
+// Single card
+<ScrollReveal>
+  <MyCard />
+</ScrollReveal>
+
+// List of cards — index prop adds a gentle cascade (0.025s per item)
+{items.map((item, i) => (
+  <ScrollReveal key={item.id} index={i}>
+    <MyCard item={item} />
+  </ScrollReveal>
+))}
+```
+
+**Props:**
+- `index` — position in list; adds `0.025s × index` stagger delay (default `0`)
+- `margin` — how far inside the viewport before triggering (default `'-30px'`); use `'-60px'` for tall cards like DayCard
+- `style` — forwarded to the `motion.div` wrapper
+
+**Rules:**
+- `viewport={{ once: true }}` — fires exactly once per mount, never re-triggers on scroll
+- Do **not** also add your own `initial`/`animate`/`whileInView` to the child — the wrapper owns entrance
+- Components with complex internal animation state (DayCard, TimelineItem) use `whileInView` directly rather than ScrollReveal, since they also animate non-entrance properties
+- Section-level wrappers (`contentSectionVariants` in `Jernie-PWA.tsx`) handle above-the-fold entrance on unlock; ScrollReveal handles individual cards within those sections
+
 ### Component library
 | Component | Purpose |
 |-----------|---------|
@@ -271,6 +302,7 @@ See `EditableItinerary.tsx` `onToggle` handler for the reference implementation.
 | `src/components/AddToItinerarySheet.tsx` | Stop-scoped day picker using BottomSheet |
 | `src/components/RestaurantCard.tsx` | Token-driven restaurant place card |
 | `src/components/ActivityCard.tsx` | Token-driven activity/hike place card |
+| `src/components/ScrollReveal.tsx` | Standard scroll-triggered card entrance — wrap any below-fold card/list item |
 | `src/contexts/SheetContext.tsx` | Tracks open sheet count; disables StopNavigator drag when > 0 |
 
 All components are React-only with no DOM-specific APIs. Platform logic lives in `src/platform/`.
@@ -299,6 +331,7 @@ Expo migration: CSS transitions → Reanimated, pointer events → Gesture Handl
 | `src/components/SelectableListItem.tsx` | Selectable list row with drag handle |
 | `src/components/ActionBar.tsx` | Edit mode action bar (delete, move) |
 | `src/components/ConfirmDialog.tsx` | Inline confirm/cancel dialog for sheet actions |
+| `src/components/ScrollReveal.tsx` | Scroll-triggered entrance wrapper — standard for all card/list content |
 | `src/hooks/useSharedTripState.ts` | Firebase Realtime DB hook — all shared mutable state + offline write queue |
 | `src/contexts/SheetContext.tsx` | Open sheet count context — consumed by StopNavigator to lock drag |
 | `src/hooks/useLongPress.ts` | Cross-platform long-press hook (500ms, cancel on move/leave/unmount) |

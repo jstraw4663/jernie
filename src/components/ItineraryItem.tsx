@@ -1,13 +1,10 @@
-// ItineraryItem — Framer Motion animated wrapper for itinerary list rows.
+// ItineraryItem — Framer Motion press + long-press wrapper for timeline items.
 // Provides:
-//   - whileTap scale 0.99 press feedback (disabled for locked/confirmed items)
+//   - whileTap scale 0.97 press feedback (disabled for confirmed items)
 //   - Long-press via useLongPress → triggers onLongPress (opens Edit Mode)
 //
-// Accepts children so ItemContent can be passed through without moving it
-// prematurely — full item refactor is S4.
-//
 // dnd-kit's setNodeRef stays on SortableItem's outer div; this component
-// owns the interaction + animation layer only.
+// owns only the interaction + animation layer.
 //
 // PLATFORM NOTE:
 //   motion.div + whileTap → Pressable + Animated.spring on React Native
@@ -15,7 +12,7 @@
 
 import { motion } from 'framer-motion';
 import { useLongPress } from '../hooks/useLongPress';
-import { Spacing, Animation } from '../design/tokens';
+import { Animation } from '../design/tokens';
 
 export interface ItineraryItemProps {
   onLongPress?: () => void;
@@ -29,17 +26,14 @@ export function ItineraryItem({ onLongPress, isLocked, children }: ItineraryItem
 
   return (
     <motion.div
-      whileTap={isLocked ? undefined : { scale: 0.99 }}
-      transition={{ duration: 0.08, ease: Animation.fm.ease }}
+      whileTap={isLocked ? undefined : { scale: 0.97 }}
+      transition={{ type: 'spring', ...Animation.springs.snappy }}
       onPointerDown={handlePointerDown}
       onPointerUp={cancel}
       onPointerMove={cancel}
       onPointerLeave={cancel}
       style={{
-        display: 'flex',
-        gap: `${Spacing.sm}px`,
-        padding: `${Spacing.sm}px 0`,
-        alignItems: 'flex-start',
+        display: 'block',
         position: 'relative',
         userSelect: 'none',
         WebkitUserSelect: 'none',
