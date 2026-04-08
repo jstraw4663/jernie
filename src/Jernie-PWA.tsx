@@ -1,11 +1,17 @@
 // @ts-nocheck — types deferred; will be added during CSS/architecture refactor (phase:foundation)
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTripData } from "./hooks/useTripData";
 import { useSharedTripState } from "./hooks/useSharedTripState";
 import { EditableItinerary } from "./components/EditableItinerary";
-import { DayPickerModal } from "./components/DayPickerModal";
+import { AddToItinerarySheet } from "./components/AddToItinerarySheet";
+import { RestaurantCard } from "./components/RestaurantCard";
+import { ActivityCard } from "./components/ActivityCard";
+import { StickyHeader } from "./components/StickyHeader";
+import { StopNavigator } from "./components/StopNavigator";
+import { ScrollReveal } from "./components/ScrollReveal";
 import type { Booking, Group, Place, Stop, TripData } from "./types";
-import { Colors, Typography, Spacing } from "./design/tokens";
+import { motion } from 'framer-motion';
+import { Colors, Typography, Spacing, Radius, Animation } from "./design/tokens";
 
 const FLIGHT_STATUS_URL = (import.meta as any).env?.VITE_FLIGHT_STATUS_URL ?? "/.netlify/functions/flight-status";
 
@@ -87,7 +93,7 @@ function isWithinFlightWindow(dateKey: string, flights: any[]) {
   return now >= earliest - 48 * 3600000 && now <= earliest + 24 * 3600000;
 }
 
-async function fetchWeatherForStop(s: Stop) {
+async function fetchWeatherForStop(s: Stop, signal?: AbortSignal) {
   const key = "jernie_weather_" + s.id;
   const cached = readCache(key);
   if (cached && (Date.now() - cached.cachedAt) < 3 * 3600000) {
@@ -100,7 +106,7 @@ async function fetchWeatherForStop(s: Stop) {
   }
   try {
     const url = "https://api.open-meteo.com/v1/forecast?latitude=" + s.lat + "&longitude=" + s.lon + "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&temperature_unit=fahrenheit&timezone=America%2FNew_York&start_date=" + s.weather_start + "&end_date=" + s.weather_end;
-    const r = await fetch(url);
+    const r = await fetch(url, { signal });
     const d = await r.json();
     if (d.error || !d.daily?.time?.length) return cached ? { data: cached.data, fromCache: true } : null;
     writeCache(key, d.daily);
@@ -148,58 +154,159 @@ async function fetchFlightStatusGroupWithData(
   setLoading(false);
 }
 
+// ── Entrance animation variants ───────────────────────────────
+// The main content area uses staggerChildren so each section cascades in
+// after unlock. Content only mounts once (behind PIN gate) so initial="hidden"
+// fires exactly once — no re-animation on stop swipe.
+
+const contentContainerVariants = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.045 },
+  },
+};
+
+const contentSectionVariants = {
+  hidden: { opacity: 0, y: 18 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', ...Animation.springs.gentle },
+  },
+};
+
 // ── Sub-components ────────────────────────────────────────────
 
 function AlertBox({type, text, link}: {type:string, text:string, link?:{label:string, url:string}}) {
   const s = ({
-    warning: { bg: Colors.warningLight, bd: Colors.warning },
-    tip:     { bg: Colors.successLight, bd: Colors.success },
-    info:    { bg: "#EBF4F8",           bd: "#2D6A8F"      }, // stop-blue, no matching token yet
-  } as any)[type] || { bg: "#EBF4F8", bd: "#2D6A8F" };
-  return <div style={{background:s.bg,borderLeft:`4px solid ${s.bd}`,borderRadius:`0 8px 8px 0`,padding:`${Spacing.md}px ${Spacing.base}px`,marginBottom:Spacing.sm,fontSize:"0.87rem",lineHeight:Typography.lineHeight.normal,color:Colors.textPrimary}}>
-    {text}
-    {link&&<div style={{marginTop:Spacing.sm}}><a href={link.url} target="_blank" rel="noopener noreferrer" style={{color:s.bd,fontWeight:Typography.weight.bold,fontSize:"0.83rem"}}>{link.label}</a></div>}
-  </div>;
+    warning: { bd: Colors.gold },
+    tip:     { bd: Colors.success },
+    info:    { bd: '#2D6A8F' },
+  } as any)[type] || { bd: '#2D6A8F' };
+  return (
+    <div style={{
+      background: Colors.surfaceRaised,
+      borderRadius: `${Radius.lg}px`,
+      boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+      borderLeft: `3px solid ${s.bd}`,
+      padding: `${Spacing.md}px ${Spacing.base}px`,
+      marginBottom: `${Spacing.sm}px`,
+    }}>
+      <div style={{
+        fontSize: `${Typography.size.sm}px`,
+        lineHeight: Typography.lineHeight.normal,
+        color: Colors.textPrimary,
+        fontFamily: Typography.family,
+      }}>
+        {text}
+      </div>
+      {link && (
+        <div style={{ marginTop: `${Spacing.sm}px` }}>
+          <a href={link.url} target="_blank" rel="noopener noreferrer" style={{
+            color: s.bd,
+            fontWeight: Typography.weight.bold,
+            fontSize: `${Typography.size.xs}px`,
+            fontFamily: Typography.family,
+          }}>
+            {link.label}
+          </a>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function SecHead({color, label}: {color:string, label:string}) {
+function SecHead({label}: {label:string}) {
   return <div style={{display:"flex",alignItems:"center",gap:Spacing.md,marginBottom:Spacing.base}}>
-    <div style={{fontWeight:Typography.weight.bold,color,fontSize:Typography.size.xs,letterSpacing:"0.12em",textTransform:"uppercase"}}>{label}</div>
-    <div style={{flex:1,height:"1px",background:color+"30"}}/>
+    <div style={{fontWeight:Typography.weight.bold,color:Colors.gold,fontSize:Typography.size.xs,letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:"Georgia,serif"}}>{label}</div>
+    <div style={{flex:1,height:"1px",background:Colors.gold+"30"}}/>
   </div>;
 }
 
-function StarRating({rating}: {rating:number}) {
-  const full = Math.floor(rating);
-  const half = rating - full >= 0.3;
-  return <span style={{display:"inline-flex",alignItems:"center",gap:"2px",fontSize:"0.72rem"}}>
-    {[1,2,3,4,5].map(i=>(
-      <span key={i} style={{color:i<=full?"#F59E0B":(i===full+1&&half?"#F59E0B":"#ddd"),fontSize:"0.75rem"}}>
-        {i<=full?"★":(i===full+1&&half?"⯨":"★")}
-      </span>
-    ))}
-    <span style={{color:"#888",marginLeft:"3px",fontFamily:"Georgia,serif"}}>{rating}</span>
-  </span>;
-}
-
-function PriceBadge({price}: {price:string}) {
-  const n = (price||"").length;
-  return <span style={{display:"inline-flex",letterSpacing:"0.01em",fontSize:"0.8rem"}}>
-    {[1,2,3,4].map(i=><span key={i} style={{color:i<=n?"#2A7A47":"#ddd",fontWeight:i<=n?"600":"normal"}}>$</span>)}
-  </span>;
-}
 
 function HotelCard({accent, label, booking}: any) {
-  return <div style={{background:"#fff",border:"1px solid "+accent+"30",borderLeft:"5px solid "+accent,borderRadius:"0 12px 12px 0",padding:"18px 22px"}}>
-    <div style={{fontSize:"0.68rem",letterSpacing:"0.22em",textTransform:"uppercase",color:accent,marginBottom:"6px"}}>{label}</div>
-    {booking.url
-      ? <a href={booking.url} target="_blank" rel="noopener noreferrer" style={{fontWeight:"bold",fontSize:"1rem",marginBottom:"4px",color:"#1a1a1a",textDecoration:"none",borderBottom:"1px dotted #bbb",display:"inline-block"}}>{booking.label}</a>
-      : <div style={{fontWeight:"bold",fontSize:"1rem",marginBottom:"4px",color:"#1a1a1a"}}>{booking.label}</div>
-    }
-    {booking.addr&&<a href={appleMaps(booking.addr)} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:"5px",fontSize:"0.78rem",color:accent,textDecoration:"none",marginBottom:"6px",opacity:0.85,marginTop:"4px"}}>📍 {booking.addr} <span style={{fontSize:"0.7rem",opacity:0.6}}>· Maps</span></a>}
-    {booking.confirmation&&<div style={{fontSize:"0.72rem",color:"#999",marginBottom:"6px",letterSpacing:"0.02em"}}>🎫 Confirmation: <span style={{fontWeight:"bold",color:"#555"}}>{booking.confirmation}</span></div>}
-    {booking.note&&<div style={{color:"#666",fontSize:"0.86rem",lineHeight:1.6,fontStyle:"italic",marginTop:"6px"}}>{booking.note}</div>}
-  </div>;
+  return (
+    <div style={{
+      background: Colors.surfaceRaised,
+      borderRadius: `${Radius.lg}px`,
+      boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+      borderLeft: `3px solid ${accent}`,
+      padding: `${Spacing.md}px ${Spacing.base}px`,
+    }}>
+      <div style={{
+        fontSize: `${Typography.size.xs}px`,
+        fontWeight: Typography.weight.bold,
+        color: accent,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase' as const,
+        fontFamily: Typography.family,
+        marginBottom: `${Spacing.sm}px`,
+      }}>
+        {label}
+      </div>
+      {booking.url
+        ? <a href={booking.url} target="_blank" rel="noopener noreferrer" style={{
+            fontWeight: Typography.weight.bold,
+            fontSize: `${Typography.size.base}px`,
+            color: Colors.textPrimary,
+            textDecoration: 'none',
+            borderBottom: `1px dotted ${Colors.border}`,
+            display: 'inline-block',
+            marginBottom: `${Spacing.xs}px`,
+            fontFamily: Typography.family,
+          }}>
+            {booking.label}
+          </a>
+        : <div style={{
+            fontWeight: Typography.weight.bold,
+            fontSize: `${Typography.size.base}px`,
+            color: Colors.textPrimary,
+            marginBottom: `${Spacing.xs}px`,
+            fontFamily: Typography.family,
+          }}>
+            {booking.label}
+          </div>
+      }
+      {booking.addr && (
+        <a href={appleMaps(booking.addr)} target="_blank" rel="noopener noreferrer" style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: `${Spacing.xs}px`,
+          fontSize: `${Typography.size.xs}px`,
+          color: accent,
+          textDecoration: 'none',
+          marginTop: `${Spacing.xs}px`,
+          marginBottom: `${Spacing.xs}px`,
+          opacity: 0.85,
+          fontFamily: Typography.family,
+        }}>
+          📍 {booking.addr} <span style={{ fontSize: '10px', opacity: 0.6 }}>· Maps</span>
+        </a>
+      )}
+      {booking.confirmation && (
+        <div style={{
+          fontSize: `${Typography.size.xs}px`,
+          color: Colors.textMuted,
+          marginBottom: `${Spacing.xs}px`,
+          fontFamily: Typography.family,
+        }}>
+          🎫 Confirmation: <span style={{ fontWeight: Typography.weight.bold, color: Colors.textSecondary }}>{booking.confirmation}</span>
+        </div>
+      )}
+      {booking.note && (
+        <div style={{
+          color: Colors.textSecondary,
+          fontSize: `${Typography.size.sm}px`,
+          lineHeight: Typography.lineHeight.relaxed,
+          fontStyle: 'italic',
+          marginTop: `${Spacing.xs}px`,
+          fontFamily: Typography.family,
+        }}>
+          {booking.note}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function StatusBadge({status}: {status:string}) {
@@ -214,74 +321,187 @@ function FlightRow({f, sMap, loading}: any) {
   const delayed = s?.delayMin > 0;
   const actualDep = s?.actualDep && s.actualDep !== f.dep ? s.actualDep : null;
   const actualArr = s?.actualArr && s.actualArr !== f.arr ? s.actualArr : null;
-  return <div style={{borderTop:"1px solid #f0ede6",paddingTop:"11px",marginTop:"11px"}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:"6px",marginBottom:"8px"}}>
-      <div style={{display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}>
-        {f.trackingUrl
-          ? <a href={f.trackingUrl} target="_blank" rel="noopener noreferrer" style={{fontWeight:"bold",fontSize:"0.96rem",color:"#1a1a1a",textDecoration:"none",borderBottom:"1px dotted #aaa"}}>{f.num}</a>
-          : <span style={{fontWeight:"bold",fontSize:"0.96rem"}}>{f.num}</span>
-        }
-        <span style={{color:"#999",fontSize:"0.8rem"}}>{f.airline}</span>
-        <span style={{color:"#ccc",fontSize:"0.8rem"}}>·</span>
-        <span style={{color:"#666",fontSize:"0.82rem"}}>{f.route}</span>
-        <span style={{color:"#ccc",fontSize:"0.8rem"}}>·</span>
-        <span style={{color:"#999",fontSize:"0.8rem"}}>{f.date}</span>
-      </div>
-      {loading?<span style={{fontSize:"0.72rem",color:"#aaa"}}>Checking…</span>:s&&<StatusBadge status={s.status||"Unknown"}/>}
-    </div>
-    <div style={{display:"flex",gap:"20px",flexWrap:"wrap",alignItems:"flex-end"}}>
-      {[["Departs",f.dep,actualDep],["Arrives",f.arr,actualArr]].map(([lbl,sched,actual])=>(
-        <div key={lbl as string}>
-          <div style={{fontSize:"0.65rem",color:"#bbb",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>{lbl}</div>
-          <div style={{fontWeight:"bold",fontSize:"0.9rem",display:"flex",alignItems:"center",gap:"5px"}}>
-            {actual?<><span style={{textDecoration:"line-through",color:"#ccc",fontWeight:"normal",fontSize:"0.8rem"}}>{sched as string}</span><span style={{color:delayed?"#b07010":"#1B7A4A"}}>{actual}</span></>:sched}
-          </div>
+  const label = (l: string) => (
+    <div style={{
+      fontSize: `${Typography.size.xs}px`,
+      color: Colors.textMuted,
+      textTransform: 'uppercase' as const,
+      letterSpacing: '0.08em',
+      marginBottom: `${Spacing.xxs}px`,
+      fontFamily: Typography.family,
+    }}>{l}</div>
+  );
+  const val = (children: React.ReactNode, color?: string) => (
+    <div style={{
+      fontWeight: Typography.weight.bold,
+      fontSize: `${Typography.size.sm}px`,
+      color: color ?? Colors.textPrimary,
+      display: 'flex',
+      alignItems: 'center',
+      gap: `${Spacing.xs}px`,
+      fontFamily: Typography.family,
+    }}>{children}</div>
+  );
+  return (
+    <div style={{ borderTop: `1px solid ${Colors.border}`, paddingTop: `${Spacing.md}px`, marginTop: `${Spacing.md}px` }}>
+      {/* Flight header: number · airline · route · date + status */}
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        flexWrap: 'wrap' as const, gap: `${Spacing.xs}px`, marginBottom: `${Spacing.sm}px`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: `${Spacing.xs}px`, flexWrap: 'wrap' as const }}>
+          {f.trackingUrl
+            ? <a href={f.trackingUrl} target="_blank" rel="noopener noreferrer" style={{
+                fontWeight: Typography.weight.bold,
+                fontSize: `${Typography.size.base}px`,
+                color: Colors.textPrimary,
+                textDecoration: 'none',
+                borderBottom: `1px dotted ${Colors.textMuted}`,
+                fontFamily: Typography.family,
+              }}>{f.num}</a>
+            : <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.base}px`, fontFamily: Typography.family }}>{f.num}</span>
+          }
+          <span style={{ color: Colors.textMuted, fontSize: `${Typography.size.xs}px` }}>{f.airline}</span>
+          <span style={{ color: Colors.border }}>·</span>
+          <span style={{ color: Colors.textSecondary, fontSize: `${Typography.size.xs}px` }}>{f.route}</span>
+          <span style={{ color: Colors.border }}>·</span>
+          <span style={{ color: Colors.textMuted, fontSize: `${Typography.size.xs}px` }}>{f.date}</span>
         </div>
-      ))}
-      {s?.gate&&<div><div style={{fontSize:"0.65rem",color:"#bbb",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Gate</div><div style={{fontWeight:"bold",fontSize:"0.9rem",color:"#1a1a1a"}}>{s.gate||"TBD"}</div></div>}
-      {!s&&<div><div style={{fontSize:"0.65rem",color:"#bbb",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Gate</div><div style={{fontWeight:"bold",fontSize:"0.9rem",color:"#bbb"}}>TBD</div></div>}
-      {s?.terminal&&<div><div style={{fontSize:"0.65rem",color:"#bbb",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Terminal</div><div style={{fontWeight:"bold",fontSize:"0.9rem"}}>{s.terminal}</div></div>}
-      {delayed&&<div><div style={{fontSize:"0.65rem",color:"#bbb",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"2px"}}>Delay</div><div style={{fontWeight:"bold",fontSize:"0.9rem",color:"#b07010"}}>+{s.delayMin} min</div></div>}
+        {loading
+          ? <span style={{ fontSize: `${Typography.size.xs}px`, color: Colors.textMuted }}>Checking…</span>
+          : s && <StatusBadge status={s.status || 'Unknown'}/>
+        }
+      </div>
+      {/* Flight stats grid */}
+      <div style={{ display: 'flex', gap: `${Spacing.xl}px`, flexWrap: 'wrap' as const, alignItems: 'flex-end' }}>
+        {(['Departs', 'Arrives'] as const).map((lbl, i) => {
+          const sched = i === 0 ? f.dep : f.arr;
+          const actual = i === 0 ? actualDep : actualArr;
+          return (
+            <div key={lbl}>
+              {label(lbl)}
+              {val(actual
+                ? <><span style={{ textDecoration: 'line-through', color: Colors.textMuted, fontWeight: Typography.weight.regular, fontSize: `${Typography.size.xs}px` }}>{sched}</span><span style={{ color: delayed ? Colors.gold : Colors.success }}>{actual}</span></>
+                : sched
+              )}
+            </div>
+          );
+        })}
+        <div>
+          {label('Gate')}
+          {val(s?.gate || 'TBD', s?.gate ? Colors.textPrimary : Colors.textMuted)}
+        </div>
+        {s?.terminal && (
+          <div>{label('Terminal')}{val(s.terminal)}</div>
+        )}
+        {delayed && (
+          <div>{label('Delay')}{val(`+${s.delayMin} min`, Colors.gold)}</div>
+        )}
+      </div>
     </div>
-  </div>;
+  );
 }
 
 function BookingCard({booking, accent, flightStatus, flightLoading}: any) {
-  return <div style={{background:"#fff",border:"1px solid "+accent+"25",borderRadius:"10px",padding:"15px 18px",display:"flex",gap:"14px",alignItems:"flex-start"}}>
-    <div style={{fontSize:"1.3rem",lineHeight:1,marginTop:"2px",flexShrink:0}}>{booking.icon}</div>
-    <div style={{flex:1}}>
-      <div style={{fontWeight:"bold",color:"#777",fontSize:"0.7rem",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:"8px"}}>
-        {booking.label.includes("Avis") ? (() => {
-          const parts = booking.label.split("Avis");
-          return <>{parts[0]}<span style={{color:"#CC2200"}}>Avis</span>{parts[1]}</>;
-        })() : booking.label}
-      </div>
-      {booking.flights?.map((f:any,i:number)=><FlightRow key={i} f={f} sMap={flightStatus} loading={flightLoading}/>)}
-      {booking.lines?.map((l:string,i:number)=>{
-        const isAddr=l.startsWith("📍");
-        return <div key={i} style={{fontSize:"0.86rem",lineHeight:1.6,marginBottom:"2px",fontWeight:i===0?"600":"normal",color:l.startsWith("⏰")||l.startsWith("📅")?"#666":"#222"}}>
-          {isAddr&&booking.addr?<a href={appleMaps(booking.addr)} target="_blank" rel="noopener noreferrer" style={{color:accent,textDecoration:"none"}}>📍 {l.replace("📍","").trim()} <span style={{fontSize:"0.7rem",opacity:0.7}}>· Open in Maps</span></a>:l}
-        </div>;
-      })}
-      {booking.confirmation_link&&(
-        <div style={{fontSize:"0.86rem",lineHeight:1.6,marginTop:"2px"}}>
-          <a href={booking.confirmation_link.url} target="_blank" rel="noopener noreferrer"
-            style={{color:accent,textDecoration:"none",display:"inline-flex",alignItems:"center",gap:"6px"}}>
-            🎫 {booking.confirmation_link.label}
-            <span style={{fontSize:"0.72rem",opacity:0.7}}>· View Reservation</span>
-          </a>
+  return (
+    <div style={{
+      background: Colors.surfaceRaised,
+      borderRadius: `${Radius.lg}px`,
+      boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+      borderLeft: `3px solid ${accent}60`,
+      padding: `${Spacing.md}px ${Spacing.base}px`,
+      display: 'flex',
+      gap: `${Spacing.md}px`,
+      alignItems: 'flex-start',
+    }}>
+      <div style={{ fontSize: '1.3rem', lineHeight: 1, marginTop: '2px', flexShrink: 0 }}>{booking.icon}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontWeight: Typography.weight.bold,
+          color: Colors.textSecondary,
+          fontSize: `${Typography.size.xs}px`,
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase' as const,
+          marginBottom: `${Spacing.sm}px`,
+          fontFamily: Typography.family,
+        }}>
+          {booking.label.includes("Avis") ? (() => {
+            const parts = booking.label.split("Avis");
+            return <>{parts[0]}<span style={{color:"#CC2200"}}>Avis</span>{parts[1]}</>;
+          })() : booking.label}
         </div>
-      )}
+        {booking.flights?.map((f:any, i:number) => <FlightRow key={i} f={f} sMap={flightStatus} loading={flightLoading}/>)}
+        {booking.lines?.map((l:string, i:number) => {
+          const isAddr = l.startsWith("📍");
+          return (
+            <div key={i} style={{
+              fontSize: `${Typography.size.sm}px`,
+              lineHeight: Typography.lineHeight.normal,
+              marginBottom: `${Spacing.xxs}px`,
+              fontWeight: i === 0 ? Typography.weight.semibold : Typography.weight.regular,
+              color: l.startsWith("⏰") || l.startsWith("📅") ? Colors.textSecondary : Colors.textPrimary,
+              fontFamily: Typography.family,
+            }}>
+              {isAddr && booking.addr
+                ? <a href={appleMaps(booking.addr)} target="_blank" rel="noopener noreferrer" style={{ color: accent, textDecoration: 'none' }}>
+                    📍 {l.replace("📍", "").trim()} <span style={{ fontSize: `${Typography.size.xs}px`, opacity: 0.7 }}>· Open in Maps</span>
+                  </a>
+                : l
+              }
+            </div>
+          );
+        })}
+        {booking.confirmation_link && (
+          <div style={{ fontSize: `${Typography.size.sm}px`, lineHeight: Typography.lineHeight.normal, marginTop: `${Spacing.xxs}px` }}>
+            <a href={booking.confirmation_link.url} target="_blank" rel="noopener noreferrer" style={{
+              color: accent,
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: `${Spacing.xs}px`,
+              fontFamily: Typography.family,
+            }}>
+              🎫 {booking.confirmation_link.label}
+              <span style={{ fontSize: `${Typography.size.xs}px`, opacity: 0.7 }}>· View Reservation</span>
+            </a>
+          </div>
+        )}
+      </div>
     </div>
-  </div>;
+  );
 }
 
 function LegSummary({stop}: {stop:Stop}) {
   if (!stop.summary) return null;
   return (
-    <div style={{background:stop.accent+"0D",borderLeft:"4px solid "+stop.accent,borderRadius:"0 10px 10px 0",padding:"14px 18px",marginBottom:"22px"}}>
-      <div style={{fontSize:"0.68rem",fontWeight:"bold",color:stop.accent,letterSpacing:"0.14em",textTransform:"uppercase",marginBottom:"6px"}}>{stop.emoji} {stop.city} · {stop.dates}</div>
-      <div style={{fontSize:"0.88rem",color:"#3a3a3a",lineHeight:1.65,fontStyle:"italic"}}>{stop.summary}</div>
+    <div style={{
+      background: Colors.surfaceRaised,
+      borderRadius: `${Radius.lg}px`,
+      boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+      borderLeft: `3px solid ${stop.accent}`,
+      padding: `${Spacing.md}px ${Spacing.base}px`,
+      marginBottom: `${Spacing.xl}px`,
+    }}>
+      <div style={{
+        fontSize: `${Typography.size.xs}px`,
+        fontWeight: Typography.weight.bold,
+        color: stop.accent,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase' as const,
+        fontFamily: Typography.family,
+        marginBottom: `${Spacing.xs}px`,
+      }}>
+        {stop.emoji} {stop.city} · {stop.dates}
+      </div>
+      <div style={{
+        fontSize: `${Typography.size.sm}px`,
+        color: Colors.textSecondary,
+        lineHeight: Typography.lineHeight.relaxed,
+        fontStyle: 'italic',
+        fontFamily: Typography.family,
+      }}>
+        {stop.summary}
+      </div>
     </div>
   );
 }
@@ -298,8 +518,8 @@ function WeatherStrip({stop, weatherData}: any) {
       <div style={{background:stop.accent+"08",border:"1px dashed "+stop.accent+"30",borderRadius:"10px",padding:"14px 18px",display:"flex",alignItems:"center",gap:"12px"}}>
         <span style={{fontSize:"1.6rem"}}>📅</span>
         <div>
-          <div style={{fontWeight:"bold",fontSize:"0.85rem",color:"#444"}}>Forecast not yet available</div>
-          <div style={{fontSize:"0.8rem",color:"#888",marginTop:"2px"}}>{daysOut>16?"Opens around "+availDate+" — will auto-populate on refresh.":"Loading weather data…"}</div>
+          <div style={{fontWeight:"bold",fontSize:"0.85rem",color:Colors.textPrimary}}>Forecast not yet available</div>
+          <div style={{fontSize:"0.8rem",color:Colors.textMuted,marginTop:"2px"}}>{daysOut>16?"Opens around "+availDate+" — will auto-populate on refresh.":"Loading weather data…"}</div>
         </div>
       </div>
     ):(
@@ -310,13 +530,13 @@ function WeatherStrip({stop, weatherData}: any) {
           const hi=Math.round(data.temperature_2m_max[i]);
           const lo=Math.round(data.temperature_2m_min[i]);
           const precip=data.precipitation_probability_max[i];
-          return <div key={i} style={{flex:"0 0 auto",minWidth:"84px",background:"#fff",border:"1px solid "+stop.accent+"22",borderRadius:"12px",padding:"12px 10px",textAlign:"center",boxShadow:"0 1px 5px "+stop.accent+"0D"}}>
-            <div style={{fontSize:"0.68rem",fontWeight:"bold",color:"#888",letterSpacing:"0.06em"}}>{DAYS[d.getDay()]}</div>
-            <div style={{fontSize:"0.68rem",color:"#ccc",marginBottom:"7px"}}>{d.getMonth()+1}/{d.getDate()}</div>
+          return <div key={i} style={{flex:"0 0 auto",minWidth:"84px",background:Colors.surface,border:"1px solid "+stop.accent+"22",borderRadius:"12px",padding:"12px 10px",textAlign:"center",boxShadow:"0 1px 5px "+stop.accent+"0D"}}>
+            <div style={{fontSize:"0.68rem",fontWeight:"bold",color:Colors.textMuted,letterSpacing:"0.06em"}}>{DAYS[d.getDay()]}</div>
+            <div style={{fontSize:"0.68rem",color:Colors.textMuted,marginBottom:"7px"}}>{d.getMonth()+1}/{d.getDate()}</div>
             <div style={{fontSize:"1.6rem",lineHeight:1,marginBottom:"5px"}}>{w.e}</div>
-            <div style={{fontSize:"0.68rem",color:"#aaa",marginBottom:"5px"}}>{w.d}</div>
-            <div style={{fontWeight:"bold",fontSize:"0.88rem",color:"#333"}}>{hi}°<span style={{fontWeight:"normal",color:"#bbb",fontSize:"0.78rem"}}> {lo}°</span></div>
-            <div style={{fontSize:"0.7rem",color:precip>50?"#2D6A8F":"#ccc",marginTop:"4px",fontWeight:precip>50?"bold":"normal"}}>💧{precip}%</div>
+            <div style={{fontSize:"0.68rem",color:Colors.textMuted,marginBottom:"5px"}}>{w.d}</div>
+            <div style={{fontWeight:"bold",fontSize:"0.88rem",color:Colors.textPrimary}}>{hi}°<span style={{fontWeight:"normal",color:Colors.textMuted,fontSize:"0.78rem"}}> {lo}°</span></div>
+            <div style={{fontSize:"0.7rem",color:precip>50?Colors.navyLight:Colors.textMuted,marginTop:"4px",fontWeight:precip>50?"bold":"normal"}}>💧{precip}%</div>
           </div>;
         })}
       </div>
@@ -325,57 +545,9 @@ function WeatherStrip({stop, weatherData}: any) {
 }
 
 function PlaceCard({place, accent, onAddToItinerary}: {place:Place, accent:string, onAddToItinerary?:(place:Place)=>void}) {
-  const isRestaurant = place.category === "restaurant";
-  const isAllTrails = place.url?.includes("alltrails.com");
-  const isHike = place.category === "hike";
-  const showMust = isRestaurant && place.must;
-
-  return (
-    <div style={{background:"#fff",borderRadius:"10px",padding:"15px 18px",border:"1px solid "+(showMust?accent+"40":"#e0ddd6"),display:"flex",gap:"13px",alignItems:"flex-start",boxShadow:showMust?"0 2px 10px "+accent+"12":"none",position:"relative"}}>
-      {onAddToItinerary&&(
-        <button
-          onClick={()=>onAddToItinerary(place)}
-          title="Add to itinerary"
-          style={{position:"absolute",top:"10px",right:"10px",width:"24px",height:"24px",borderRadius:"50%",background:accent,color:"#fff",border:"none",cursor:"pointer",fontSize:"1rem",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",padding:0,zIndex:1}}
-        >+</button>
-      )}
-      {isRestaurant&&(
-        showMust
-          ?<div style={{background:accent,color:"#fff",fontSize:"0.58rem",letterSpacing:"0.1em",textTransform:"uppercase",padding:"3px 7px",borderRadius:"4px",whiteSpace:"nowrap",marginTop:"3px",flexShrink:0}}>Must</div>
-          :<div style={{width:"36px",flexShrink:0}}/>
-      )}
-      {!isRestaurant&&(
-        <div style={{fontSize:"1.2rem",flexShrink:0,lineHeight:1,marginTop:"1px",width:"22px",textAlign:"center"}}>{place.emoji}</div>
-      )}
-      <div style={{flex:1}}>
-        <div style={{display:"flex",alignItems:"baseline",gap:"8px",flexWrap:"wrap",marginBottom:"3px"}}>
-          {isRestaurant&&<span style={{fontSize:"1.1rem",lineHeight:1,flexShrink:0}}>{place.emoji}</span>}
-          {place.url
-            ?<a href={place.url} target="_blank" rel="noopener noreferrer" style={{fontWeight:"bold",fontSize:isRestaurant?"0.98rem":"0.94rem",color:"#1a1a1a",textDecoration:"none",borderBottom:"1px dotted #bbb"}}>{place.name}</a>
-            :<span style={{fontWeight:"bold",fontSize:isRestaurant?"0.98rem":"0.94rem"}}>{place.name}</span>
-          }
-          {isRestaurant&&<span style={{fontSize:"0.76rem",color:"#999",fontStyle:"italic"}}>{place.subcategory.replace(/-/g," ")}</span>}
-          {place.attribution_handle==="stacy"&&<span style={{fontSize:"0.6rem",background:"#F3EDF7",color:"#7B4FA6",padding:"1px 7px",borderRadius:"10px",letterSpacing:"0.04em"}}>Stacy's Find</span>}
-          {isHike&&isAllTrails&&<a href={place.url!} target="_blank" rel="noopener noreferrer" style={{fontSize:"0.6rem",background:"#E8F5E9",color:"#2E7D32",padding:"1px 7px",borderRadius:"10px",letterSpacing:"0.04em",textDecoration:"none",border:"1px solid #A5D6A730",display:"inline-flex",alignItems:"center",gap:"3px"}}>🌿 AllTrails</a>}
-          {place.flag&&<span style={{fontSize:"0.6rem",background:"#FFF8E7",color:"#b07010",padding:"1px 7px",borderRadius:"10px",border:"1px solid #E8A02040"}}>⚠ {place.flag}</span>}
-        </div>
-        {isRestaurant&&place.rating!=null&&(
-          <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"4px",flexWrap:"wrap"}}>
-            <StarRating rating={place.rating}/>
-            {place.price&&<PriceBadge price={place.price}/>}
-          </div>
-        )}
-        {isHike&&(place.difficulty||place.duration||place.distance)&&(
-          <div style={{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"5px"}}>
-            {place.difficulty&&<span style={{fontSize:"0.62rem",background:place.difficulty==="strenuous"?"#FEF2F2":place.difficulty==="moderate"?"#FFF8E7":"#EDFAF1",color:place.difficulty==="strenuous"?"#b91c1c":place.difficulty==="moderate"?"#b07010":"#1B7A4A",padding:"1px 8px",borderRadius:"10px",fontWeight:"bold",letterSpacing:"0.04em",textTransform:"capitalize"}}>{place.difficulty}</span>}
-            {place.distance&&<span style={{fontSize:"0.62rem",background:"#F0F4FF",color:"#3557A0",padding:"1px 8px",borderRadius:"10px",letterSpacing:"0.04em"}}>📏 {place.distance}</span>}
-            {place.duration&&<span style={{fontSize:"0.62rem",background:"#F5F0FF",color:"#5B3FA6",padding:"1px 8px",borderRadius:"10px",letterSpacing:"0.04em"}}>⏱ {place.duration}</span>}
-          </div>
-        )}
-        {place.note&&<div style={{color:"#555",fontSize:"0.86rem",lineHeight:1.55,marginTop:"3px"}}>{place.note}</div>}
-      </div>
-    </div>
-  );
+  return place.category === "restaurant"
+    ? <RestaurantCard place={place} accent={accent} onAddToItinerary={onAddToItinerary} />
+    : <ActivityCard place={place} accent={accent} onAddToItinerary={onAddToItinerary} />;
 }
 
 function getActivityDisplayGroup(place: Place): string {
@@ -392,7 +564,11 @@ function PlaceList({places, accent, isActivities, onAddToItinerary}: {places:Pla
   if (!hasGroups) {
     return (
       <div style={{display:"flex",flexDirection:"column",gap:"11px"}}>
-        {places.map((p)=><PlaceCard key={p.id} place={p} accent={accent} onAddToItinerary={onAddToItinerary}/>)}
+        {places.map((p, i)=>(
+          <ScrollReveal key={p.id} index={i} margin="-40px">
+            <PlaceCard place={p} accent={accent} onAddToItinerary={onAddToItinerary}/>
+          </ScrollReveal>
+        ))}
       </div>
     );
   }
@@ -416,7 +592,11 @@ function PlaceList({places, accent, isActivities, onAddToItinerary}: {places:Pla
             <div style={{flex:1,height:"1px",background:accent+"20"}}/>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
-            {grouped[g].map((p)=><PlaceCard key={p.id} place={p} accent={accent} onAddToItinerary={onAddToItinerary}/>)}
+            {grouped[g].map((p, i)=>(
+              <ScrollReveal key={p.id} index={i} margin="-40px">
+                <PlaceCard place={p} accent={accent} onAddToItinerary={onAddToItinerary}/>
+              </ScrollReveal>
+            ))}
           </div>
         </div>
       ))}
@@ -455,7 +635,7 @@ function DailyItinerary({stop, data, confirms, onConfirm}: {stop:Stop, data:Trip
 
   return (
     <div style={{marginBottom:"28px"}}>
-      <SecHead color={stop.accent} label="📅 Daily Itinerary — Loose Plan"/>
+      <SecHead label="📅 Daily Jernie — Loose Plan"/>
       <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
         {days.map((day,di)=>{
           const items = itemsByDay[day.id] || [];
@@ -644,8 +824,12 @@ function TravelSection({stop, stopBookings, groups, flightStatus, flightLoading,
       {hasFlights && !mostRecent && (
         <div style={{fontSize:"0.7rem",color:"#bbb",textAlign:"right",marginBottom:"10px"}}>Live status begins 48hrs before departure</div>
       )}
-      <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
-        {sorted.map(renderBooking)}
+      <div style={{display:"flex",flexDirection:"column",gap:`${Spacing.sm}px`}}>
+        {sorted.map((b: Booking, i: number) => (
+          <ScrollReveal key={b.id} index={i}>
+            {renderBooking(b)}
+          </ScrollReveal>
+        ))}
       </div>
     </>
   );
@@ -785,7 +969,21 @@ export default function MaineGuide() {
     try { return sessionStorage.getItem(SESSION_KEY) === "1"; } catch { return false; }
   });
 
-  const [active, setActive] = useState("portland");
+  // Sync body background to the active screen so Safari's bottom chrome area
+  // matches: navy on lockscreen, cream on main app.
+  useEffect(() => {
+    document.body.style.background = unlocked ? Colors.background : Colors.navy;
+  }, [unlocked]);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const ACTIVE_STOP_KEY = "jernie_active_stop";
+  const [active, setActive] = useState(() => {
+    try { return sessionStorage.getItem(ACTIVE_STOP_KEY) || "portland"; } catch { return "portland"; }
+  });
+  const handleSetActive = (id: string) => {
+    try { sessionStorage.setItem(ACTIVE_STOP_KEY, id); } catch {}
+    setActive(id);
+  };
   const [weatherData, setWeatherData] = useState<Record<string,any>>({});
   const [flightStatus, setFlightStatus] = useState<Record<string,any>>({});
   const [flightLoading, setFlightLoading] = useState(false);
@@ -802,17 +1000,26 @@ export default function MaineGuide() {
   useEffect(() => {
     if (!data) return;
 
-    // Weather: load cache then fetch
+    // Weather: seed from cache immediately, then fetch all stops in parallel.
+    // Promise.allSettled ensures a single setWeatherData call when all complete —
+    // prevents 3 separate re-renders (one per stop) that could cause scroll jitter on iOS.
     const weatherInit: Record<string,any> = {};
     data.stops.forEach(s => {
       const c = readCache("jernie_weather_" + s.id);
       if (c) weatherInit[s.id] = c.data;
     });
     setWeatherData(weatherInit);
-    data.stops.forEach(async s => {
-      const result = await fetchWeatherForStop(s);
-      if (result) setWeatherData(prev => ({...prev, [s.id]: result.data}));
-    });
+
+    const weatherController = new AbortController();
+    Promise.allSettled(data.stops.map(s => fetchWeatherForStop(s, weatherController.signal)))
+      .then(results => {
+        if (weatherController.signal.aborted) return;
+        const updates: Record<string,any> = {};
+        results.forEach((r, i) => {
+          if (r.status === "fulfilled" && r.value) updates[data.stops[i].id] = r.value.data;
+        });
+        if (Object.keys(updates).length) setWeatherData(prev => ({...prev, ...updates}));
+      });
 
     // Flights: load cache then fetch if within window
     const flightInit: Record<string,any> = {};
@@ -832,6 +1039,8 @@ export default function MaineGuide() {
         fetchFlightStatusGroupWithData(dateKey, group.flights, setFlightStatus, setFlightLoading, setLastUpdated);
       }
     });
+
+    return () => weatherController.abort();
   }, [data]);
 
   useEffect(() => {
@@ -864,6 +1073,12 @@ export default function MaineGuide() {
     );
   }
 
+  const activeIndex = data.stops.findIndex(s => s.id === active);
+  const handleSwipe = (dir: 1 | -1) => {
+    const next = data.stops[activeIndex + dir];
+    if (next) handleSetActive(next.id);
+  };
+
   const stop = data.stops.find(s => s.id === active)!;
   const stopBookings = data.bookings.filter(b => b.stop_id === active);
   const stopPlaces = data.places.filter(p => p.stop_id === active);
@@ -874,133 +1089,146 @@ export default function MaineGuide() {
 
   return (
     <>
-    <div style={{fontFamily:"Georgia,'Times New Roman',serif",background:"#F5F0E8",minHeight:"100vh",color:"#1a1a1a"}}>
+    <div
+      ref={scrollRef}
+      style={{fontFamily:"Georgia,'Times New Roman',serif",background:"#F5F0E8",color:"#1a1a1a",position:"fixed",inset:0,overflowY:"auto",WebkitOverflowScrolling:"touch",overscrollBehavior:"contain"}}
+    >
 
-      {/* Header */}
-      <div style={{background:"linear-gradient(135deg,#0D2B3E 0%,#1B4D6B 60%,#0D2B3E 100%)",padding:"52px 24px 44px",textAlign:"center",position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(circle at 20% 50%,rgba(255,255,255,0.05) 0%,transparent 60%),radial-gradient(circle at 80% 20%,rgba(255,255,255,0.04) 0%,transparent 50%)"}}/>
-        <div style={{position:"relative",zIndex:1}}>
-          <div style={{fontSize:"0.72rem",letterSpacing:"0.3em",color:"#A8C4D4",textTransform:"uppercase",marginBottom:"14px"}}>{data.trip.dates}</div>
-          <h1 style={{margin:0,fontSize:"clamp(1.9rem,5vw,3.1rem)",fontWeight:"normal",color:"#FDFAF4",lineHeight:1.1,letterSpacing:"-0.01em"}}>{data.trip.name} Trip Guide</h1>
-          <p style={{margin:"10px auto 0",maxWidth:"500px",color:"#7A9FB5",fontSize:"0.88rem",fontStyle:"italic"}}>Portland → Bar Harbor & Acadia → Southwest Harbor</p>
-          <div style={{marginTop:"16px",display:"flex",justifyContent:"center",gap:"24px",flexWrap:"wrap"}}>
-            {[["🦞","Seafood-focused"],["🏔️","Acadia hiking"],["🛏️","Boutique stays"]].map(([e,l])=>(
-              <div key={l} style={{color:"#C8DDE8",fontSize:"0.8rem",letterSpacing:"0.04em"}}>{e} {l}</div>
-            ))}
-          </div>
-          <Countdown departure={departure}/>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div style={{display:"flex",borderBottom:"2px solid #D4C9B0",background:"#EDE8DC",overflowX:"auto"}}>
-        {data.stops.map(s=>(
-          <button key={s.id} onClick={()=>setActive(s.id)} style={{flex:"1 1 auto",minWidth:"110px",padding:"14px 16px",border:"none",background:active===s.id?"#F5F0E8":"transparent",borderBottom:active===s.id?"3px solid "+s.accent:"3px solid transparent",cursor:"pointer",fontFamily:"Georgia,serif",fontSize:"0.88rem",color:active===s.id?s.accent:"#666",fontWeight:active===s.id?"bold":"normal",transition:"all 0.18s",textAlign:"center",lineHeight:1.3}}>
-            <div style={{fontSize:"1.25rem"}}>{s.emoji}</div>
-            <div>{s.city}</div>
-            <div style={{fontSize:"0.72rem",opacity:0.65,marginTop:"2px"}}>{s.dates}</div>
-          </button>
-        ))}
-      </div>
+      <StickyHeader
+        stops={data.stops}
+        active={active}
+        onTabChange={handleSetActive}
+        scrollRef={scrollRef}
+        tripDates={data.trip.dates}
+        tripTitle={data.trip.title ?? data.trip.name}
+        tagline={data.trip.tagline ?? ''}
+        pills={data.trip.pills ?? []}
+        headerSlot={<Countdown departure={departure}/>}
+      />
 
       {/* Main */}
-      <div style={{maxWidth:"780px",margin:"0 auto",padding:"32px 20px 64px"}}>
+      <StopNavigator stops={data.stops} activeIndex={activeIndex} onSwipe={handleSwipe}>
+      <motion.div
+        style={{maxWidth:"780px",margin:"0 auto",padding:"32px 20px 64px"}}
+        variants={contentContainerVariants}
+        initial="hidden"
+        animate="visible"
+      >
 
-        <LegSummary stop={stop}/>
-        <WeatherStrip stop={stop} weatherData={weatherData}/>
+        <motion.div variants={contentSectionVariants}>
+          <LegSummary stop={stop}/>
+        </motion.div>
+
+        <motion.div variants={contentSectionVariants}>
+          <WeatherStrip stop={stop} weatherData={weatherData}/>
+        </motion.div>
 
         {/* Travel & Accommodations */}
-        <CollapsibleSection
-          color={stop.accent}
-          label="✈️ Travel & Accommodations"
-          open={travelOpen}
-          onToggle={()=>setTravelOpen(v=>!v)}
-          rightSlot={hasFlights&&(
-            <button onClick={(e)=>{
-              e.stopPropagation();
-              const groups = deriveFlightGroups(stopBookings);
-              Object.entries(groups).forEach(([dk, g]: [string, any]) => {
-                fetchFlightStatusGroupWithData(dk, g.flights, setFlightStatus, setFlightLoading, setLastUpdated);
-              });
-            }} disabled={flightLoading}
-              style={{background:"transparent",border:"1px solid "+stop.accent+"50",borderRadius:"6px",padding:"3px 10px",fontSize:"0.72rem",color:stop.accent,cursor:flightLoading?"default":"pointer",opacity:flightLoading?0.5:1,fontFamily:"Georgia,serif"}}>
-              {flightLoading?"⏳ Checking…":"↻ Refresh"}
-            </button>
-          )}
-        >
-          <TravelSection
-            stop={stop}
-            stopBookings={stopBookings}
-            groups={data.groups}
-            flightStatus={flightStatus}
-            flightLoading={flightLoading}
-            lastUpdated={lastUpdated}
-          />
-        </CollapsibleSection>
+        <motion.div variants={contentSectionVariants}>
+          <CollapsibleSection
+            color={stop.accent}
+            label="✈️ Travel & Accommodations"
+            open={travelOpen}
+            onToggle={()=>setTravelOpen(v=>!v)}
+            rightSlot={hasFlights&&(
+              <button onClick={(e)=>{
+                e.stopPropagation();
+                const groups = deriveFlightGroups(stopBookings);
+                Object.entries(groups).forEach(([dk, g]: [string, any]) => {
+                  fetchFlightStatusGroupWithData(dk, g.flights, setFlightStatus, setFlightLoading, setLastUpdated);
+                });
+              }} disabled={flightLoading}
+                style={{background:"transparent",border:"1px solid "+stop.accent+"50",borderRadius:"6px",padding:"3px 10px",fontSize:"0.72rem",color:stop.accent,cursor:flightLoading?"default":"pointer",opacity:flightLoading?0.5:1,fontFamily:"Georgia,serif"}}>
+                {flightLoading?"⏳ Checking…":"↻ Refresh"}
+              </button>
+            )}
+          >
+            <TravelSection
+              stop={stop}
+              stopBookings={stopBookings}
+              groups={data.groups}
+              flightStatus={flightStatus}
+              flightLoading={flightLoading}
+              lastUpdated={lastUpdated}
+            />
+          </CollapsibleSection>
+        </motion.div>
 
         {/* Additional Details */}
-        {stopAlerts.length>0&&(
-          <div style={{marginBottom:"28px"}}>
-            <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"12px"}}>
-              <div style={{fontWeight:"bold",color:stop.accent,fontSize:"0.78rem",letterSpacing:"0.12em",textTransform:"uppercase"}}>📌 Additional Details</div>
-              <div style={{flex:1,height:"1px",background:stop.accent+"30"}}/>
+        {stopAlerts.length > 0 && (
+          <motion.div variants={contentSectionVariants}>
+            <div style={{marginBottom:"28px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"12px"}}>
+                <div style={{fontWeight:"bold",color:stop.accent,fontSize:"0.78rem",letterSpacing:"0.12em",textTransform:"uppercase"}}>📌 Additional Details</div>
+                <div style={{flex:1,height:"1px",background:stop.accent+"30"}}/>
+              </div>
+              {stopAlerts.map((a)=><AlertBox key={a.id} {...a}/>)}
             </div>
-            {stopAlerts.map((a)=><AlertBox key={a.id} {...a}/>)}
-          </div>
+          </motion.div>
         )}
 
-        <EditableItinerary
-          stop={stop} data={data}
-          confirms={confirms} onConfirm={setConfirm}
-          itineraryOrder={itineraryOrder} customItems={customItems}
-          timeOverrides={timeOverrides} reservationTimes={reservationTimes}
-          setDayOrder={setDayOrder} moveItem={moveItem}
-          addCustomItem={addCustomItem} deleteCustomItem={deleteCustomItem}
-          initializeOrder={initializeOrder} setTimeOverride={setTimeOverride}
-          setReservationTime={setReservationTime}
-        />
+        <motion.div variants={contentSectionVariants}>
+          <EditableItinerary
+            stop={stop} data={data}
+            confirms={confirms} onConfirm={setConfirm}
+            itineraryOrder={itineraryOrder} customItems={customItems}
+            timeOverrides={timeOverrides} reservationTimes={reservationTimes}
+            setDayOrder={setDayOrder} moveItem={moveItem}
+            addCustomItem={addCustomItem} deleteCustomItem={deleteCustomItem}
+            initializeOrder={initializeOrder} setTimeOverride={setTimeOverride}
+            setReservationTime={setReservationTime}
+            scrollRef={scrollRef}
+          />
+        </motion.div>
 
         {/* Where to Eat */}
-        {active==="barharbor" ? (
-          <CollapsibleSection color={stop.accent} label="🍽️ Where to Eat" open={eatOpen} onToggle={()=>setEatOpen(v=>!v)}>
-            <PlaceList places={restaurants} accent={stop.accent} onAddToItinerary={p=>setAddPlaceContext(p)}/>
-          </CollapsibleSection>
-        ) : (
-          <div style={{marginBottom:"28px"}}>
-            <SecHead color={stop.accent} label="🍽️ Where to Eat"/>
-            <PlaceList places={restaurants} accent={stop.accent} onAddToItinerary={p=>setAddPlaceContext(p)}/>
-          </div>
-        )}
-
-        {/* What to Do */}
-        {activities.length > 0 && (
-          active==="barharbor" ? (
-            <CollapsibleSection color={stop.accent} label="📍 What to Do" open={doOpen} onToggle={()=>setDoOpen(v=>!v)}>
-              <PlaceList places={activities} accent={stop.accent} isActivities onAddToItinerary={p=>setAddPlaceContext(p)}/>
+        <motion.div variants={contentSectionVariants}>
+          {active==="barharbor" ? (
+            <CollapsibleSection color={stop.accent} label="🍽️ Where to Eat" open={eatOpen} onToggle={()=>setEatOpen(v=>!v)}>
+              <PlaceList places={restaurants} accent={stop.accent} onAddToItinerary={p=>setAddPlaceContext(p)}/>
             </CollapsibleSection>
           ) : (
             <div style={{marginBottom:"28px"}}>
-              <SecHead color={stop.accent} label="📍 What to Do"/>
-              <PlaceList places={activities} accent={stop.accent} isActivities onAddToItinerary={p=>setAddPlaceContext(p)}/>
+              <SecHead label="🍽️ Where to Eat"/>
+              <PlaceList places={restaurants} accent={stop.accent} onAddToItinerary={p=>setAddPlaceContext(p)}/>
             </div>
-          )
+          )}
+        </motion.div>
+
+        {/* What to Do */}
+        {activities.length > 0 && (
+          <motion.div variants={contentSectionVariants}>
+            {active==="barharbor" ? (
+              <CollapsibleSection color={stop.accent} label="📍 What to Do" open={doOpen} onToggle={()=>setDoOpen(v=>!v)}>
+                <PlaceList places={activities} accent={stop.accent} isActivities onAddToItinerary={p=>setAddPlaceContext(p)}/>
+              </CollapsibleSection>
+            ) : (
+              <div style={{marginBottom:"28px"}}>
+                <SecHead label="📍 What to Do"/>
+                <PlaceList places={activities} accent={stop.accent} isActivities onAddToItinerary={p=>setAddPlaceContext(p)}/>
+              </div>
+            )}
+          </motion.div>
         )}
 
         {/* What to Pack */}
-        <WhatToPack accent={stop.accent} data={data} packing={packing} onPack={setPacking} onReset={resetPacking}/>
-      </div>
+        <motion.div variants={contentSectionVariants}>
+          <WhatToPack accent={stop.accent} data={data} packing={packing} onPack={setPacking} onReset={resetPacking}/>
+        </motion.div>
+
+      </motion.div>
 
       <div style={{background:"#0D2B3E",color:"#A8C4D4",textAlign:"center",padding:"22px",fontSize:"0.8rem",letterSpacing:"0.05em"}}>
         Maine Coast · May 2026 · 🌊
       </div>
+      </StopNavigator>
     </div>
 
-    {/* Global DayPickerModal — addPlace mode */}
-    <DayPickerModal
+    {/* Add to jernie — stop-scoped day picker */}
+    <AddToItinerarySheet
       isOpen={!!addPlaceContext}
       onClose={()=>setAddPlaceContext(null)}
-      mode="addPlace"
-      place={addPlaceContext||undefined}
+      place={addPlaceContext}
       allDays={data.itinerary_days}
       stops={data.stops}
       onAddPlace={(place, toDayId)=>{

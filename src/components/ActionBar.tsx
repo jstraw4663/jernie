@@ -45,7 +45,7 @@ export function ActionBar({ selectedCount, onDelete, onMove, moveDisabledReason 
   const moveActive = hasSelection && !moveDisabledReason;
 
   const activeColor = Colors.navy;
-  const deleteActiveColor = Colors.danger;
+  const deleteActiveColor = Colors.red;
   const disabledColor = Colors.textMuted;
 
   const buttonBase = {
@@ -85,7 +85,7 @@ export function ActionBar({ selectedCount, onDelete, onMove, moveDisabledReason 
           cursor: hasSelection ? 'pointer' : 'default',
           opacity: hasSelection ? 1 : 0.4,
           color: hasSelection ? deleteActiveColor : disabledColor,
-          background: hasSelection ? Colors.dangerLight : 'transparent',
+          background: hasSelection ? Colors.redLight : 'transparent',
         }}
       >
         <DeleteIcon color={hasSelection ? deleteActiveColor : disabledColor} />

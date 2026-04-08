@@ -18,24 +18,27 @@ export const Colors = {
   navyTint20:    'rgba(13,43,62,0.20)',
 
   // Surface
-  background:    '#F5F0E8',   // warm cream — app background
-  surface:       '#FFFFFF',
+  background:    '#F7F4EF',   // warm off-white — app background
+  surface:       '#F7F4EF',   // card surfaces
+  surface2:      '#EDEAE4',   // nested elements inside cards
   surfaceRaised: '#FAFAF8',
   border:        '#E5E0D8',
 
   // Text hierarchy
   textPrimary:   '#1A1A1A',
-  textSecondary: '#666666',
+  textSecondary: '#6B7280',
   textMuted:     '#999999',
-  textInverse:   '#FFFFFF',
+  textInverse:   '#F7F4EF',
 
   // Status
-  danger:        '#EF4444',
-  dangerLight:   '#FEE2E2',
+  red:           '#8B3A3A',
+  redLight:      '#F5E8E8',
   success:       '#1B7A4A',
   successLight:  '#D1FAE5',
-  warning:       '#E8A020',
-  warningLight:  '#FEF3C7',
+  gold:          '#C9963A',
+  goldLight:     '#FDF0DC',
+  info:          '#3557A0',   // blue text for info/category chips
+  infoBg:        '#F0F4FF',   // light blue background for info/category chips
 
   // Selection — used by SelectableListItem bubble
   selectedFill:    '#0D2B3E',
@@ -110,11 +113,16 @@ export const Typography = {
 // ---------------------------------------------------------------------------
 
 export const Shadow = {
-  none: 'none',
-  sm:   '0 1px 3px rgba(0,0,0,0.08)',
-  md:   '0 4px 12px rgba(0,0,0,0.10)',
-  lg:   '0 8px 24px rgba(0,0,0,0.14)',
-  xl:   '0 16px 40px rgba(0,0,0,0.18)',
+  none:        'none',
+  sm:          '0 1px 3px rgba(0,0,0,0.08)',
+  md:          '0 4px 12px rgba(0,0,0,0.10)',
+  lg:          '0 8px 24px rgba(0,0,0,0.14)',
+  xl:          '0 16px 40px rgba(0,0,0,0.18)',
+  // Named aliases for semantic usage
+  cardResting: '0 2px 8px rgba(13,43,62,0.08)',
+  cardHover:   '0 4px 16px rgba(13,43,62,0.12)',
+  cardLifted:  '0 8px 32px rgba(13,43,62,0.18)',
+  sheet:       '0 -4px 24px rgba(13,43,62,0.14)',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -140,4 +148,22 @@ export const Animation = {
   // ~67ms at 60fps / ~33ms at 120Hz.
   // Apply this to any component that mounts-then-animates-in (sheets, toasts, drawers).
   mountFrames: 4,
+  // Framer Motion spring configs — identical semantics to Moti springs on Expo migration.
+  // Usage: transition={{ type: 'spring', ...Animation.springs.gentle }}
+  springs: {
+    gentle:    { stiffness: 280, damping: 32 },
+    snappy:    { stiffness: 400, damping: 36 },
+    bouncy:    { stiffness: 320, damping: 24 },
+    // Slow, deliberate spring — matches BottomSheet entrance (~380ms feel).
+    // Use for DayCard content expand and other layout shifts that need breathing room.
+    lazy:      { stiffness: 160, damping: 24 },
+  },
+  // Framer Motion easing arrays — same curves as Animation.easing but as number tuples.
+  // Required because FM's Easing type rejects CSS cubic-bezier() strings.
+  // Usage: transition={{ ease: Animation.fm.ease }}
+  fm: {
+    ease:    [0.4, 0, 0.2, 1] as [number, number, number, number],
+    easeIn:  [0.4, 0, 1,   1] as [number, number, number, number],
+    easeOut: [0,   0, 0.2, 1] as [number, number, number, number],
+  },
 } as const;

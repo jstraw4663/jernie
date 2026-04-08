@@ -2,7 +2,7 @@
 
 > This file is the single source of truth for AI context across Claude Code and Claude Web.
 > Repo: https://github.com/jstraw4663/jernie
-> Last updated: April 2026
+> Last updated: April 8, 2026 — v0.3.0 (production release)
 
 ---
 
@@ -35,12 +35,13 @@ we pivot to the full product. Every decision made during the POC should serve th
 **The POC is not a throwaway. It is the foundation.**
 
 ### Current tech stack
-- Vite 5 + React 18 + TypeScript
+- Vite 5 + React 19 + TypeScript
 - Main component: `src/Jernie-PWA.tsx` (exported as `MaineGuide`, wired via `src/App.tsx`)
 - Itinerary: `src/components/EditableItinerary.tsx` (drag-and-drop, custom items, time overrides)
 - Trip data: `public/trip.json` (static content — committed to git, must stay tracked)
 - Firebase Realtime Database for shared real-time state (confirms, packing, itinerary order, custom items, time overrides, reservation times)
-- PWA with manifest, `sw.js`, lobster icon, navy theme (`#0D2B3E`)
+- PWA with `vite-plugin-pwa` service worker (Workbox generateSW), manifest, lobster icon, navy theme (`#0D2B3E`)
+- `public/_headers`: Netlify cache-control headers — `no-cache` on `sw.js` and `workbox-*.js`
 - Deployed via Netlify (connected to GitHub main branch)
 - PIN gate: `0824` ("Happy Birthday Ford")
 
@@ -48,7 +49,7 @@ we pivot to the full product. Every decision made during the POC should serve th
 - Live weather: Open-Meteo (3-hour client-side cache)
 - Live flight status: Anthropic API + `web_search` tool (48hr proximity guard)
 - Firebase Realtime Database: shared user state across all devices/users in real time
-- `localStorage`: offline cache only — mirrors Firebase state for zero-connectivity fallback
+- `localStorage`: offline cache + write queue — mirrors Firebase state and queues offline writes for replay on reconnect
 
 ### Features shipped (QA)
 - Tabs: Portland / Bar Harbor / Southwest Harbor
@@ -60,9 +61,51 @@ we pivot to the full product. Every decision made during the POC should serve th
 - Custom itinerary items (add, edit, delete, move — stored in Firebase)
 - Soft time labels on drag ("Morning", "Afternoon", "Evening", etc. — magic midpoint inference)
 - Reservation time prompt on Confirm — saves 🕐 sub-label under confirmed badge, editable
-- Add-to-itinerary from PlaceCard — DayPickerModal for day selection
+- Add-to-itinerary from PlaceCard — AddToItinerarySheet (BottomSheet-based day picker)
+- **Edit Mode** (v0.2.1) — long-press any itinerary item → BottomSheet opens with day's items;
+  multi-select, drag reorder, delete custom items, move to another day within same stop;
+  unsaved reorder prompts save/discard on exit; swipe-down-to-dismiss on full header bar
+- **Design System S1–S4** (v0.3.0):
+  - Scroll-driven StickyHeader: title compresses 24px→17px, dates always visible, tab padding animates
+  - StopNavigator: swipe between stops with parallax, 45% threshold, elastic bounce on last stop
+  - DayCard: Framer Motion height:auto expand, springs.lazy, anchors below stops bar (iOS scroll-anchor fix)
+  - BottomSheet: non-passive touchmove blocks background scroll on iOS; safe-area spacer
+  - RestaurantCard: Must badge, emoji, name, subcategory, Stacy badge, star rating, price — all tokens
+  - ActivityCard: emoji, AllTrails badge, difficulty/distance/duration chips — all tokens
+  - Badge + ActionButton component library for all inline badge/button UI
+  - ItemContent migrated to Badge + ActionButton (confirmed, bookNow, alert, custom, + Confirm)
+  - WeatherStrip + FlightRow fully token-migrated (no hardcoded hex)
+  - Trip title/tagline/pills sourced from trip.json (not hardcoded in StickyHeader)
+- **Pre-deploy polish (v0.3.1)**:
+  - StickyHeader: 300px transform range for gradual compression; spring stiffness 45/damping 18; top: -1px subpixel gap fix
+  - BottomSheet: Framer Motion useMotionValue + useVelocity — velocity-aware swipe dismiss, easeIn tween exit (500ms), safe-area inset in footer padding (no blank spacer)
+  - AddToItinerarySheet: "Add to your Jernie" copy; place name italic/bold; gold star rating + green price tier between name and location
+  - Reservation time auto-format: "700" → "7:00 PM"; context-aware AM/PM via neighbor item scan
+  - Custom item add form: category dropdown (10 types, alphabetical, Other last); category badge on saved items (token colors)
+  - Confirmed indicator: gold circle checkmark in edit-mode drag list (SelectableListItem)
+  - Viewport edge-to-edge: html/body background navy; body syncs to Colors.background on unlock via useEffect
+- **Offline support + refresh fixes (v0.3.2)**:
+  - Service worker via `vite-plugin-pwa` — app fully loads from cache after first online visit
+  - `useSharedTripState` write queue (`jernie_write_queue` in localStorage) — Firebase writes survive page reload while offline; flush-on-reconnect via `window.addEventListener("online")`; null snapshot guard on all 6 `onValue` callbacks
+  - `SheetContext` (`src/contexts/SheetContext.tsx`) — tracks open sheet count; `StopNavigator` disables `drag="x"` when `openCount > 0` (prevents stop swipe while BottomSheet/DayPickerModal is open)
+  - `DayPickerModal` registers with `SheetContext` (its own fixed-position overlay, not BottomSheet-based)
+  - Weather fetch consolidated: `Promise.allSettled` + `AbortController` → single `setWeatherData` call (eliminates 3 independent mid-scroll re-renders)
+  - Active stop persisted to `sessionStorage` (`jernie_active_stop`) — survives iOS PWA cold-start reloads
+  - `StopNavigator`: `setDirection` moved into `useEffect` (eliminates render-phase setState warning)
+- **Card design language + animations (v0.3.0)**:
+  - `TimelineItem` component — timeline-style itinerary cards: title + blurb parsed from `·`/`—` separator, category chips (🍽🥾👁⚓✈️🏨☀️), gold confirm pill, animated dot/connector (hollow→filled gold on confirm), `AnimatePresence` confirm↔confirmed swap, stagger entrance
+  - `ItineraryCategory` type + all 52 `trip.json` itinerary items categorized
+  - `parseItemText` utility — shared `title · blurb` parser
+  - Card design language applied to `HotelCard`, `BookingCard`, `LegSummary`, `AlertBox`: `surfaceRaised` bg, layered shadow, `3px` accent left border, token typography throughout
+  - `FlightRow` fully token-migrated; `StatusBadge` unchanged
+  - `SelectableListItem` redesigned — card-style edit mode rows, drag handle inside card, 16px sheet padding
+  - Post-unlock entrance sequence — `contentContainerVariants` staggerChildren (0.045s) cascades 8 sections in after PIN unlock; fires once on first mount only
+  - `ScrollReveal` component — canonical scroll-triggered entrance (`whileInView + once:true`); design language rule for all below-fold card content
+  - Scroll reveal wired into: `DayCard` (whileInView replaces mount stagger), `TimelineItem` (whileInView), `TravelSection` booking cards, `PlaceList` flat + grouped
+  - `BottomSheet` close: softer easing `[0.4,0,0.55,1]` at 0.65s (was 0.5s aggressive curve)
+  - iOS `text-size-adjust: 100%` fix — landscape→portrait font size no longer sticks
 - Restaurants (must/also, Stacy pill, price, emoji)
-- Activities (AllTrails badges on hikes, grouped Bar Harbor)
+- Activities (AllTrails badges on hikes, difficulty/distance/duration chips, grouped Bar Harbor)
 - What to Pack (6 categories, ~41 items, Firebase — real-time sync)
 - Tide chart links
 - Countdown
@@ -188,21 +231,20 @@ main        ← production (Netlify deploys from here)
 
 ## Known Issues / Active Risks
 
-- **Inline styles throughout** — every `style={{...}}` is Expo migration debt. Needs
-  refactor to Tailwind (web) before Phase 2. Tracked in GitHub Issues.
-- **No offline state indicator** — silent failure when refresh attempted without network.
-- **Flight status fetches on every page load** — needs proximity-based guard (see API
-  call logic engine issue).
-- **Activity cards lack signal differentiation** — difficulty, duration, type missing.
-  Beehive Trail and Old Port render identically.
-- **PROD/QA drift** — Netlify Drop deployment is manual. QA source is ahead of PROD.
+- **Bottom bar on all screens (Bug 1 — deferred)** — A colored bar is visible at the bottom
+  of every screen on iOS (including PIN screen). Root cause: viewport height resolution on
+  `position: fixed` elements with `viewport-fit=cover`. Scroll container already uses
+  `position: fixed; inset: 0` to anchor directly to physical viewport. Needs device
+  investigation. Deferred past deploy.
+- **No offline state indicator** — silent failure when refresh (weather/flight) is attempted without network. No visual feedback that the refresh did nothing.
+- **Flight status fetches on every page load** — proximity guard exists (48hr window) but there is no in-session dedup; navigating between stops can re-trigger fetches. Needs investigation.
 
 ---
 
 ## Design System
 
-A token-driven design foundation was added in April 2026. All new and migrated components
-must reference tokens exclusively — no hardcoded colors, spacing, or font sizes.
+A token-driven design foundation was added in April 2026 (S1–S4). All new and migrated
+components reference tokens exclusively — no hardcoded colors, spacing, or font sizes.
 
 ### Token file
 `src/design/tokens.ts` — single source of truth:
@@ -211,13 +253,50 @@ must reference tokens exclusively — no hardcoded colors, spacing, or font size
 - `Radius` — sm/md/lg/xl/full
 - `Typography` — Georgia serif, size scale, weight, line-height
 - `Shadow` — elevation levels sm → xl
-- `Animation` — duration, easing curves, and **`mountFrames: 4`**
+- `Animation` — duration, easing curves, springs (gentle/snappy/bouncy/lazy), and **`mountFrames: 4`**
 
 ### mountFrames pattern
 Any component that mounts then animates in (sheets, toasts, drawers) must chain
 `Animation.mountFrames` `requestAnimationFrame` calls before setting its visible state.
 This gives the browser time to paint the start position before the CSS transition fires.
 See `BottomSheet.tsx` for the reference implementation.
+
+### iOS scroll-anchor pattern
+When programmatically setting `scrollTop` before a Framer Motion `height: auto` animation,
+set `scrollEl.style.overflowAnchor = 'none'` first, then restore after expansion commits.
+This prevents iOS from undoing the scroll during FM's height measurement reflow.
+See `EditableItinerary.tsx` `onToggle` handler for the reference implementation.
+
+### Scroll-reveal pattern — non-negotiable for card content
+Every discrete card or list item that renders below the fold **must** be wrapped in
+`<ScrollReveal>`. This is a design language rule, not optional polish.
+
+```tsx
+import { ScrollReveal } from '../components/ScrollReveal';
+
+// Single card
+<ScrollReveal>
+  <MyCard />
+</ScrollReveal>
+
+// List of cards — index prop adds a gentle cascade (0.025s per item)
+{items.map((item, i) => (
+  <ScrollReveal key={item.id} index={i}>
+    <MyCard item={item} />
+  </ScrollReveal>
+))}
+```
+
+**Props:**
+- `index` — position in list; adds `0.025s × index` stagger delay (default `0`)
+- `margin` — how far inside the viewport before triggering (default `'-30px'`); use `'-60px'` for tall cards like DayCard
+- `style` — forwarded to the `motion.div` wrapper
+
+**Rules:**
+- `viewport={{ once: true }}` — fires exactly once per mount, never re-triggers on scroll
+- Do **not** also add your own `initial`/`animate`/`whileInView` to the child — the wrapper owns entrance
+- Components with complex internal animation state (DayCard, TimelineItem) use `whileInView` directly rather than ScrollReveal, since they also animate non-entrance properties
+- Section-level wrappers (`contentSectionVariants` in `Jernie-PWA.tsx`) handle above-the-fold entrance on unlock; ScrollReveal handles individual cards within those sections
 
 ### Component library
 | Component | Purpose |
@@ -226,6 +305,17 @@ See `BottomSheet.tsx` for the reference implementation.
 | `src/components/SelectableListItem.tsx` | List row with selection bubble + 6-dot drag handle |
 | `src/components/ActionBar.tsx` | Delete + Move action buttons for edit mode |
 | `src/components/ConfirmDialog.tsx` | Inline confirmation that slides up within a sheet |
+| `src/components/Badge.tsx` | Token-driven status/action badges (confirmed/bookNow/alert/note/custom) |
+| `src/components/ActionButton.tsx` | Token-driven button with Framer Motion press animation |
+| `src/components/DayCard.tsx` | Height:auto expand card, springs.lazy, forwardRef |
+| `src/components/ItineraryItem.tsx` | Long-press wrapper using useLongPress hook |
+| `src/components/StickyHeader.tsx` | Scroll-driven compression header with animated tab bar |
+| `src/components/StopNavigator.tsx` | Swipe navigation with parallax + elastic bounce |
+| `src/components/AddToItinerarySheet.tsx` | Stop-scoped day picker using BottomSheet |
+| `src/components/RestaurantCard.tsx` | Token-driven restaurant place card |
+| `src/components/ActivityCard.tsx` | Token-driven activity/hike place card |
+| `src/components/ScrollReveal.tsx` | Standard scroll-triggered card entrance — wrap any below-fold card/list item |
+| `src/contexts/SheetContext.tsx` | Tracks open sheet count; disables StopNavigator drag when > 0 |
 
 All components are React-only with no DOM-specific APIs. Platform logic lives in `src/platform/`.
 Expo migration: CSS transitions → Reanimated, pointer events → Gesture Handler, @dnd-kit → react-native-reanimated.
@@ -239,14 +329,24 @@ Expo migration: CSS transitions → Reanimated, pointer events → Gesture Handl
 | `src/Jernie-PWA.tsx` | Main PWA component (exported as `MaineGuide`) |
 | `src/App.tsx` | App entry point — renders `MaineGuide` |
 | `src/design/tokens.ts` | Design token source of truth — colors, spacing, animation |
+| `src/types.ts` | All TypeScript interfaces (Trip, Stop, Booking, ItineraryItem, CustomItem, etc.) |
 | `src/components/EditableItinerary.tsx` | Itinerary with edit mode (long-press → BottomSheet), drag-reorder, delete, move |
-| `src/components/DayPickerModal.tsx` | Day picker modal (move item + add place to itinerary) |
+| `src/components/StickyHeader.tsx` | Scroll-driven compression header, tab bar with layoutId indicator |
+| `src/components/StopNavigator.tsx` | Swipe navigation, parallax, elastic bounce |
+| `src/components/DayCard.tsx` | Height:auto expand with iOS scroll-anchor fix |
 | `src/components/BottomSheet.tsx` | Native-feeling bottom sheet with swipe-dismiss |
+| `src/components/AddToItinerarySheet.tsx` | Day picker for adding places to itinerary |
+| `src/components/RestaurantCard.tsx` | Restaurant place card |
+| `src/components/ActivityCard.tsx` | Activity/hike place card |
+| `src/components/Badge.tsx` | Status/action badge component |
+| `src/components/ActionButton.tsx` | Token-driven button with press animation |
 | `src/components/SelectableListItem.tsx` | Selectable list row with drag handle |
 | `src/components/ActionBar.tsx` | Edit mode action bar (delete, move) |
 | `src/components/ConfirmDialog.tsx` | Inline confirm/cancel dialog for sheet actions |
-| `src/hooks/useSharedTripState.ts` | Firebase Realtime DB hook — all shared mutable state |
-| `src/types.ts` | All TypeScript interfaces (Trip, Stop, Booking, ItineraryItem, CustomItem, etc.) |
+| `src/components/ScrollReveal.tsx` | Scroll-triggered entrance wrapper — standard for all card/list content |
+| `src/hooks/useSharedTripState.ts` | Firebase Realtime DB hook — all shared mutable state + offline write queue |
+| `src/contexts/SheetContext.tsx` | Open sheet count context — consumed by StopNavigator to lock drag |
+| `src/hooks/useLongPress.ts` | Cross-platform long-press hook (500ms, cancel on move/leave/unmount) |
 | `public/trip.json` | Trip content data — must stay tracked in git (Netlify build needs it) |
 | `CLAUDE.md` | This file — AI context for Claude Code + Claude Web |
 | `GITHUB-SETUP.md` | GitHub + Claude Code setup guide |
@@ -300,3 +400,14 @@ outage, and permanent loss of uncommitted files. Do not skip these.
 2. `npm run build` — must pass cleanly
 3. `git diff origin/main...HEAD -- src/` — review every changed file; verify nothing is missing or accidentally reverted
 4. Confirm `public/trip.json` is present and tracked: `git ls-files public/trip.json`
+5. **Update CLAUDE.md** — reflect every shipped feature, changed file, new pattern, or resolved issue before the PR merges. CLAUDE.md must always match what is in `main`.
+
+---
+
+## Starting a New Session — Non-Negotiable
+
+Before writing a single line of code:
+1. `git pull origin dev` — get latest
+2. Read `CLAUDE.md` in full — this is the bible. It contains architecture decisions,
+   active risks, design system rules, and git process. Do not skip this step.
+3. Check `git branch` — never work on `main` or `dev` directly

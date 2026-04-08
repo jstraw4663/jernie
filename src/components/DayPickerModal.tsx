@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import type { ItineraryDay, Place, Stop } from "../types";
 import { Colors, Spacing, Radius, Typography, Shadow } from "../design/tokens";
+import { useSheetContext } from "../contexts/SheetContext";
 
 interface DayPickerModalProps {
   isOpen: boolean;
@@ -27,6 +29,14 @@ export function DayPickerModal({
   place, onAddPlace,
   allDays, stops, filterStopId,
 }: DayPickerModalProps) {
+  const { onOpen, onClose: sheetClose } = useSheetContext();
+  useEffect(() => {
+    if (isOpen) {
+      onOpen();
+      return sheetClose;
+    }
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!isOpen) return null;
 
   function handleSelect(dayId: string) {
