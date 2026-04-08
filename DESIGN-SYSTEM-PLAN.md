@@ -1,142 +1,255 @@
-# Jernie Design System Overhaul — Session Tracker
+# Jernie Design System — Reference
 
-Branch strategy: one branch per session, PR to `dev` when verified locally.
-
----
-
-## Session 1 — Foundation + Quick Wins
-**Branch:** `feature/design-system-s1`
-**Status:** ✅ Implemented, build clean — awaiting local QA
-
-### Changes made
-| File | Change |
-|------|--------|
-| `package.json` | Added `framer-motion` |
-| `src/design/tokens.ts` | `danger→red (#8B3A3A)`, `warning→gold (#C9963A)`, added `surface2 (#EDEAE4)`, new shadow aliases (`cardResting/cardHover/cardLifted/sheet`), Framer Motion spring configs (`gentle/snappy/bouncy`) |
-| `index.html` | viewport `maximum-scale=1.0, user-scalable=no`; title → "Jernie — Maine Coast Jernie" |
-| `src/index.css` | `touch-action: manipulation`, `position: fixed` on html/body, `overflow: hidden`, `overscroll-behavior: none`, `#root` scrolls |
-| `src/components/ActionBar.tsx` | `Colors.danger → Colors.red`, `Colors.dangerLight → Colors.redLight` |
-| `src/components/ConfirmDialog.tsx` | `Colors.danger → Colors.red` |
-| `src/components/AddToItinerarySheet.tsx` | **NEW** — BottomSheet-based add-to-jernie; filters days to `place.stop_id` only |
-| `src/Jernie-PWA.tsx` | Replaced global `DayPickerModal` (addPlace mode) with `AddToItinerarySheet`; `SecHead` now uses `Colors.gold` + Georgia, removed `color` prop; header → "Maine Coast Jernie"; "Daily Jernie" label |
-
-### QA checklist (verify before commit)
-- [ ] App loads at localhost:5174, no zoom on mobile/DevTools device mode
-- [ ] Tap + on a Portland restaurant → sheet slides up showing ONLY Portland days
-- [ ] Tap + on a Bar Harbor hike → sheet shows ONLY Bar Harbor days
-- [ ] Section headers are gold + uppercase
-- [ ] Edit Mode delete button still shows deep red (not bright red)
-- [ ] `npm run build` passes clean ✅
+> **Status: v0.3.0 — All sessions complete. Shipped to production April 8, 2026.**
+>
+> This document tracks what was built, why decisions were made, and the current
+> state of every design system primitive. It is the authoritative reference for
+> the Jernie design language.
 
 ---
 
-## Session 2 — Navigation Layer
-**Branch:** `feature/design-system-s1` (built on same branch, not yet PRed)
-**Status:** ✅ Implemented, build clean — awaiting local QA
+## Sessions Overview
 
-### Changes made
-| File | Change |
-|------|--------|
-| `src/design/tokens.ts` | Added `Animation.fm` — Framer Motion easing arrays (same curves as `Animation.easing` but as `[number, number, number, number]` tuples, required because FM's `Easing` type rejects CSS cubic-bezier strings) |
-| `src/index.css` | `#root` changed from `overflow-y: auto` → `overflow: hidden`; scrolling moved to inner wrapper div in `MaineGuide` |
-| `src/components/StickyHeader.tsx` | **NEW** — sticky header with `useScroll`/`useTransform`: title 24→17px, dates fade out, tagline+pills+countdown collapse; tab bar with `layoutId="tab-indicator"` sliding active indicator; `LayoutGroup` wraps tabs |
-| `src/components/StopNavigator.tsx` | **NEW** — `drag="x"` with `dragDirectionLock`; commit threshold 80px offset or 300px/s velocity; spring snap-back via `dragConstraints={{ left:0, right:0 }}`; edge-aware elastic |
-| `src/Jernie-PWA.tsx` | Added `scrollRef = useRef<HTMLDivElement>()` on outer wrapper div; outer div is now the scroll container (`overflow-y: auto, height: 100%`); replaced inline header + tabs with `<StickyHeader>`; main content wrapped in `<StopNavigator>`; added `activeIndex` + `handleSwipe` |
-
-### Design deviations from plan
-- **Tab padding compression (not scale):** Plan specified `tab scale 0.88`. Implemented as tab button height/padding compression instead to avoid `transform: scale()` hit-target issues. Deferred true scale option to S4.
-- **Tab padding interpolation deferred:** `tabPaddingY` MotionValue was defined but not wired to tab buttons (FM's `padding` shorthand doesn't accept MotionValues). Full tab padding animation left for S4 inline style migration.
-
-### QA checklist
-- [ ] Scroll down → header compresses (title shrinks, dates/tagline fade)
-- [ ] Tap a tab → active indicator slides (no jump)
-- [ ] Swipe left on content → navigates to next stop
-- [ ] Swipe right on content → navigates to previous stop
-- [ ] Swipe on last stop leftward → minimal elastic bounce, no navigation
-- [ ] Swipe threshold: short gentle swipe snaps back; firm swipe commits
-- [ ] Header stays sticky while content scrolls
-- [ ] `npm run build` passes clean ✅
+| Session | Focus | Status |
+|---------|-------|--------|
+| S1 | Foundation tokens, AddToItinerarySheet, viewport fixes | ✅ Shipped |
+| S2 | StickyHeader, StopNavigator (swipe navigation) | ✅ Shipped |
+| S3 | DayCard, ItineraryItem, Badge, ActionButton | ✅ Shipped |
+| S4 | RestaurantCard, ActivityCard, full token migration, trip data props | ✅ Shipped |
+| S5 | Card design language v2, TimelineItem, scroll reveal, animations | ✅ Shipped |
 
 ---
 
-## Session 3 — Card System
-**Branch:** `feature/design-system-s1` (built on same branch)
-**Status:** ✅ Implemented, build clean — awaiting local QA
+## Token Reference
 
-### Changes made
-| File | Change |
-|------|--------|
-| `src/components/Badge.tsx` | **NEW** — variants: `confirmed` (gold), `bookNow` (navy), `alert`, `note`, `custom`; renders as `<span>`, `<button>`, or `<a>` based on props; fully token-driven |
-| `src/components/ActionButton.tsx` | **NEW** — variants: `default`, `active`, `danger`, `disabled`; Framer Motion `whileTap={{ scale: 0.97 }}`; `icon` prop; `fullWidth` prop |
-| `src/components/DayCard.tsx` | **NEW** — floating card with token shadow/radius; staggered entrance via `shouldAnimate` prop; `AnimatePresence` height/opacity collapse; Framer Motion animated `borderColor`/`boxShadow` via `animate` prop (no CSS transition mixing); animated chevron via `motion.span` |
-| `src/components/ItineraryItem.tsx` | **NEW** — thin motion wrapper: `whileTap={{ scale: 0.99 }}`, `useLongPress` hook; padding/gap via `Spacing` tokens; easing via `Animation.fm.ease` |
-| `src/components/EditableItinerary.tsx` | Removed `useLongPress` import (moved into `ItineraryItem`); added `DayCard` + `ItineraryItem as ItineraryItemRow` imports; `SortableItem` now wraps `ItemContent` in `<ItineraryItemRow>`; day rendering uses `<DayCard shouldAnimate={isFirstVisit}>`; `seenStops = useRef(new Set<string>())` prevents stagger from re-firing on tab switch |
+Source of truth: `src/design/tokens.ts`
 
-### Key architecture decisions
-- **`shouldAnimate` prop on DayCard:** Parent (`EditableItinerary`) tracks which stop IDs have been visited via `seenStops` ref. First visit = stagger; revisit = instant render. Prevents visible jank on tab switching.
-- **ItineraryItem as separate component:** `SortableItem` owns dnd-kit concerns (`setNodeRef`, transform); `ItineraryItem` owns interaction + animation. Clean separation of concerns; aligned with S4 full item refactor.
-- **DayCard animation via Framer Motion `animate` (not CSS transition):** Border color + box-shadow are Framer Motion properties so animation timing is unified with enter/exit transitions. No mixed-paradigm animation.
-- **`Animation.fm` in tokens:** Framer Motion requires bezier curves as `[number, number, number, number]` tuples; CSS `cubic-bezier()` strings are rejected by FM's type system. Added `Animation.fm.ease/easeIn/easeOut` to centralize this.
-- **S4 scope:** `Badge` and `ActionButton` are built but not yet wired into `ItemContent`. Full inline-style-to-token migration of `ItemContent`, `PlaceCard`, `WeatherStrip`, etc. is S4.
-
-### QA checklist
-- [ ] Day cards animate in with stagger on first visit to each stop
-- [ ] Switch to Bar Harbor, switch back to Portland → Portland days appear instantly (no stagger repeat)
-- [ ] Tap a day header → content expands/collapses with spring animation
-- [ ] Chevron rotates smoothly on expand/collapse
-- [ ] Long-press an itinerary item → Edit Mode sheet opens (still works)
-- [ ] Tap + hold feedback (scale 0.99) visible on items
-- [ ] Locked/confirmed items have no tap feedback (whileTap disabled)
-- [ ] Card border and shadow animate when opening/closing
-- [ ] Edit mode (select, delete, move) still works correctly
-- [ ] `npm run build` passes clean ✅
-
----
-
-## Session 4 — Place Cards + Full Refactor
-**Branch:** `feature/design-system-s4`
-**Status:** 🔜 Not started
-
-### Deliverables
-- `src/components/RestaurantCard.tsx` + `ActivityCard.tsx` — `layoutId` shared element expand
-- Full `Jernie-PWA.tsx` refactor — all inline styles → tokens, use new components
-- `EditableItinerary.tsx` — token migration (replace hardcoded hex colors)
-- Wire `Badge` + `ActionButton` into `ItemContent`
-- Tab padding animation (full MotionValue wiring in `StickyHeader`)
-- Move trip-specific strings (tagline, pills) from `StickyHeader` into trip data
-- Update `CLAUDE.md` to v0.3.0
-
----
-
-## Token Reference (post-S3)
-
+### Colors
 ```
-Colors.navy          #0D2B3E
-Colors.background    #F7F4EF
-Colors.surface       #F7F4EF
-Colors.surface2      #EDEAE4
-Colors.gold          #C9963A   ← was warning
-Colors.goldLight     #FDF0DC
-Colors.red           #8B3A3A   ← was danger
-Colors.redLight      #F5E8E8
+Colors.navy          #0D2B3E   — primary brand, nav background
+Colors.navyLight     #1A3F58
+Colors.background    #F7F4EF   — warm off-white app background
+Colors.surface       #F7F4EF   — card surfaces (same as background)
+Colors.surface2      #EDEAE4   — nested elements inside cards
+Colors.surfaceRaised #FAFAF8   — elevated cards (timeline, hotel, booking)
+Colors.border        #E5E0D8
+
+Colors.textPrimary   #1A1A1A
 Colors.textSecondary #6B7280
+Colors.textMuted     #999999
 Colors.textInverse   #F7F4EF
 
-Shadow.cardResting   0 2px 8px rgba(13,43,62,0.08)
-Shadow.cardHover     0 4px 16px rgba(13,43,62,0.12)
-Shadow.cardLifted    0 8px 32px rgba(13,43,62,0.18)
-Shadow.sheet         0 -4px 24px rgba(13,43,62,0.14)
-
-Animation.springs.gentle  { stiffness: 280, damping: 32 }
-Animation.springs.snappy  { stiffness: 400, damping: 36 }
-Animation.springs.bouncy  { stiffness: 320, damping: 24 }
-
-Animation.fm.ease    [0.4, 0, 0.2, 1]   ← FM-compatible, matches Animation.easing.default
-Animation.fm.easeIn  [0.4, 0, 1,   1]
-Animation.fm.easeOut [0,   0, 0.2, 1]
+Colors.gold          #C9963A   — confirm, accents, star ratings
+Colors.goldLight     #FDF0DC
+Colors.red           #8B3A3A   — danger/delete
+Colors.redLight      #F5E8E8
+Colors.success       #1B7A4A
+Colors.successLight  #D1FAE5
+Colors.info          #3557A0
+Colors.infoBg        #F0F4FF
 ```
 
-## Branding Rule
+### Spacing (4px base, unitless for React Native compatibility)
+```
+Spacing.xxs   2
+Spacing.xs    4
+Spacing.sm    8
+Spacing.md    12
+Spacing.base  16
+Spacing.lg    20
+Spacing.xl    24
+Spacing.xxl   32
+Spacing.xxxl  48
+```
+
+### Radius
+```
+Radius.sm    4
+Radius.md    8
+Radius.lg    12   ← standard card radius
+Radius.xl    16
+Radius.full  9999
+```
+
+### Shadows
+```
+Shadow.cardResting  0 2px 8px rgba(13,43,62,0.08)
+Shadow.cardHover    0 4px 16px rgba(13,43,62,0.12)
+Shadow.cardLifted   0 8px 32px rgba(13,43,62,0.18)
+Shadow.sheet        0 -4px 24px rgba(13,43,62,0.14)
+```
+
+Card-level shadow (used on TimelineItem, HotelCard, BookingCard):
+```
+0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)
+```
+
+### Animation Springs (Framer Motion)
+```
+Animation.springs.gentle   { stiffness: 280, damping: 32 }   — entrances, most transitions
+Animation.springs.snappy   { stiffness: 400, damping: 36 }   — press feedback, badges
+Animation.springs.bouncy   { stiffness: 320, damping: 24 }   — energetic with slight bounce
+Animation.springs.lazy     { stiffness: 160, damping: 24 }   — DayCard expand, breathing room
+```
+
+### Animation Durations + Easings
+```
+Animation.duration.fast    150ms
+Animation.duration.normal  250ms
+Animation.duration.slow    350ms
+Animation.duration.sheet   380ms
+
+Animation.easing.default   cubic-bezier(0.4, 0, 0.2, 1)
+Animation.easing.enter     cubic-bezier(0, 0, 0.2, 1)
+Animation.easing.exit      cubic-bezier(0.4, 0, 1, 1)
+Animation.easing.spring    cubic-bezier(0.34, 1.56, 0.64, 1)
+
+Animation.fm.ease     [0.4, 0, 0.2, 1]   ← FM-compatible tuples
+Animation.fm.easeIn   [0.4, 0, 1,   1]
+Animation.fm.easeOut  [0,   0, 0.2, 1]
+
+Animation.mountFrames  4   ← RAF chain count before CSS enter transition fires
+```
+
+---
+
+## Card Design Language
+
+Every discrete piece of content follows this pattern:
+
+### Elevated card (TimelineItem, HotelCard, BookingCard, LegSummary, AlertBox)
+```tsx
+style={{
+  background: Colors.surfaceRaised,
+  borderRadius: `${Radius.lg}px`,
+  boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+  borderLeft: `3px solid ${accent}`,   // full opacity for primary cards
+  // or: borderLeft: `3px solid ${accent}60` for secondary booking cards
+  padding: `${Spacing.md}px ${Spacing.base}px`,
+}}
+```
+
+### Section label (inside card, above content)
+```tsx
+style={{
+  fontSize: `${Typography.size.xs}px`,
+  fontWeight: Typography.weight.bold,
+  color: accent,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+  fontFamily: Typography.family,
+  marginBottom: `${Spacing.sm}px`,
+}}
+```
+
+### DayCard (collapsible day block)
+- `Colors.surface` background (not surfaceRaised)
+- `Shadow.cardResting / Shadow.cardHover` via Framer Motion `animate`
+- `borderColor` animated via FM (not CSS transition)
+- `AnimatePresence` + `springs.lazy` for height:auto expand
+
+### RestaurantCard / ActivityCard
+- Token-driven throughout
+- Must badge, Stacy pill, star rating, price tier
+- AllTrails badge, difficulty/distance/duration chips for hikes
+
+---
+
+## Scroll Reveal — Design Language Rule
+
+**Every discrete card or list item that appears below the fold must be wrapped in `<ScrollReveal>`.**
+
+```tsx
+import { ScrollReveal } from '../components/ScrollReveal';
+
+// Single card
+<ScrollReveal>
+  <MyCard />
+</ScrollReveal>
+
+// List — index prop adds 0.025s stagger per item
+{items.map((item, i) => (
+  <ScrollReveal key={item.id} index={i}>
+    <MyCard item={item} />
+  </ScrollReveal>
+))}
+```
+
+Props:
+- `index` — stagger offset; delay = `0.08 + index × 0.025s` (default `0`)
+- `margin` — IO root margin before triggering (default `'-30px'`; use `'-60px'` for tall cards)
+- `style` — forwarded to the `motion.div` wrapper
+
+**`viewport={{ once: true }}`** — fires exactly once per mount. Never re-triggers on scroll.
+
+Components with complex internal animation (DayCard, TimelineItem) use `whileInView` directly
+rather than ScrollReveal since they also animate non-entrance properties (borderColor, boxShadow, dot state).
+
+---
+
+## Entrance Animation System
+
+### Post-unlock (section-level)
+Defined in `Jernie-PWA.tsx` as `contentContainerVariants` + `contentSectionVariants`.
+- Container: `staggerChildren: 0.045s`
+- Each section: `opacity: 0→1, y: 18→0`, `springs.gentle`
+- Fires once on first mount after PIN unlock. Stop swipes do NOT re-trigger it.
+
+### Scroll reveal (card-level)
+`ScrollReveal` component. Fires once per mount via `whileInView + once:true`.
+Base delay: `0.08s`. Per-item stagger: `+0.025s × index`.
+
+### Sheet entrance
+BottomSheet: `springs.gentle` slide from off-screen. Exit: `0.65s tween, [0.4,0,0.55,1]`.
+`Animation.mountFrames` RAF chain ensures painted start state before spring fires.
+
+### Press feedback
+`ItineraryItem`, `ActionButton`: `whileTap={{ scale: 0.97 }}`, `springs.snappy`.
+Disabled for locked/confirmed items.
+
+---
+
+## Component Inventory
+
+| Component | File | Animation |
+|-----------|------|-----------|
+| StickyHeader | `src/components/StickyHeader.tsx` | useScroll/useTransform compression, layoutId tab indicator |
+| StopNavigator | `src/components/StopNavigator.tsx` | drag="x", parallax exit, elastic bounce, SheetContext guard |
+| DayCard | `src/components/DayCard.tsx` | whileInView entrance, springs.lazy expand, FM borderColor/boxShadow |
+| TimelineItem | `src/components/TimelineItem.tsx` | whileInView entrance, dot/connector spring, AnimatePresence confirm swap |
+| BottomSheet | `src/components/BottomSheet.tsx` | useMotionValue/useVelocity swipe, springs.gentle enter, 0.65s tween exit |
+| SelectableListItem | `src/components/SelectableListItem.tsx` | Card-style edit row, drag handle inside card |
+| RestaurantCard | `src/components/RestaurantCard.tsx` | Token-driven, Must badge, Stacy pill |
+| ActivityCard | `src/components/ActivityCard.tsx` | Token-driven, AllTrails badge, difficulty chips |
+| ScrollReveal | `src/components/ScrollReveal.tsx` | whileInView, once:true — standard scroll entrance |
+| Badge | `src/components/Badge.tsx` | scale pop-in via springs.snappy |
+| ActionButton | `src/components/ActionButton.tsx` | whileTap scale 0.97 |
+| ItineraryItem | `src/components/ItineraryItem.tsx` | whileTap scale 0.97, useLongPress |
+| DayCard | `src/components/DayCard.tsx` | height:auto AnimatePresence, springs.lazy |
+| AddToItinerarySheet | `src/components/AddToItinerarySheet.tsx` | BottomSheet-based, stop-scoped day picker |
+| ConfirmDialog | `src/components/ConfirmDialog.tsx` | CSS translateY slide, easeIn |
+| ActionBar | `src/components/ActionBar.tsx` | Edit mode delete/move actions |
+
+---
+
+## Platform Migration Notes (Expo)
+
+| Web | React Native / Expo |
+|-----|---------------------|
+| `motion.div` | `Animated.View` + `useAnimatedStyle` (Reanimated) |
+| `whileInView` | `useSharedValue` + IO polyfill or `useAnimatedScrollHandler` |
+| `useMotionValue/useVelocity` | `useSharedValue` + `useAnimatedGestureHandler` |
+| `AnimatePresence` | Conditional render + `useAnimatedStyle` height |
+| `drag="x"` (StopNavigator) | `Gesture.Pan()` via Gesture Handler |
+| `@dnd-kit` (itinerary) | `react-native-reanimated` drag handles |
+| CSS transitions | `withTiming`, `withSpring` |
+| `springs.gentle` | `{ damping: 32, stiffness: 280 }` in `withSpring` |
+| Service worker | Expo offline-first via expo-updates |
+
+---
+
+## Branding Rules
+
 Replace in UI strings only — not Firebase keys, localStorage keys, `trip.json` keys, or TypeScript type names.
 - "Trip Guide" → "Jernie"
 - "Daily Itinerary" → "Daily Jernie"

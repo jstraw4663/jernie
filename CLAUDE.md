@@ -2,7 +2,7 @@
 
 > This file is the single source of truth for AI context across Claude Code and Claude Web.
 > Repo: https://github.com/jstraw4663/jernie
-> Last updated: April 8, 2026 — v0.3.3
+> Last updated: April 8, 2026 — v0.3.0 (production release)
 
 ---
 
@@ -92,6 +92,18 @@ we pivot to the full product. Every decision made during the POC should serve th
   - Weather fetch consolidated: `Promise.allSettled` + `AbortController` → single `setWeatherData` call (eliminates 3 independent mid-scroll re-renders)
   - Active stop persisted to `sessionStorage` (`jernie_active_stop`) — survives iOS PWA cold-start reloads
   - `StopNavigator`: `setDirection` moved into `useEffect` (eliminates render-phase setState warning)
+- **Card design language + animations (v0.3.0)**:
+  - `TimelineItem` component — timeline-style itinerary cards: title + blurb parsed from `·`/`—` separator, category chips (🍽🥾👁⚓✈️🏨☀️), gold confirm pill, animated dot/connector (hollow→filled gold on confirm), `AnimatePresence` confirm↔confirmed swap, stagger entrance
+  - `ItineraryCategory` type + all 52 `trip.json` itinerary items categorized
+  - `parseItemText` utility — shared `title · blurb` parser
+  - Card design language applied to `HotelCard`, `BookingCard`, `LegSummary`, `AlertBox`: `surfaceRaised` bg, layered shadow, `3px` accent left border, token typography throughout
+  - `FlightRow` fully token-migrated; `StatusBadge` unchanged
+  - `SelectableListItem` redesigned — card-style edit mode rows, drag handle inside card, 16px sheet padding
+  - Post-unlock entrance sequence — `contentContainerVariants` staggerChildren (0.045s) cascades 8 sections in after PIN unlock; fires once on first mount only
+  - `ScrollReveal` component — canonical scroll-triggered entrance (`whileInView + once:true`); design language rule for all below-fold card content
+  - Scroll reveal wired into: `DayCard` (whileInView replaces mount stagger), `TimelineItem` (whileInView), `TravelSection` booking cards, `PlaceList` flat + grouped
+  - `BottomSheet` close: softer easing `[0.4,0,0.55,1]` at 0.65s (was 0.5s aggressive curve)
+  - iOS `text-size-adjust: 100%` fix — landscape→portrait font size no longer sticks
 - Restaurants (must/also, Stacy pill, price, emoji)
 - Activities (AllTrails badges on hikes, difficulty/distance/duration chips, grouped Bar Harbor)
 - What to Pack (6 categories, ~41 items, Firebase — real-time sync)
