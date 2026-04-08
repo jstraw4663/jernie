@@ -5,6 +5,9 @@
 export interface Trip {
   id: string;
   name: string;
+  title?: string;
+  tagline?: string;
+  pills?: [string, string][];
   dates: string;
   departure: string; // ISO 8601 with timezone offset
   member_handles: string[];
@@ -81,6 +84,18 @@ export interface ItineraryDay {
   emoji: string;
 }
 
+// Category for curated itinerary items — separate from PlaceCategory (custom items).
+// Covers logistics, meals, outdoor activities, sights, and downtime.
+export type ItineraryCategory =
+  | "restaurant"  // any meal, food stop, coffee
+  | "hike"        // trails, summit walks
+  | "sight"       // lighthouses, scenic spots, landmarks
+  | "activity"    // cruises, tours, sails, spa, events
+  | "travel"      // flights, drives, check-in/out logistics
+  | "lodging"     // hotel check-in / check-out
+  | "leisure"     // free time, walks, relaxed exploration
+  | "other";
+
 export interface ItineraryItem {
   id: string;
   day_id: string;
@@ -93,6 +108,7 @@ export interface ItineraryItem {
   addr_label: string | null;
   tide_url: string | null;
   booking_url: string | null;
+  category: ItineraryCategory | null;
 }
 
 export type PlaceCategory =
@@ -140,6 +156,7 @@ export interface CustomItem {
   day_id: string;          // current day (kept in sync on moves)
   time: string;
   text: string;
+  category?: PlaceCategory; // optional — set when user picks a type on add
   source_place_id: string | null;  // set when created from a PlaceCard +
   created_at: number;      // Date.now()
 }

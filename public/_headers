@@ -1,0 +1,8 @@
+# Service worker must never be cached by the CDN.
+# Stale sw.js = browser never knows about new deployments.
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Workbox runtime chunk — same deal
+/workbox-*.js
+  Cache-Control: no-cache, no-store, must-revalidate

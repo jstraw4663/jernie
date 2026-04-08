@@ -3,7 +3,7 @@
 // react-native-reanimated + react-native-gesture-handler.
 // All props and Firebase state are platform-agnostic.
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, type RefObject } from "react";
 import {
   DndContext, DragOverlay, PointerSensor, TouchSensor,
   useSensor, useSensors, closestCenter,
@@ -14,16 +14,16 @@ import {
   SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Stop, TripData, ItineraryItem, CustomItem } from "../types";
+import type { Stop, TripData, ItineraryItem, CustomItem, PlaceCategory, ItineraryCategory } from "../types";
 import { DayPickerModal } from "./DayPickerModal";
 import { BottomSheet } from "./BottomSheet";
 import { SelectableListItem } from "./SelectableListItem";
 import { ActionBar } from "./ActionBar";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { Colors, Spacing, Typography } from "../design/tokens";
-import { useLongPress } from "../hooks/useLongPress";
-
-const appleMaps = (addr: string) => "https://maps.apple.com/?q=" + encodeURIComponent(addr);
+import { DayCard } from "./DayCard";
+import { ItineraryItem as ItineraryItemRow } from "./ItineraryItem";
+import { Animation, Colors, Spacing, Typography } from "../design/tokens";
+import { TimelineItem, ITINERARY_CATEGORY_ICON } from "./TimelineItem";
 
 type ResolvedItem = (ItineraryItem & { _isCustom: false }) | (CustomItem & { _isCustom: true });
 
@@ -31,7 +31,21 @@ interface AddFormState {
   dayId: string;
   time: string;
   text: string;
+  category: PlaceCategory | '';
 }
+
+const CATEGORY_OPTIONS: { value: PlaceCategory | ''; label: string }[] = [
+  { value: '',           label: 'Type (optional)' },
+  { value: 'attraction', label: '🎭 Attraction' },
+  { value: 'bar',        label: '🍻 Bar' },
+  { value: 'beach',      label: '🏖 Beach' },
+  { value: 'hike',       label: '🥾 Hike' },
+  { value: 'museum',     label: '🏛 Museum' },
+  { value: 'restaurant', label: '🍽 Restaurant' },
+  { value: 'shop',       label: '🛍 Shop' },
+  { value: 'sight',      label: '👁 Sight' },
+  { value: 'other',      label: '✏ Other' },
+];
 
 interface EditableItineraryProps {
   stop: Stop;
@@ -43,12 +57,13 @@ interface EditableItineraryProps {
   timeOverrides: Record<string, string>;
   setDayOrder: (dayId: string, orderedIds: string[]) => void;
   moveItem: (itemId: string, fromDayId: string, toDayId: string, insertAtIndex: number) => void;
-  addCustomItem: (dayId: string, time: string, text: string, sourcePlaceId: string | null) => void;
+  addCustomItem: (dayId: string, time: string, text: string, sourcePlaceId: string | null, category?: PlaceCategory) => void;
   deleteCustomItem: (itemId: string, dayId: string) => void;
   initializeOrder: (days: TripData["itinerary_days"], items: TripData["itinerary_items"]) => void;
   setTimeOverride: (itemId: string, time: string) => void;
   reservationTimes: Record<string, string>;
   setReservationTime: (itemId: string, time: string) => void;
+  scrollRef: RefObject<HTMLDivElement | null>;
 }
 
 // ── Time inference helpers ─────────────────────────────────────
@@ -116,141 +131,14 @@ function DroppableDay({ dayId, children }: { dayId: string; children: React.Reac
   );
 }
 
-// ── TimeLabel — click-to-edit inline ──────────────────────────
-
-function TimeLabel({ displayTime, isLocked, onSave }: {
-  displayTime: string; isLocked: boolean; onSave: (time: string) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(displayTime);
-
-  if (isLocked || editing === false) {
-    return (
-      <div
-        onClick={isLocked ? undefined : () => { setDraft(displayTime); setEditing(true); }}
-        title={isLocked ? undefined : "Tap to edit time"}
-        style={{
-          fontSize: "0.7rem", color: "#aaa", lineHeight: 1.4, fontStyle: "italic",
-          cursor: isLocked ? "default" : "pointer",
-          minHeight: "1em",
-          borderBottom: isLocked ? "none" : "1px dashed transparent",
-        }}
-        onMouseEnter={e => { if (!isLocked) (e.currentTarget as HTMLElement).style.borderBottomColor = "#ddd"; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderBottomColor = "transparent"; }}
-      >
-        {displayTime || <span style={{ opacity: 0.35 }}>set time</span>}
-      </div>
-    );
-  }
-
-  return (
-    <input
-      autoFocus
-      value={draft}
-      onChange={e => setDraft(e.target.value)}
-      onBlur={() => { onSave(draft.trim()); setEditing(false); }}
-      onKeyDown={e => {
-        if (e.key === "Enter") { onSave(draft.trim()); setEditing(false); }
-        if (e.key === "Escape") setEditing(false);
-      }}
-      placeholder="e.g. 9:00 AM"
-      style={{
-        width: "90px", fontSize: "0.7rem", fontStyle: "italic", color: "#666",
-        border: "1px solid #ccc", borderRadius: "4px", padding: "2px 5px",
-        fontFamily: "Georgia,serif", background: "#fff",
-      }}
-    />
-  );
-}
-
-// ── ItemContent ───────────────────────────────────────────────
-
-function ItemContent({ item, accent, confirms, onConfirm, isCustom, displayTime, isLocked, onTimeSave, reservationTime, onRequestConfirm, onEditResvTime }: {
-  item: ResolvedItem; accent: string; confirms: Record<string, boolean>;
-  onConfirm: (id: string, value: boolean) => void; isCustom: boolean;
-  displayTime: string; isLocked: boolean; onTimeSave: (time: string) => void;
-  reservationTime: string;
-  onRequestConfirm: () => void;
-  onEditResvTime: () => void;
-}) {
-  const itItem = item as ItineraryItem;
-  const userConfirmed = isLocked && !itItem.locked;
-
-  return (
-    <div style={{ display: "flex", gap: "12px", flex: 1, minWidth: 0 }}>
-      <div style={{ minWidth: "96px", flexShrink: 0, display: "flex", flexDirection: "column", gap: "5px", paddingTop: "2px" }}>
-        <TimeLabel displayTime={displayTime} isLocked={isLocked} onSave={onTimeSave} />
-        {isCustom ? (
-          <span style={{ fontSize: "0.52rem", background: "#F0F4FF", color: "#3557A0", padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.06em", textTransform: "uppercase", border: "1px solid #3557A020", display: "inline-block", width: "fit-content" }}>
-            ✏ Custom
-          </span>
-        ) : isLocked ? (
-          <>
-            <button
-              onClick={() => !itItem.locked && onConfirm(item.id, !confirms[item.id])}
-              title={itItem.locked ? "Locked in" : "Click to unmark"}
-              style={{ background: accent, color: "#fff", fontSize: "0.52rem", padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.06em", textTransform: "uppercase", display: "inline-block", width: "fit-content", border: "none", cursor: itItem.locked ? "default" : "pointer", fontFamily: "Georgia,serif" }}
-            >
-              ✓ Confirmed
-            </button>
-            {userConfirmed && (
-              <div
-                onClick={onEditResvTime}
-                title={reservationTime ? "Edit reservation time" : "Add reservation time"}
-                style={{ fontSize: "0.62rem", color: reservationTime ? "#777" : "#ccc", fontStyle: "italic", cursor: "pointer", lineHeight: 1.3, marginTop: "1px" }}
-              >
-                {reservationTime ? `🕐 ${reservationTime}` : "+ reservation time"}
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            {itItem.book_now && (
-              itItem.booking_url
-                ? <a href={itItem.booking_url} target="_blank" rel="noopener noreferrer" style={{ background: "#FFF3CD", color: "#7a5800", fontSize: "0.52rem", padding: "2px 8px", borderRadius: "4px", letterSpacing: "0.06em", textTransform: "uppercase", border: "1px solid #F0C040aa", display: "inline-block", width: "fit-content", textDecoration: "none" }}>📅 Book Now</a>
-                : <span style={{ background: "#FFF3CD", color: "#7a5800", fontSize: "0.52rem", padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.06em", textTransform: "uppercase", border: "1px solid #F0C040aa", display: "inline-block", width: "fit-content" }}>📅 Book Now</span>
-            )}
-            {itItem.alert && !itItem.book_now && (
-              <span style={{ background: "#FFF8E7", color: "#b07010", fontSize: "0.52rem", padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.06em", textTransform: "uppercase", border: "1px solid #E8A02050", display: "inline-block", width: "fit-content" }}>⚠ Note</span>
-            )}
-            <button
-              onClick={onRequestConfirm}
-              style={{ background: "transparent", color: "#bbb", fontSize: "0.52rem", padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.06em", textTransform: "uppercase", border: "1px dashed #ddd", display: "inline-block", width: "fit-content", cursor: "pointer", fontFamily: "Georgia,serif", marginTop: "1px" }}
-            >
-              + Confirm
-            </button>
-          </>
-        )}
-      </div>
-      <div style={{ fontSize: "0.86rem", color: "#333", lineHeight: 1.55, flex: 1, paddingTop: "2px" }}>
-        {item.text}
-        {!isCustom && itItem.addr && (
-          <div style={{ marginTop: "5px" }}>
-            <a href={appleMaps(itItem.addr)} target="_blank" rel="noopener noreferrer"
-              style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.76rem", color: accent, textDecoration: "none" }}>
-              📍 {itItem.addr_label || itItem.addr} <span style={{ fontSize: "0.68rem", opacity: 0.7 }}>· Maps</span>
-            </a>
-          </div>
-        )}
-        {!isCustom && itItem.tide_url && (
-          <div style={{ marginTop: "5px" }}>
-            <a href={itItem.tide_url} target="_blank" rel="noopener noreferrer"
-              style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.76rem", color: "#2D6A8F", textDecoration: "none" }}>
-              🌊 Bar Harbor Tide Chart <span style={{ fontSize: "0.68rem", opacity: 0.7 }}>· NOAA</span>
-            </a>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+// TimeLabel and ItemContent replaced by TimelineItem component.
 
 // ── SortableItem ──────────────────────────────────────────────
 // Inline read-only view. Long press triggers Edit Mode BottomSheet.
 // Drag reorder now lives inside the sheet (Bundle 3).
 
-function SortableItem({ item, accent, confirms, onConfirm, isLocked, onLongPress, displayTime, onTimeSave, reservationTime, onRequestConfirm, onEditResvTime }: {
-  item: ResolvedItem; accent: string; confirms: Record<string, boolean>;
+function SortableItem({ item, accent, onConfirm, isLocked, onLongPress, displayTime, onTimeSave, reservationTime, onRequestConfirm, index, isLast, animate }: {
+  item: ResolvedItem; accent: string;
   onConfirm: (id: string, value: boolean) => void;
   isLocked: boolean;
   onLongPress?: () => void;
@@ -258,7 +146,9 @@ function SortableItem({ item, accent, confirms, onConfirm, isLocked, onLongPress
   onTimeSave: (time: string) => void;
   reservationTime: string;
   onRequestConfirm: () => void;
-  onEditResvTime: () => void;
+  index: number;
+  isLast: boolean;
+  animate: boolean;
 }) {
   const { setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -266,28 +156,31 @@ function SortableItem({ item, accent, confirms, onConfirm, isLocked, onLongPress
     data: { item },
   });
 
-  const { handlePointerDown, cancel } = useLongPress(onLongPress, isLocked);
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  };
-
   return (
     <div
       ref={setNodeRef}
-      onPointerDown={handlePointerDown}
-      onPointerUp={cancel}
-      onPointerMove={cancel}
-      onPointerLeave={cancel}
-      style={{ ...style, display: "flex", gap: "8px", padding: "10px 0", alignItems: "flex-start", position: "relative", userSelect: "none", WebkitUserSelect: "none" }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
     >
-      <ItemContent
-        item={item} accent={accent} confirms={confirms} onConfirm={onConfirm}
-        isCustom={item._isCustom} displayTime={displayTime} isLocked={isLocked} onTimeSave={onTimeSave}
-        reservationTime={reservationTime} onRequestConfirm={onRequestConfirm} onEditResvTime={onEditResvTime}
-      />
+      <ItineraryItemRow onLongPress={onLongPress} isLocked={isLocked}>
+        <TimelineItem
+          item={item}
+          accent={accent}
+          isConfirmed={isLocked}
+          isCustom={item._isCustom}
+          displayTime={displayTime}
+          onTimeSave={onTimeSave}
+          reservationTime={reservationTime}
+          onRequestConfirm={onRequestConfirm}
+          onConfirm={onConfirm}
+          index={index}
+          animate={animate}
+          isLast={isLast}
+        />
+      </ItineraryItemRow>
     </div>
   );
 }
@@ -296,18 +189,23 @@ function SortableItem({ item, accent, confirms, onConfirm, isLocked, onLongPress
 // Wraps SelectableListItem so the drag handle gets @dnd-kit listeners while
 // keeping SelectableListItem's API platform-agnostic.
 
-function SheetSortableItem({ item, isSelected, isLocked, onToggleSelect, displayTime }: {
+function SheetSortableItem({ item, isSelected, isLocked, onToggleSelect, displayTime, accent }: {
   item: ResolvedItem;
   isSelected: boolean;
   isLocked: boolean;
   onToggleSelect: () => void;
   displayTime: string;
+  accent: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
     disabled: isLocked,
     data: { item },
   });
+
+  const categoryIcon = !item._isCustom
+    ? ITINERARY_CATEGORY_ICON[(item as ItineraryItem).category as ItineraryCategory] ?? undefined
+    : undefined;
 
   return (
     <div
@@ -328,6 +226,8 @@ function SheetSortableItem({ item, isSelected, isLocked, onToggleSelect, display
         onToggleSelect={onToggleSelect}
         dragListeners={listeners}
         dragAttributes={attributes}
+        accent={accent}
+        categoryIcon={categoryIcon}
       />
     </div>
   );
@@ -339,8 +239,18 @@ export function EditableItinerary({
   stop, data, confirms, onConfirm,
   itineraryOrder, customItems, timeOverrides, reservationTimes,
   setDayOrder, moveItem, addCustomItem, deleteCustomItem, initializeOrder, setTimeOverride, setReservationTime,
+  scrollRef,
 }: EditableItineraryProps) {
   const [openDay, setOpenDay] = useState(0);
+  // Refs for each DayCard — used to scroll the header into view on expand.
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Tracks stop IDs that have already played their entrance stagger, so switching
+  // tabs back to a stop doesn't re-animate. Mutated in useEffect (not during render).
+  const seenStops = useRef(new Set<string>());
+  const isFirstVisit = !seenStops.current.has(stop.id);
+  // Pending rAF IDs and switch timeout — cancelled on remount or rapid tap
+  const pendingRafsRef = useRef<number[]>([]);
+  const switchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   const [addForm, setAddForm] = useState<AddFormState | null>(null);
@@ -356,6 +266,16 @@ export function EditableItinerary({
   const isInitializingRef = useRef(false);
 
   const days = data.itinerary_days.filter(d => d.stop_id === stop.id);
+
+  // Mark this stop as seen after first render (not during render) so isFirstVisit
+  // is stable for the entire render pass and all DayCards get the same value.
+  useEffect(() => { seenStops.current.add(stop.id); }, [stop.id]);
+
+  // Cancel pending rAFs and switch timeout on unmount.
+  useEffect(() => () => {
+    pendingRafsRef.current.forEach(id => cancelAnimationFrame(id));
+    if (switchTimeoutRef.current) clearTimeout(switchTimeoutRef.current);
+  }, []);
 
   // Initialization guard — write Firebase order from trip.json once
   useEffect(() => {
@@ -490,9 +410,82 @@ export function EditableItinerary({
     setResvPrompt({ itemId, draft: prefill });
   }
 
+  // Looks at times of items surrounding itemId (up to 3 in each direction)
+  // to infer whether an ambiguous hour (1–11) is AM or PM.
+  function inferAmPm(hour: number, itemId: string): 'AM' | 'PM' {
+    // Find the day and position of this item
+    for (const day of data.itinerary_days) {
+      const ordered = resolveOrderedItems(day.id);
+      const idx = ordered.findIndex(item => item.id === itemId);
+      if (idx === -1) continue;
+
+      const neighbors = ordered.slice(Math.max(0, idx - 3), Math.min(ordered.length, idx + 4));
+      const context = neighbors
+        .map(item => item._isCustom ? (item as CustomItem).time : (item as ItineraryItem).time)
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      const eveningSignals = /\b(pm|evening|dinner|sunset|night|supper)\b/.test(context);
+      const morningSignals = /\b(am|morning|breakfast|sunrise|brunch)\b/.test(context);
+
+      if (eveningSignals && !morningSignals) return 'PM';
+      if (morningSignals && !eveningSignals) return 'AM';
+      break; // found the day but no clear signal — fall through to heuristic
+    }
+
+    // Heuristic: on a trip, 1–5 is almost always PM (lunch/afternoon/dinner),
+    // 6–11 is almost always AM (morning activities).
+    return hour >= 1 && hour <= 5 ? 'PM' : 'AM';
+  }
+
+  // Formats digit-only inputs into 12-hour time strings.
+  // "700" → "7:00 PM", "7" → "7:00 PM", "730" → "7:30 PM", "0630" → "6:30 AM"
+  // AM/PM uses surrounding item context first, then hour heuristic.
+  // Strings with colons, time words, or no digits pass through unchanged.
+  function formatReservationTime(input: string, itemId: string): string {
+    if (!input) return input;
+    if (/[:\s]|am|pm|morning|afternoon|evening|night/i.test(input)) return input;
+    const digits = input.replace(/\D/g, '');
+    if (!digits) return input;
+
+    let h: number, m: number;
+    if (digits.length <= 2) {
+      // "7" or "11" — treat as bare hour
+      h = parseInt(digits, 10);
+      m = 0;
+    } else if (digits.length === 3) {
+      h = parseInt(digits[0], 10);
+      m = parseInt(digits.slice(1), 10);
+    } else if (digits.length === 4) {
+      h = parseInt(digits.slice(0, 2), 10);
+      m = parseInt(digits.slice(2), 10);
+    } else {
+      return input;
+    }
+
+    if (h > 23 || m > 59) return input;
+
+    let ampm: 'AM' | 'PM';
+    let displayH: number;
+    if (h === 0) {
+      ampm = 'AM'; displayH = 12;
+    } else if (h === 12) {
+      ampm = 'PM'; displayH = 12;
+    } else if (h > 12) {
+      ampm = 'PM'; displayH = h - 12;
+    } else {
+      // 1–11: use context
+      ampm = inferAmPm(h, itemId);
+      displayH = h;
+    }
+
+    return `${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
+  }
+
   function handleResvSave() {
     if (!resvPrompt) return;
-    setReservationTime(resvPrompt.itemId, resvPrompt.draft.trim());
+    setReservationTime(resvPrompt.itemId, formatReservationTime(resvPrompt.draft.trim(), resvPrompt.itemId));
     onConfirm(resvPrompt.itemId, true);
     setResvPrompt(null);
   }
@@ -620,104 +613,144 @@ export function EditableItinerary({
               const isOpen = openDay === di;
               return (
                 <DroppableDay key={day.id} dayId={day.id}>
-                  <div
-                    style={{
-                      border: "1px solid " + stop.accent + (isOpen ? "40" : "20"),
-                      borderRadius: "12px", overflow: "hidden", background: "#fff",
-                      transition: "border-color 0.15s",
+                  <DayCard
+                    ref={el => { cardRefs.current[day.id] = el; }}
+                    day={day}
+                    accent={stop.accent}
+                    isOpen={isOpen}
+                    onToggle={() => {
+                      if (isOpen) { setOpenDay(-1); return; }
+                      const scrollEl = scrollRef.current;
+                      const card = cardRefs.current[day.id];
+
+                      // Cancel any in-flight rAFs or switch timeout from a prior tap.
+                      pendingRafsRef.current.forEach(id => cancelAnimationFrame(id));
+                      pendingRafsRef.current = [];
+                      if (switchTimeoutRef.current) clearTimeout(switchTimeoutRef.current);
+
+                      // Scroll card header to just below sticky nav, disable overflow-anchor
+                      // so iOS doesn't "correct" our position during Framer Motion's
+                      // height:auto measurement, then wait mountFrames rAFs before expanding.
+                      const doScrollAndOpen = () => {
+                        if (scrollEl && card) {
+                          const navEl = document.querySelector('[data-sticky-nav]') as HTMLElement | null;
+                          const navHeight = (navEl ? navEl.offsetHeight : 120) + 16;
+                          const containerTop = scrollEl.getBoundingClientRect().top;
+                          const cardTop = card.getBoundingClientRect().top;
+                          const targetTop = scrollEl.scrollTop + (cardTop - containerTop) - navHeight;
+                          scrollEl.style.overflowAnchor = 'none';
+                          scrollEl.scrollTop = Math.max(0, targetTop);
+                          const wait = (n: number) => {
+                            if (n <= 0) {
+                              scrollEl.style.overflowAnchor = '';
+                              setOpenDay(di);
+                              return;
+                            }
+                            pendingRafsRef.current.push(requestAnimationFrame(() => wait(n - 1)));
+                          };
+                          wait(Animation.mountFrames);
+                        } else {
+                          setOpenDay(di);
+                        }
+                      };
+
+                      if (openDay !== -1) {
+                        // Another card is open — collapse it first and wait for
+                        // springs.lazy to settle so layout is stable before measuring.
+                        setOpenDay(-1);
+                        switchTimeoutRef.current = setTimeout(doScrollAndOpen, 400);
+                      } else {
+                        doScrollAndOpen();
+                      }
                     }}
+                    shouldAnimate={isFirstVisit}
                   >
-                    <button
-                      onClick={() => setOpenDay(isOpen ? -1 : di)}
-                      style={{
-                        width: "100%", padding: "14px 18px", display: "flex", alignItems: "center", gap: "12px",
-                        background: isOpen ? stop.accent + "0A" : "transparent",
-                        border: "none", cursor: "pointer", textAlign: "left",
-                        fontFamily: "Georgia,serif", transition: "background 0.15s",
-                      }}
-                    >
-                      <span style={{ fontSize: "1.25rem", flexShrink: 0 }}>{day.emoji}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: "bold", fontSize: "0.92rem", color: "#1a1a1a" }}>{day.date}</div>
-                        <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px", fontStyle: "italic" }}>{day.label}</div>
-                      </div>
-                      <span style={{ color: stop.accent, fontSize: "0.75rem", display: "inline-block", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▼</span>
-                    </button>
-
-                    {isOpen && (
-                      <div style={{ padding: "0 18px 14px 18px", borderTop: "1px solid " + stop.accent + "15" }}>
-                        <SortableContext items={items.map(it => it.id)} strategy={verticalListSortingStrategy}>
-                          {items.map((item, ii) => {
-                            const isItemLocked = !item._isCustom && ((item as ItineraryItem).locked || confirms[item.id]);
-                            return (
-                              <div key={item.id} style={{ borderBottom: ii < items.length - 1 ? "1px dashed #f0ede6" : "none" }}>
-                                <SortableItem
-                                  item={item} accent={stop.accent} confirms={confirms} onConfirm={onConfirm}
-                                  isLocked={isItemLocked}
-                                  onLongPress={() => {
-                                    setEditModeDay(day.id);
-                                    setSelectedItems(new Set([item.id]));
-                                  }}
-                                  displayTime={getDisplayTime(item)}
-                                  onTimeSave={(t) => setTimeOverride(item.id, t)}
-                                  reservationTime={reservationTimes[item.id] || ""}
-                                  onRequestConfirm={() => openResvPrompt(item.id)}
-                                  onEditResvTime={() => openResvPrompt(item.id, reservationTimes[item.id] || "")}
-                                />
-                              </div>
-                            );
-                          })}
-                        </SortableContext>
-
-                        {/* Inline add form */}
-                        {addForm?.dayId === day.id ? (
-                          <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "10px", paddingTop: "10px", borderTop: "1px dashed #e0ddd6" }}>
-                            <input
-                              placeholder="Time (optional)"
-                              value={addForm.time}
-                              onChange={e => setAddForm(f => f ? { ...f, time: e.target.value } : f)}
-                              style={{ width: "90px", fontSize: "0.8rem", padding: "6px 8px", border: "1px solid #ddd", borderRadius: "6px", fontFamily: "Georgia,serif" }}
-                            />
-                            <input
-                              autoFocus
-                              placeholder="Add item…"
-                              value={addForm.text}
-                              onChange={e => setAddForm(f => f ? { ...f, text: e.target.value } : f)}
-                              onKeyDown={e => {
-                                if (e.key === "Enter" && addForm.text.trim()) {
-                                  addCustomItem(day.id, addForm.time, addForm.text.trim(), null);
-                                  setAddForm(null);
-                                }
-                                if (e.key === "Escape") setAddForm(null);
+                    <SortableContext items={items.map(it => it.id)} strategy={verticalListSortingStrategy}>
+                      {items.map((item, ii) => {
+                        const isItemLocked = !item._isCustom && ((item as ItineraryItem).locked || confirms[item.id]);
+                        return (
+                            <SortableItem
+                              key={item.id}
+                              item={item} accent={stop.accent} onConfirm={onConfirm}
+                              isLocked={isItemLocked}
+                              index={ii}
+                              isLast={ii === items.length - 1}
+                              animate={isFirstVisit}
+                              onLongPress={() => {
+                                setEditModeDay(day.id);
+                                setSelectedItems(new Set([item.id]));
                               }}
-                              style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: "1px solid #ddd", borderRadius: "6px", fontFamily: "Georgia,serif" }}
+                              displayTime={getDisplayTime(item)}
+                              onTimeSave={(t) => setTimeOverride(item.id, t)}
+                              reservationTime={reservationTimes[item.id] || ""}
+                              onRequestConfirm={() => openResvPrompt(item.id)}
                             />
-                            <button
-                              onClick={() => {
-                                if (addForm.text.trim()) addCustomItem(day.id, addForm.time, addForm.text.trim(), null);
+                        );
+                      })}
+                    </SortableContext>
+
+                    {/* Inline add form */}
+                    {addForm?.dayId === day.id ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px", paddingTop: "10px", borderTop: `1px dashed ${Colors.border}` }}>
+                        {/* Row 1: time + category */}
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <input
+                            placeholder="⏰ Time (optional)"
+                            value={addForm.time}
+                            onChange={e => setAddForm(f => f ? { ...f, time: e.target.value } : f)}
+                            style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: `1px solid ${Colors.border}`, borderRadius: "6px", fontFamily: "Georgia,serif", minWidth: 0 }}
+                          />
+                          <select
+                            value={addForm.category}
+                            onChange={e => setAddForm(f => f ? { ...f, category: e.target.value as PlaceCategory | '' } : f)}
+                            style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: `1px solid ${Colors.border}`, borderRadius: "6px", fontFamily: "Georgia,serif", background: "#fff", color: addForm.category ? Colors.textPrimary : Colors.textMuted, minWidth: 0, cursor: "pointer" }}
+                          >
+                            {CATEGORY_OPTIONS.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {/* Row 2: text + buttons */}
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                          <input
+                            autoFocus
+                            placeholder="Add item…"
+                            value={addForm.text}
+                            onChange={e => setAddForm(f => f ? { ...f, text: e.target.value } : f)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && addForm.text.trim()) {
+                                addCustomItem(day.id, addForm.time, addForm.text.trim(), null, addForm.category || undefined);
                                 setAddForm(null);
-                              }}
-                              style={{ background: stop.accent, color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif" }}
-                            >Add</button>
-                            <button
-                              onClick={() => setAddForm(null)}
-                              style={{ background: "transparent", color: "#bbb", border: "1px solid #ddd", borderRadius: "6px", padding: "6px 10px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif" }}
-                            >✕</button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setAddForm({ dayId: day.id, time: "", text: "" })}
-                            style={{
-                              marginTop: "10px", background: "transparent", border: "1px dashed " + stop.accent + "50",
-                              borderRadius: "6px", padding: "6px 14px", cursor: "pointer",
-                              fontSize: "0.75rem", color: stop.accent + "99", fontFamily: "Georgia,serif",
-                              display: "flex", alignItems: "center", gap: "5px",
+                              }
+                              if (e.key === "Escape") setAddForm(null);
                             }}
-                          >+ Add item</button>
-                        )}
+                            style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: `1px solid ${Colors.border}`, borderRadius: "6px", fontFamily: "Georgia,serif" }}
+                          />
+                          <button
+                            onClick={() => {
+                              if (addForm.text.trim()) addCustomItem(day.id, addForm.time, addForm.text.trim(), null, addForm.category || undefined);
+                              setAddForm(null);
+                            }}
+                            style={{ background: stop.accent, color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif", flexShrink: 0 }}
+                          >Add</button>
+                          <button
+                            onClick={() => setAddForm(null)}
+                            style={{ background: "transparent", color: Colors.textMuted, border: `1px solid ${Colors.border}`, borderRadius: "6px", padding: "6px 10px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif", flexShrink: 0 }}
+                          >✕</button>
+                        </div>
                       </div>
+                    ) : (
+                      <button
+                        onClick={() => setAddForm({ dayId: day.id, time: "", text: "", category: "" })}
+                        style={{
+                          marginTop: "10px", background: "transparent", border: "1px dashed " + stop.accent + "50",
+                          borderRadius: "6px", padding: "6px 14px", cursor: "pointer",
+                          fontSize: "0.75rem", color: stop.accent + "99", fontFamily: "Georgia,serif",
+                          display: "flex", alignItems: "center", gap: "5px",
+                        }}
+                      >+ Add item</button>
                     )}
-                  </div>
+                  </DayCard>
                 </DroppableDay>
               );
             })}
@@ -726,19 +759,22 @@ export function EditableItinerary({
           <DragOverlay>
             {activeItem && (
               <div style={{
-                background: "#fff", borderRadius: "8px", padding: "10px 14px",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.15)", display: "flex", gap: "8px",
-                alignItems: "flex-start", opacity: 0.95,
+                background: Colors.surface, borderRadius: "8px", padding: "10px 14px",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.15)", opacity: 0.95,
               }}>
-                <ItemContent
-                  item={activeItem} accent={stop.accent} confirms={confirms} onConfirm={() => {}}
+                <TimelineItem
+                  item={activeItem}
+                  accent={stop.accent}
+                  isConfirmed={false}
                   isCustom={activeItem._isCustom}
                   displayTime={getDisplayTime(activeItem)}
-                  isLocked={false}
                   onTimeSave={() => {}}
                   reservationTime=""
                   onRequestConfirm={() => {}}
-                  onEditResvTime={() => {}}
+                  onConfirm={() => {}}
+                  index={0}
+                  animate={false}
+                  isLast={true}
                 />
               </div>
             )}
@@ -803,7 +839,7 @@ export function EditableItinerary({
           onDragEnd={handleSheetDragEnd}
         >
           <SortableContext items={editItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
-            <div style={{ padding: `${Spacing.xs}px 0` }}>
+            <div style={{ padding: `${Spacing.xs}px ${Spacing.base}px` }}>
               {editItems.map(item => {
                 const isItemLocked = !item._isCustom && ((item as ItineraryItem).locked || confirms[item.id]);
                 return (
@@ -814,6 +850,7 @@ export function EditableItinerary({
                     isLocked={isItemLocked}
                     onToggleSelect={() => toggleItem(item.id)}
                     displayTime={getDisplayTime(item)}
+                    accent={stop.accent}
                   />
                 );
               })}
