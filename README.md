@@ -2,7 +2,7 @@
 
 ## The Vision
 Jernie is a personal travel guide platform. Name: portmanteau of Jer + nie = Journey.
-Tagline: "Your personal travel guide."
+Tagline: "Your personal travel guide." "Type A traveling for Type B travelers"
 
 The goal is a product that makes any trip feel like you have a local expert in your pocket —
 curated restaurants, hikes, logistics, and itineraries, all in one place, available even when
