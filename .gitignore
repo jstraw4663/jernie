@@ -15,6 +15,9 @@ dist-ssr
 # Local only — never push to GitHub
 scripts/
 working/
+.env
+.claude/
+.vexp/
 
 # Editor directories and files
 .vscode/*

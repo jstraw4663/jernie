@@ -244,10 +244,13 @@ export function EditableItinerary({
   const [openDay, setOpenDay] = useState(0);
   // Refs for each DayCard — used to scroll the header into view on expand.
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  // Tracks stop IDs that have already played their entrance stagger, so switching
-  // tabs back to a stop doesn't re-animate. Mutated in useEffect (not during render).
+  // Tracks stop IDs that have already played their entrance stagger.
+  // isFirstVisit is captured once at mount via useState so it never flips mid-lifecycle.
+  // If it were recalculated from the ref on every render, the first post-mount re-render
+  // (Firebase event, data update) would flip it false and remove whileInView from
+  // DayCards before the IntersectionObserver fires — leaving below-fold cards at opacity:0.
   const seenStops = useRef(new Set<string>());
-  const isFirstVisit = !seenStops.current.has(stop.id);
+  const [isFirstVisit] = useState(() => !seenStops.current.has(stop.id));
   // Pending rAF IDs and switch timeout — cancelled on remount or rapid tap
   const pendingRafsRef = useRef<number[]>([]);
   const switchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);

@@ -1,324 +1,28 @@
-# Jernie — Project Intelligence
+# Jernie — Dev Context
 
-> This file is the single source of truth for AI context across Claude Code and Claude Web.
-> Repo: https://github.com/jstraw4663/jernie
-> Last updated: April 8, 2026 — v0.3.0 (production release)
+> Operational hub. Detailed context lives in supporting docs — load them only when the task requires.
+> Last updated: April 13, 2026 — v0.4.0
 
 ---
 
 ## Who You're Talking To
 
 Jeremy. Builder. Understands architecture. Tends to overthink — redirect him to action.
-Give him the truth directly, even when it stings. Challenge assumptions before they become
-debt. Don't be a cheerleader. Help him move. When planning is done, push toward execution.
+Give him the truth directly, even when it stings. Challenge assumptions before they become debt.
+Don't be a cheerleader. Help him move. When planning is done, push toward execution.
 
 ---
 
-## The Product
+## What You're Building
 
-**Jernie** — a personal travel guide platform.
-Name: portmanteau of Jer + nie = Journey.
-Tagline: "Your personal travel guide."
+**Jernie** — personal travel guide PWA. POC: Maine Coast trip, May 22–29, 2026.
+Main component: `src/Jernie-PWA.tsx` (exported as `MaineGuide` via `src/App.tsx`).
+Firebase Realtime DB for shared state. `public/trip.json` for static content. Netlify deploy.
 
-The goal is a product that makes any trip feel like you have a local expert in your pocket —
-curated restaurants, hikes, logistics, and itineraries, all in one place, available even when
-offline in the Maine backcountry or a canyon with no signal.
+## Stack
 
----
-
-## The POC
-
-A Maine Coast Trip Guide (May 22–29, 2026) for Jeremy, Jennie, Stacy, Justin, and Ford.
-This is the proving ground. If the POC demonstrates the concept works and is worth building,
-we pivot to the full product. Every decision made during the POC should serve that transition.
-
-**The POC is not a throwaway. It is the foundation.**
-
-### Current tech stack
-- Vite 5 + React 19 + TypeScript
-- Main component: `src/Jernie-PWA.tsx` (exported as `MaineGuide`, wired via `src/App.tsx`)
-- Itinerary: `src/components/EditableItinerary.tsx` (drag-and-drop, custom items, time overrides)
-- Trip data: `public/trip.json` (static content — committed to git, must stay tracked)
-- Firebase Realtime Database for shared real-time state (confirms, packing, itinerary order, custom items, time overrides, reservation times)
-- PWA with `vite-plugin-pwa` service worker (Workbox generateSW), manifest, lobster icon, navy theme (`#0D2B3E`)
-- `public/_headers`: Netlify cache-control headers — `no-cache` on `sw.js` and `workbox-*.js`
-- Deployed via Netlify (connected to GitHub main branch)
-- PIN gate: `0824` ("Happy Birthday Ford")
-
-### APIs in use
-- Live weather: Open-Meteo (3-hour client-side cache)
-- Live flight status: Anthropic API + `web_search` tool (48hr proximity guard)
-- Firebase Realtime Database: shared user state across all devices/users in real time
-- `localStorage`: offline cache + write queue — mirrors Firebase state and queues offline writes for replay on reconnect
-
-### Features shipped (QA)
-- Tabs: Portland / Bar Harbor / Southwest Harbor
-- Live weather + flight status with refresh
-- Collapsible Travel section (hotel website links, Maps, confirmation #s)
-- Leg summaries and daily itinerary (collapsible)
-- Confirmed / bookNow / alert badges + Confirm toggle (Firebase — real-time sync)
-- Drag-and-drop itinerary reordering (within-day and cross-day, @dnd-kit)
-- Custom itinerary items (add, edit, delete, move — stored in Firebase)
-- Soft time labels on drag ("Morning", "Afternoon", "Evening", etc. — magic midpoint inference)
-- Reservation time prompt on Confirm — saves 🕐 sub-label under confirmed badge, editable
-- Add-to-itinerary from PlaceCard — AddToItinerarySheet (BottomSheet-based day picker)
-- **Edit Mode** (v0.2.1) — long-press any itinerary item → BottomSheet opens with day's items;
-  multi-select, drag reorder, delete custom items, move to another day within same stop;
-  unsaved reorder prompts save/discard on exit; swipe-down-to-dismiss on full header bar
-- **Design System S1–S4** (v0.3.0):
-  - Scroll-driven StickyHeader: title compresses 24px→17px, dates always visible, tab padding animates
-  - StopNavigator: swipe between stops with parallax, 45% threshold, elastic bounce on last stop
-  - DayCard: Framer Motion height:auto expand, springs.lazy, anchors below stops bar (iOS scroll-anchor fix)
-  - BottomSheet: non-passive touchmove blocks background scroll on iOS; safe-area spacer
-  - RestaurantCard: Must badge, emoji, name, subcategory, Stacy badge, star rating, price — all tokens
-  - ActivityCard: emoji, AllTrails badge, difficulty/distance/duration chips — all tokens
-  - Badge + ActionButton component library for all inline badge/button UI
-  - ItemContent migrated to Badge + ActionButton (confirmed, bookNow, alert, custom, + Confirm)
-  - WeatherStrip + FlightRow fully token-migrated (no hardcoded hex)
-  - Trip title/tagline/pills sourced from trip.json (not hardcoded in StickyHeader)
-- **Pre-deploy polish (v0.3.1)**:
-  - StickyHeader: 300px transform range for gradual compression; spring stiffness 45/damping 18; top: -1px subpixel gap fix
-  - BottomSheet: Framer Motion useMotionValue + useVelocity — velocity-aware swipe dismiss, easeIn tween exit (500ms), safe-area inset in footer padding (no blank spacer)
-  - AddToItinerarySheet: "Add to your Jernie" copy; place name italic/bold; gold star rating + green price tier between name and location
-  - Reservation time auto-format: "700" → "7:00 PM"; context-aware AM/PM via neighbor item scan
-  - Custom item add form: category dropdown (10 types, alphabetical, Other last); category badge on saved items (token colors)
-  - Confirmed indicator: gold circle checkmark in edit-mode drag list (SelectableListItem)
-  - Viewport edge-to-edge: html/body background navy; body syncs to Colors.background on unlock via useEffect
-- **Offline support + refresh fixes (v0.3.2)**:
-  - Service worker via `vite-plugin-pwa` — app fully loads from cache after first online visit
-  - `useSharedTripState` write queue (`jernie_write_queue` in localStorage) — Firebase writes survive page reload while offline; flush-on-reconnect via `window.addEventListener("online")`; null snapshot guard on all 6 `onValue` callbacks
-  - `SheetContext` (`src/contexts/SheetContext.tsx`) — tracks open sheet count; `StopNavigator` disables `drag="x"` when `openCount > 0` (prevents stop swipe while BottomSheet/DayPickerModal is open)
-  - `DayPickerModal` registers with `SheetContext` (its own fixed-position overlay, not BottomSheet-based)
-  - Weather fetch consolidated: `Promise.allSettled` + `AbortController` → single `setWeatherData` call (eliminates 3 independent mid-scroll re-renders)
-  - Active stop persisted to `sessionStorage` (`jernie_active_stop`) — survives iOS PWA cold-start reloads
-  - `StopNavigator`: `setDirection` moved into `useEffect` (eliminates render-phase setState warning)
-- **Card design language + animations (v0.3.0)**:
-  - `TimelineItem` component — timeline-style itinerary cards: title + blurb parsed from `·`/`—` separator, category chips (🍽🥾👁⚓✈️🏨☀️), gold confirm pill, animated dot/connector (hollow→filled gold on confirm), `AnimatePresence` confirm↔confirmed swap, stagger entrance
-  - `ItineraryCategory` type + all 52 `trip.json` itinerary items categorized
-  - `parseItemText` utility — shared `title · blurb` parser
-  - Card design language applied to `HotelCard`, `BookingCard`, `LegSummary`, `AlertBox`: `surfaceRaised` bg, layered shadow, `3px` accent left border, token typography throughout
-  - `FlightRow` fully token-migrated; `StatusBadge` unchanged
-  - `SelectableListItem` redesigned — card-style edit mode rows, drag handle inside card, 16px sheet padding
-  - Post-unlock entrance sequence — `contentContainerVariants` staggerChildren (0.045s) cascades 8 sections in after PIN unlock; fires once on first mount only
-  - `ScrollReveal` component — canonical scroll-triggered entrance (`whileInView + once:true`); design language rule for all below-fold card content
-  - Scroll reveal wired into: `DayCard` (whileInView replaces mount stagger), `TimelineItem` (whileInView), `TravelSection` booking cards, `PlaceList` flat + grouped
-  - `BottomSheet` close: softer easing `[0.4,0,0.55,1]` at 0.65s (was 0.5s aggressive curve)
-  - iOS `text-size-adjust: 100%` fix — landscape→portrait font size no longer sticks
-- Restaurants (must/also, Stacy pill, price, emoji)
-- Activities (AllTrails badges on hikes, difficulty/distance/duration chips, grouped Bar Harbor)
-- What to Pack (6 categories, ~41 items, Firebase — real-time sync)
-- Tide chart links
-- Countdown
-
----
-
-## The Product Vision (Where This Is Going)
-
-**Phase 1 — POC (Now):** PWA deployed via Netlify. Single trip, single group.
-Validates the concept and data model. Every structural decision must survive migration.
-
-**Phase 2 — Post-POC (Post-May 2026):** Migrate to Expo (React Native). One codebase
-for iOS, Android, and Web. Introduce real auth (Supabase or Firebase), move trip data
-from local JSON to a proper database, add multi-user state management. The `trip.json`
-schema designed in Phase 1 should map directly to DB tables with minimal transformation.
-
-**Phase 3 — Product (Scale):** Wizard-driven trip builder, LLM recommendation engine,
-group collaboration features, affiliate integrations, SEO-driven content engine.
-
-**The PWA is a vehicle, not the destination. Build it like it's already Phase 2.**
-
----
-
-## Architecture Principles — Non-Negotiable
-
-### 1. Build for the migration, not just the moment
-Every structural decision assumes we will eventually move to a real backend (Supabase or
-Firebase), a proper auth layer, and a native app shell. Migration = swap, not rewrite.
-
-### 2. Data structures must think relationally
-Trip data modeled as a relational DB: trips, stops, restaurants, activities, bookings as
-separate concerns with clean foreign key relationships. User state (checkboxes,
-confirmations, packing) always separated from trip content. Content is shared. State
-belongs to the user.
-
-### 3. Offline is a core feature, not an enhancement
-A meaningful subset must work with zero connectivity. Cache what matters (itinerary,
-restaurants, activities, map tiles). Live data (weather, flight status) degrades gracefully
-to last-cached values with a clear timestamp. App size stays reasonable.
-
-### 4. PWA today, Expo tomorrow — no migration debt
-React component and architecture choices must be portable to React Native. Avoid
-PWA-specific patterns that can't translate. Keep platform-specific logic (service workers,
-web manifest) isolated in a platform layer.
-
-### 5. No tech debt. No AI slop.
-This is a real product with a real future. If something feels like a shortcut, name it as
-such before proceeding. Present options with tradeoffs on ambiguous decisions — don't
-make them unilaterally.
-
-### 6. Smart API calls — no gratuitous refreshes
-All live data calls must be cache-first and proximity-triggered or user-initiated.
-- Flight status: auto-fetch only within 48hr of departure; Refresh button otherwise
-- Weather: 3-hour client-side cache; re-fetch only if stale
-- Always show last-cached timestamp; never blank/spinner if cached data exists
-
----
-
-## Market Context
-
-The travel planning market is $622.6B. The white space: no app is purpose-built for
-2–6 person multi-destination collaborative trip planning. TripCase shut down April 2025.
-Travefy pivoted fully to B2B. AI-native planners have ~2.8% Day-30 retention.
-
-### Key differentiators
-1. **Curation over AI novelty** — 60% of travelers prefer human-curated recommendations
-2. **Built for groups** — collaboration, shared state, group invite loop
-3. **Full lifecycle** — plan → book → experience → remember in one product
-4. **Offline first** — free, always, no paywall (Wanderlog gates offline behind paywall)
-5. **Viral by design** — every trip created generates 2–5 invitations. Target viral coefficient > 0.7
-
-### Revenue model (long-term)
-- Subscriptions (30–40%) — group plan extends Pro to all members
-- Affiliate commissions (40–50%) — hotels, activities, car rentals, travel insurance
-- Advertising (10–20%) — free tier monetization
-
----
-
-## Branch & Deploy Strategy
-
-```
-main        ← production (Netlify deploys from here)
-  └── dev   ← active development
-        └── feature/xxx  ← one branch per feature
-```
-
-- Cut feature branches from `dev`
-- PR `dev` → `main` when milestone is complete
-- Never commit directly to `main`
-- Milestones tracked in GitHub Issues
-
----
-
-## GitHub Label Taxonomy
-
-| Label | Meaning |
-|-------|---------|
-| `type:ux` | User experience / interface issue |
-| `type:bug` | Something broken |
-| `type:feature` | New capability |
-| `type:architecture` | Infrastructure / structural work |
-| `priority:critical` | Blocking — must ship |
-| `priority:high` | Strong differentiator |
-| `priority:medium` | Useful, not blocking |
-| `priority:low` | Polish / nice-to-have |
-| `phase:v1-maine` | Maine Trip POC scope |
-| `phase:foundation` | Product Foundation milestone |
-| `phase:product` | Jernie as a Product milestone |
-| `phase:long-term` | Post-product / monetization |
-
----
-
-## Active Milestones
-
-| Milestone | Focus | Target |
-|-----------|-------|--------|
-| V1-Maine | Live POC, alpha with 2 couples | May 15, 2026 |
-| Product Foundation | GitHub, trip.json separation, email parser, map, notifications | H2 2026 |
-| Jernie as a Product | Multi-user, wizard, mobile-native, templates, offline | Q4 2026–Q1 2027 |
-| Long-Term | Monetization, marketplace, social moments | 2027+ |
-
----
-
-## Known Issues / Active Risks
-
-- **Bottom bar on all screens (Bug 1 — deferred)** — A colored bar is visible at the bottom
-  of every screen on iOS (including PIN screen). Root cause: viewport height resolution on
-  `position: fixed` elements with `viewport-fit=cover`. Scroll container already uses
-  `position: fixed; inset: 0` to anchor directly to physical viewport. Needs device
-  investigation. Deferred past deploy.
-- **No offline state indicator** — silent failure when refresh (weather/flight) is attempted without network. No visual feedback that the refresh did nothing.
-- **Flight status fetches on every page load** — proximity guard exists (48hr window) but there is no in-session dedup; navigating between stops can re-trigger fetches. Needs investigation.
-
----
-
-## Design System
-
-A token-driven design foundation was added in April 2026 (S1–S4). All new and migrated
-components reference tokens exclusively — no hardcoded colors, spacing, or font sizes.
-
-### Token file
-`src/design/tokens.ts` — single source of truth:
-- `Colors` — navy `#0D2B3E`, surface, text hierarchy, status (danger/success/warning), selection, overlay
-- `Spacing` — 4px base unit scale (xxs → xxxl)
-- `Radius` — sm/md/lg/xl/full
-- `Typography` — Georgia serif, size scale, weight, line-height
-- `Shadow` — elevation levels sm → xl
-- `Animation` — duration, easing curves, springs (gentle/snappy/bouncy/lazy), and **`mountFrames: 4`**
-
-### mountFrames pattern
-Any component that mounts then animates in (sheets, toasts, drawers) must chain
-`Animation.mountFrames` `requestAnimationFrame` calls before setting its visible state.
-This gives the browser time to paint the start position before the CSS transition fires.
-See `BottomSheet.tsx` for the reference implementation.
-
-### iOS scroll-anchor pattern
-When programmatically setting `scrollTop` before a Framer Motion `height: auto` animation,
-set `scrollEl.style.overflowAnchor = 'none'` first, then restore after expansion commits.
-This prevents iOS from undoing the scroll during FM's height measurement reflow.
-See `EditableItinerary.tsx` `onToggle` handler for the reference implementation.
-
-### Scroll-reveal pattern — non-negotiable for card content
-Every discrete card or list item that renders below the fold **must** be wrapped in
-`<ScrollReveal>`. This is a design language rule, not optional polish.
-
-```tsx
-import { ScrollReveal } from '../components/ScrollReveal';
-
-// Single card
-<ScrollReveal>
-  <MyCard />
-</ScrollReveal>
-
-// List of cards — index prop adds a gentle cascade (0.025s per item)
-{items.map((item, i) => (
-  <ScrollReveal key={item.id} index={i}>
-    <MyCard item={item} />
-  </ScrollReveal>
-))}
-```
-
-**Props:**
-- `index` — position in list; adds `0.025s × index` stagger delay (default `0`)
-- `margin` — how far inside the viewport before triggering (default `'-30px'`); use `'-60px'` for tall cards like DayCard
-- `style` — forwarded to the `motion.div` wrapper
-
-**Rules:**
-- `viewport={{ once: true }}` — fires exactly once per mount, never re-triggers on scroll
-- Do **not** also add your own `initial`/`animate`/`whileInView` to the child — the wrapper owns entrance
-- Components with complex internal animation state (DayCard, TimelineItem) use `whileInView` directly rather than ScrollReveal, since they also animate non-entrance properties
-- Section-level wrappers (`contentSectionVariants` in `Jernie-PWA.tsx`) handle above-the-fold entrance on unlock; ScrollReveal handles individual cards within those sections
-
-### Component library
-| Component | Purpose |
-|-----------|---------|
-| `src/components/BottomSheet.tsx` | Swipe-down-to-dismiss sheet, overlay, drag handle pill |
-| `src/components/SelectableListItem.tsx` | List row with selection bubble + 6-dot drag handle |
-| `src/components/ActionBar.tsx` | Delete + Move action buttons for edit mode |
-| `src/components/ConfirmDialog.tsx` | Inline confirmation that slides up within a sheet |
-| `src/components/Badge.tsx` | Token-driven status/action badges (confirmed/bookNow/alert/note/custom) |
-| `src/components/ActionButton.tsx` | Token-driven button with Framer Motion press animation |
-| `src/components/DayCard.tsx` | Height:auto expand card, springs.lazy, forwardRef |
-| `src/components/ItineraryItem.tsx` | Long-press wrapper using useLongPress hook |
-| `src/components/StickyHeader.tsx` | Scroll-driven compression header with animated tab bar |
-| `src/components/StopNavigator.tsx` | Swipe navigation with parallax + elastic bounce |
-| `src/components/AddToItinerarySheet.tsx` | Stop-scoped day picker using BottomSheet |
-| `src/components/RestaurantCard.tsx` | Token-driven restaurant place card |
-| `src/components/ActivityCard.tsx` | Token-driven activity/hike place card |
-| `src/components/ScrollReveal.tsx` | Standard scroll-triggered card entrance — wrap any below-fold card/list item |
-| `src/contexts/SheetContext.tsx` | Tracks open sheet count; disables StopNavigator drag when > 0 |
-
-All components are React-only with no DOM-specific APIs. Platform logic lives in `src/platform/`.
-Expo migration: CSS transitions → Reanimated, pointer events → Gesture Handler, @dnd-kit → react-native-reanimated.
+Vite 5 + React 19 + TypeScript · Framer Motion · @dnd-kit · Firebase · vite-plugin-pwa (Workbox)
+APIs: Open-Meteo (weather, 3hr cache) · Anthropic + web_search (flight status, 48hr guard)
 
 ---
 
@@ -326,88 +30,82 @@ Expo migration: CSS transitions → Reanimated, pointer events → Gesture Handl
 
 | File | Purpose |
 |------|---------|
-| `src/Jernie-PWA.tsx` | Main PWA component (exported as `MaineGuide`) |
-| `src/App.tsx` | App entry point — renders `MaineGuide` |
+| `src/Jernie-PWA.tsx` | Main component — section layout, data loading, stop nav |
+| `src/App.tsx` | Entry point |
 | `src/design/tokens.ts` | Design token source of truth — colors, spacing, animation |
-| `src/types.ts` | All TypeScript interfaces (Trip, Stop, Booking, ItineraryItem, CustomItem, etc.) |
-| `src/components/EditableItinerary.tsx` | Itinerary with edit mode (long-press → BottomSheet), drag-reorder, delete, move |
-| `src/components/StickyHeader.tsx` | Scroll-driven compression header, tab bar with layoutId indicator |
-| `src/components/StopNavigator.tsx` | Swipe navigation, parallax, elastic bounce |
-| `src/components/DayCard.tsx` | Height:auto expand with iOS scroll-anchor fix |
-| `src/components/BottomSheet.tsx` | Native-feeling bottom sheet with swipe-dismiss |
-| `src/components/AddToItinerarySheet.tsx` | Day picker for adding places to itinerary |
-| `src/components/RestaurantCard.tsx` | Restaurant place card |
-| `src/components/ActivityCard.tsx` | Activity/hike place card |
-| `src/components/Badge.tsx` | Status/action badge component |
-| `src/components/ActionButton.tsx` | Token-driven button with press animation |
-| `src/components/SelectableListItem.tsx` | Selectable list row with drag handle |
-| `src/components/ActionBar.tsx` | Edit mode action bar (delete, move) |
-| `src/components/ConfirmDialog.tsx` | Inline confirm/cancel dialog for sheet actions |
-| `src/components/ScrollReveal.tsx` | Scroll-triggered entrance wrapper — standard for all card/list content |
-| `src/hooks/useSharedTripState.ts` | Firebase Realtime DB hook — all shared mutable state + offline write queue |
-| `src/contexts/SheetContext.tsx` | Open sheet count context — consumed by StopNavigator to lock drag |
-| `src/hooks/useLongPress.ts` | Cross-platform long-press hook (500ms, cancel on move/leave/unmount) |
-| `public/trip.json` | Trip content data — must stay tracked in git (Netlify build needs it) |
-| `CLAUDE.md` | This file — AI context for Claude Code + Claude Web |
-| `GITHUB-SETUP.md` | GitHub + Claude Code setup guide |
+| `src/types.ts` | All TypeScript interfaces (Trip, Stop, Place, Booking, etc.) |
+| `src/domain/trip.ts` | Pure domain helpers — weather, flights, places, stops, URLs |
+| `src/hooks/useSharedTripState.ts` | Firebase sync + offline write queue (critical — read before editing) |
+| `src/hooks/useTripData.ts` | Lightweight trip data access |
+| `src/lib/firebase.ts` | Firebase initialization |
+| `src/contexts/SheetContext.tsx` | Tracks open sheet count; StopNavigator consults before drag |
+| `src/components/EditableItinerary.tsx` | Itinerary — drag-reorder, edit mode, custom items (919 lines — hotspot) |
+| `src/components/TimelineItem.tsx` | Timeline cards — animation state, category chips, confirm logic (hotspot) |
+| `src/components/TravelSection.tsx` | Bookings + hotel + flight rows (446 lines — hotspot) |
+| `src/components/BottomSheet.tsx` | Swipe-dismiss sheet — reference impl for mountFrames pattern |
+| `src/components/ScrollReveal.tsx` | Standard scroll-triggered entrance — wrap all below-fold cards |
+| `netlify/functions/flight-status.js` | Anthropic API serverless function for flight status |
+| `public/trip.json` | Trip content — must stay git-tracked; see content rules in DEPLOYMENT.md |
+| `CLAUDE.md` | This file |
 
 ---
 
-## Claude Code Dev Workflow
+## Running Locally
 
-```
-npm run dev      # start dev server at localhost:5173
-npm run build    # production build
-npm run preview  # preview production build locally
+```bash
+npm run dev          # localhost:5173 (add --host for network access from other devices)
+npm run build        # production build — must pass before any deploy
+npm test             # vitest run (single pass — required before any PR to main)
+npm run test:watch   # vitest watch mode (use during development)
+npm run preview      # preview production build
 ```
 
-- Always ask before committing or pushing
-- Commit to `dev` branch, never directly to `main`
-- Use `gh` CLI for GitHub operations (already authenticated as jstraw4663)
+---
 
-### After planning mode or implementation — always test locally first
-**Never auto-deploy.** After any plan is approved and implemented, stop at local testing.
-Run `npm run dev` and verify the feature works at `localhost:5173` before touching any
-deployment command. Deployment only happens when Jeremy explicitly says to deploy.
+## Git Rules — Non-Negotiable
+
+These rules exist because ignoring them once caused 4 emergency hotfix PRs and permanent file loss.
+
+1. Never commit to `main` or `dev` directly. Cut a feature branch from `dev` first.
+2. New files: commit in the same session they're created — `git clean` will destroy untracked files permanently.
+3. Before branch switch: commit first (WIP commit is fine); never use `git stash` during active work.
+4. Before `git clean` or `git checkout .`: run the dry-run first (`git clean -nd`, `git status`).
+5. `npm test` must pass before any PR to `main`.
+6. Verify `public/trip.json` is tracked: `git ls-files public/trip.json`.
+7. Never commit `.env` or secrets. `ANTHROPIC_API_KEY` lives in Netlify dashboard only.
+8. Update `CLAUDE.md` in the same PR as any shipped feature, changed file, or new pattern.
+9. Never run local dev with prod `VITE_TRIP_ID`. Local dev uses `dev-maine-2026`; prod value (`maine-2026`) is in Netlify dashboard only.
+10. `trip.json` content is immutable in production. Schema additions (new fields) OK with diff review. Data/content changes (place names, descriptions, items) require explicit approval as a dedicated commit.
 
 ---
 
-## Claude Code Git Rules — Non-Negotiable
+## Operational Principles
 
-These rules exist because one session of ignoring them caused 4 emergency hotfix PRs, a production
-outage, and permanent loss of uncommitted files. Do not skip these.
-
-### Before writing any code
-1. Check current branch: `git branch`
-2. If on `main` or `dev`, cut a feature branch FIRST:
-   `git checkout dev && git pull origin dev && git checkout -b feature/xxx`
-3. Never code directly on `main` or `dev`
-
-### New files
-- Commit new files to the feature branch within the same session they're created
-- Never leave new files untracked across a branch switch — `git clean` will destroy them permanently
-
-### Branch switching
-- Never use `git stash` to switch branches during active work
-- If you need to switch: commit first (WIP commit is fine), then switch
-- Before ANY `git clean` or `git checkout .` run the dry-run first:
-  - `git clean -nd` before `git clean -fd`
-  - `git status` before `git checkout .`
-- Never run `git clean` on directories containing new work
-
-### Pre-deploy checklist (before every PR to main)
-1. `git status` — confirm no untracked files that should be committed
-2. `npm run build` — must pass cleanly
-3. `git diff origin/main...HEAD -- src/` — review every changed file; verify nothing is missing or accidentally reverted
-4. Confirm `public/trip.json` is present and tracked: `git ls-files public/trip.json`
-5. **Update CLAUDE.md** — reflect every shipped feature, changed file, new pattern, or resolved issue before the PR merges. CLAUDE.md must always match what is in `main`.
+- **Offline-first:** all UI works offline; live data (weather, flight) shows last-cached value + timestamp
+- **Token-driven:** all colors, spacing, animation via `src/design/tokens.ts` — no hardcoded hex
+- **Scroll-reveal:** every discrete card or list item below the fold must be wrapped in `<ScrollReveal>` — this is a design language rule, not optional polish
+- **mountFrames:** any component that mounts then animates in must chain `Animation.mountFrames` RAF calls before setting visible state — see `BottomSheet.tsx` for the pattern
+- **No tech debt:** name shortcuts before taking them; present tradeoffs on ambiguous decisions
+- **Build for Phase 2:** every decision assumes Expo migration; avoid PWA-only patterns
 
 ---
 
-## Starting a New Session — Non-Negotiable
+## Current Status & Known Issues
 
-Before writing a single line of code:
-1. `git pull origin dev` — get latest
-2. Read `CLAUDE.md` in full — this is the bible. It contains architecture decisions,
-   active risks, design system rules, and git process. Do not skip this step.
-3. Check `git branch` — never work on `main` or `dev` directly
+- **v0.3.0 shipped:** live PWA, all core features QA'd; current work is uncommitted refactoring
+- **V1-Maine target:** May 15, 2026
+- **Bug 1 (deferred):** colored bar visible at bottom of all screens on iOS (viewport-fit=cover)
+- **No offline state indicator:** silent failure when refresh attempted without network
+- **Flight status dedup:** navigating between stops can re-trigger fetches despite 48hr guard
+
+---
+
+## When to Read What
+
+| Doc | Read when |
+|-----|-----------|
+| `ARCHITECTURE.md` | Adding major feature, refactoring state/API, mapping repo, choosing between design approaches, planning Expo migration |
+| `DESIGN-SYSTEM-PLAN.md` | Building or modifying a component, animation patterns, scroll-reveal rules, token usage |
+| `TESTING-NOTES.md` | Adding a test, understanding test philosophy, pre-deploy test run, identifying coverage gaps |
+| `product.md` | Roadmap decisions, Phase 2 scope, product guardrails, v0.3.0 feature history, market context |
+| `DEPLOYMENT.md` | Deploying to production, pre-deploy checklist, Netlify config, env vars, branch/release process |
