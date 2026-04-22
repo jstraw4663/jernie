@@ -2,12 +2,19 @@ const SYS_PROMPT =
   "You are a flight status assistant. Search for the current real-time status of each flight. " +
   "Return ONLY a valid JSON array with no markdown, no backticks, no explanation. " +
   'Each element must include: {"key":"","status":"On Time|Delayed|Cancelled|Scheduled",' +
-  '"actualDep":"","actualArr":"","gate":"","terminal":"","delayMin":0}. ' +
+  '"actualDep":"","actualArr":"","gate":"","terminal":"","delayMin":0,"aircraftType":""}. ' +
+  "For aircraftType include the full aircraft name as shown on FlightAware (e.g. \"Boeing 737-800\", \"Airbus A320\"). " +
   "If real-time data is unavailable use status Scheduled and empty strings for actual times.";
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
+  }
+
+  const origin = event.headers.origin || '';
+  const allowed = new Set(['http://100.123.229.87:8888', 'http://localhost:8888', process.env.URL].filter(Boolean));
+  if (origin && !allowed.has(origin)) {
+    return { statusCode: 403, body: 'Forbidden' };
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

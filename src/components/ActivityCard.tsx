@@ -8,15 +8,19 @@
 //   All values from design tokens — no hardcoded hex.
 //   React Native migration: <View>/<Text>/<Pressable> with StyleSheet from same tokens.
 
-import type { Place } from '../types';
+import type { Place, PlaceEnrichment, TrailEnrichment } from '../types';
 import { Badge } from './Badge';
 import { Colors, Shadow, Radius, Spacing, Typography } from '../design/tokens';
+import { ROUTE_TYPE_LABELS } from '../domain/hike';
 
 interface ActivityCardProps {
   place: Place;
   accent: string;
+  enrichment?: PlaceEnrichment;
+  trailEnrichment?: TrailEnrichment;
+  isAdded?: boolean;
   onAddToItinerary?: (place: Place) => void;
-  onExpand?: (place: Place) => void; // future hook — not wired yet
+  onExpand?: (place: Place, rect: DOMRect) => void;
 }
 
 const DIFFICULTY_STYLES: Record<string, { bg: string; color: string }> = {
@@ -25,15 +29,19 @@ const DIFFICULTY_STYLES: Record<string, { bg: string; color: string }> = {
   easy:      { bg: Colors.successLight, color: Colors.success },
 };
 
-export function ActivityCard({ place, accent, onAddToItinerary }: ActivityCardProps) {
+export function ActivityCard({ place, accent, enrichment, trailEnrichment, isAdded, onAddToItinerary, onExpand }: ActivityCardProps) {
   const isAllTrails = place.url?.includes('alltrails.com');
   const isHike = place.category === 'hike';
+  const displayRating = enrichment?.rating ?? place.rating;
+  const ratingCount = enrichment?.user_ratings_total ?? null;
+  const displayPrice = enrichment?.price_level ?? place.price;
   const difficultyStyle = place.difficulty
     ? (DIFFICULTY_STYLES[place.difficulty.toLowerCase()] ?? DIFFICULTY_STYLES.easy)
     : null;
 
   return (
     <div
+      onClick={onExpand ? (e) => onExpand(place, (e.currentTarget as HTMLElement).getBoundingClientRect()) : undefined}
       style={{
         background: Colors.surface,
         borderRadius: `${Radius.md}px`,
@@ -44,12 +52,13 @@ export function ActivityCard({ place, accent, onAddToItinerary }: ActivityCardPr
         alignItems: 'flex-start',
         boxShadow: Shadow.cardResting,
         position: 'relative',
+        cursor: onExpand ? 'pointer' : 'default',
       }}
     >
       {onAddToItinerary && (
         <button
-          onClick={() => onAddToItinerary(place)}
-          title="Add to itinerary"
+          onClick={(e) => { e.stopPropagation(); onAddToItinerary(place); }}
+          title={isAdded ? 'Already in itinerary' : 'Add to itinerary'}
           style={{
             position: 'absolute',
             top: `${Spacing.sm}px`,
@@ -57,11 +66,11 @@ export function ActivityCard({ place, accent, onAddToItinerary }: ActivityCardPr
             width: 24,
             height: 24,
             borderRadius: `${Radius.full}px`,
-            background: accent,
+            background: isAdded ? Colors.gold : accent,
             color: '#fff',
             border: 'none',
             cursor: 'pointer',
-            fontSize: '1rem',
+            fontSize: isAdded ? '0.75rem' : '1rem',
             lineHeight: 1,
             display: 'flex',
             alignItems: 'center',
@@ -70,7 +79,7 @@ export function ActivityCard({ place, accent, onAddToItinerary }: ActivityCardPr
             zIndex: 1,
           }}
         >
-          +
+          {isAdded ? '✓' : '+'}
         </button>
       )}
 
@@ -83,11 +92,8 @@ export function ActivityCard({ place, accent, onAddToItinerary }: ActivityCardPr
       <div style={{ flex: 1 }}>
         {/* Name + badge row */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: `${Spacing.sm}px`, flexWrap: 'wrap', marginBottom: 3 }}>
-          {place.url
-            ? <a href={place.url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.sm + 1}px`, color: Colors.textPrimary, textDecoration: 'none', borderBottom: `1px dotted ${Colors.border}` }}>{place.name}</a>
-            : <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.sm + 1}px` }}>{place.name}</span>
-          }
-          {isHike && isAllTrails && <Badge variant="bookNow" href={place.url!} label="🌿 AllTrails" />}
+          <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.sm + 1}px` }}>{place.name}</span>
+          {isHike && isAllTrails && <Badge variant="bookNow" href={undefined} label="🌿 AllTrails" />}
           {place.flag && <Badge variant="alert" label={`⚠ ${place.flag}`} />}
         </div>
 
@@ -108,6 +114,30 @@ export function ActivityCard({ place, accent, onAddToItinerary }: ActivityCardPr
               <span style={{ fontSize: `${Typography.size.xs - 1}px`, background: '#F5F0FF', color: '#5B3FA6', padding: `1px ${Spacing.sm}px`, borderRadius: `${Radius.full}px`, letterSpacing: '0.04em' }}>
                 ⏱ {place.duration}
               </span>
+            )}
+            {(() => {
+              const rt = place.route_type ?? trailEnrichment?.route_type;
+              return rt && ROUTE_TYPE_LABELS[rt] ? (
+                <span style={{ fontSize: `${Typography.size.xs - 1}px`, background: '#F0F4FF', color: '#3557A0', padding: `1px ${Spacing.sm}px`, borderRadius: `${Radius.full}px`, letterSpacing: '0.04em' }}>
+                  {ROUTE_TYPE_LABELS[rt]}
+                </span>
+              ) : null;
+            })()}
+          </div>
+        )}
+
+        {/* Google rating + price — shown for non-hike enrichable places */}
+        {!isHike && displayRating != null && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: `${Spacing.sm}px`, marginBottom: `${Spacing.xs}px`, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: `${Typography.size.xs}px`, color: '#F59E0B' }}>
+              {'★'.repeat(Math.round(displayRating))}{'★'.repeat(5 - Math.round(displayRating)).replace(/★/g, '☆')}
+            </span>
+            <span style={{ color: Colors.textMuted, fontSize: `${Typography.size.xs}px` }}>
+              {displayRating}
+              {ratingCount != null && ` (${ratingCount.toLocaleString()})`}
+            </span>
+            {displayPrice && (
+              <span style={{ color: Colors.textMuted, fontSize: `${Typography.size.xs}px` }}>{displayPrice}</span>
             )}
           </div>
         )}

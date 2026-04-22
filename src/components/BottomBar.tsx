@@ -44,10 +44,9 @@ export function BottomBar({ tabs, activeTab, onTabChange, notifications }: Botto
     // Outer wrapper handles safe-area padding so the 56px bar height is
     // always the visible tap target height, with notch space below.
     <div
+      className="bottom-bar-shell"
       style={{
-        flexShrink: 0,
         background: Colors.background,
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         // Disable tap interaction while any sheet is open
         pointerEvents: openCount > 0 ? 'none' : 'auto',
       }}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ref, onValue, set, update } from "firebase/database";
 import { db } from "../lib/firebase";
-import type { CustomItem, ItineraryDay, ItineraryItem } from "../types";
+import type { Booking, CustomItem, ItineraryDay, ItineraryItem } from "../types";
 
 // localStorage keys — used as offline cache only
 const LS_CONFIRMS = "jernie_fb_confirms";
@@ -9,7 +9,9 @@ const LS_PACKING = "jernie_fb_packing";
 const LS_ITINERARY_ORDER = "jernie_fb_itinerary_order";
 const LS_CUSTOM_ITEMS = "jernie_fb_custom_items";
 const LS_TIME_OVERRIDES = "jernie_fb_time_overrides";
+const LS_TEXT_OVERRIDES = "jernie_fb_text_overrides";
 const LS_RESERVATION_TIMES = "jernie_fb_reservation_times";
+const LS_BOOKING_OVERRIDES = "jernie_fb_booking_overrides";
 
 // Write queue — survives page reloads while offline.
 // Firebase RTDB keeps its write queue in memory only; on page reload that queue
@@ -59,7 +61,11 @@ export function useSharedTripState(tripId: string) {
   const [itineraryOrder, setItineraryOrder] = useState<Record<string, string[]>>(readLS(LS_ITINERARY_ORDER));
   const [customItems, setCustomItems] = useState<Record<string, CustomItem>>(readLS(LS_CUSTOM_ITEMS));
   const [timeOverrides, setTimeOverridesState] = useState<Record<string, string>>(readLS(LS_TIME_OVERRIDES));
+  const [textOverrides, setTextOverridesState] = useState<Record<string, string>>(readLS(LS_TEXT_OVERRIDES));
   const [reservationTimes, setReservationTimesState] = useState<Record<string, string>>(readLS(LS_RESERVATION_TIMES));
+  // bookingOverrides: keyed by bookingId → field → value.
+  // Stores hotel/rental car edits (check-in dates, room type, car type, etc.).
+  const [bookingOverrides, setBookingOverrides] = useState<Record<string, Record<string, unknown>>>(readLS(LS_BOOKING_OVERRIDES));
 
   useEffect(() => {
     const confirmsRef = ref(db, `trips/${tripId}/state/confirms`);
@@ -67,7 +73,9 @@ export function useSharedTripState(tripId: string) {
     const orderRef = ref(db, `trips/${tripId}/state/itinerary_order`);
     const customRef = ref(db, `trips/${tripId}/state/custom_items`);
     const timeRef = ref(db, `trips/${tripId}/state/time_overrides`);
+    const textRef = ref(db, `trips/${tripId}/state/text_overrides`);
     const resvRef = ref(db, `trips/${tripId}/state/reservation_times`);
+    const bookingsRef = ref(db, `trips/${tripId}/state/bookings`);
 
     // Flush any writes that were queued offline and survived a page reload.
     // Firebase's in-memory write queue is destroyed on page reload; this replays
@@ -125,11 +133,25 @@ export function useSharedTripState(tripId: string) {
       writeLS(LS_TIME_OVERRIDES, val);
     });
 
+    const unsubText = onValue(textRef, (snap) => {
+      if (snap.val() === null) return;
+      const val: Record<string, string> = snap.val();
+      setTextOverridesState(val);
+      writeLS(LS_TEXT_OVERRIDES, val);
+    });
+
     const unsubResv = onValue(resvRef, (snap) => {
       if (snap.val() === null) return;
       const val: Record<string, string> = snap.val();
       setReservationTimesState(val);
       writeLS(LS_RESERVATION_TIMES, val);
+    });
+
+    const unsubBookings = onValue(bookingsRef, (snap) => {
+      if (snap.val() === null) return;
+      const val: Record<string, Record<string, unknown>> = snap.val();
+      setBookingOverrides(val);
+      writeLS(LS_BOOKING_OVERRIDES, val);
     });
 
     return () => {
@@ -139,7 +161,9 @@ export function useSharedTripState(tripId: string) {
       unsubOrder();
       unsubCustom();
       unsubTime();
+      unsubText();
       unsubResv();
+      unsubBookings();
     };
   }, [tripId]);
 
@@ -249,10 +273,41 @@ export function useSharedTripState(tripId: string) {
     setTimePath("reservation_times", itemId, time);
   }
 
+  // Override the display title of any itinerary item (including locked curated items).
+  // For CustomItems, prefer updateCustomItem({text}) instead — this is for ItineraryItems.
+  function setTextOverride(itemId: string, text: string) {
+    const path = `trips/${tripId}/state/text_overrides/${itemId}`;
+    if (text) enqueueWrite(path, text);
+    else persistQueue(readQueue().filter(w => w.path !== path));
+    set(ref(db, path), text || null);
+  }
+
+  // Patch fields on an existing CustomItem in Firebase.
+  // Caller provides only the fields to change — existing fields are preserved.
+  function updateCustomItem(id: string, patch: Partial<Pick<CustomItem, 'text' | 'time' | 'category' | 'addr'>>) {
+    const updates: Record<string, any> = {};
+    (Object.keys(patch) as (keyof typeof patch)[]).forEach(field => {
+      updates[`trips/${tripId}/state/custom_items/${id}/${field}`] = patch[field] ?? null;
+    });
+    batchEnqueue(updates);
+    update(ref(db), updates);
+  }
+
+  // Write a single field on a Booking record to Firebase.
+  // Used by hotel check-in/out, room info, car type, rental dates, etc.
+  // Follows the exact same enqueueWrite + set(ref) pattern as setConfirm / setTimeOverride.
+  function setBookingField(bookingId: string, field: keyof Booking, value: string | null | boolean | Record<string, string | null>) {
+    const path = `trips/${tripId}/state/bookings/${bookingId}/${String(field)}`;
+    enqueueWrite(path, value);
+    set(ref(db, path), value);
+  }
+
   return {
     confirms, packing, setConfirm, setPacking: setPack, resetPacking,
-    itineraryOrder, customItems, timeOverrides, reservationTimes,
+    itineraryOrder, customItems, timeOverrides, textOverrides, reservationTimes,
+    bookingOverrides,
     initializeOrder, setDayOrder, moveItem, addCustomItem, deleteCustomItem,
-    setTimeOverride, setReservationTime,
+    setTimeOverride, setTextOverride, setReservationTime, setBookingField,
+    updateCustomItem,
   };
 }

@@ -1,23 +1,27 @@
-import type { Place } from '../types';
+import type { Place, PlaceEnrichment, TrailEnrichment } from '../types';
 import { RestaurantCard } from './RestaurantCard';
 import { ActivityCard } from './ActivityCard';
 import { ScrollReveal } from './ScrollReveal';
 import { getActivityDisplayGroup } from '../domain/trip';
 
-function PlaceCard({ place, accent, onAddToItinerary }: { place: Place; accent: string; onAddToItinerary?: (place: Place) => void }) {
+function PlaceCard({ place, accent, enrichment, trailEnrichment, isAdded, onAddToItinerary, onExpand }: { place: Place; accent: string; enrichment?: PlaceEnrichment; trailEnrichment?: TrailEnrichment; isAdded?: boolean; onAddToItinerary?: (place: Place) => void; onExpand?: (place: Place, rect: DOMRect) => void }) {
   return place.category === "restaurant"
-    ? <RestaurantCard place={place} accent={accent} onAddToItinerary={onAddToItinerary} />
-    : <ActivityCard place={place} accent={accent} onAddToItinerary={onAddToItinerary} />;
+    ? <RestaurantCard place={place} accent={accent} enrichment={enrichment} isAdded={isAdded} onAddToItinerary={onAddToItinerary} onExpand={onExpand} />
+    : <ActivityCard place={place} accent={accent} enrichment={enrichment} trailEnrichment={trailEnrichment} isAdded={isAdded} onAddToItinerary={onAddToItinerary} onExpand={onExpand} />;
 }
 
 interface PlaceListProps {
   places: Place[];
   accent: string;
+  enrichmentMap?: Record<string, PlaceEnrichment>;
+  trailEnrichmentMap?: Record<string, TrailEnrichment>;
   isActivities?: boolean;
+  addedPlaceIds?: Set<string>;
   onAddToItinerary?: (place: Place) => void;
+  onExpand?: (place: Place, rect: DOMRect) => void;
 }
 
-export function PlaceList({ places, accent, isActivities, onAddToItinerary }: PlaceListProps) {
+export function PlaceList({ places, accent, enrichmentMap, trailEnrichmentMap, isActivities, addedPlaceIds, onAddToItinerary, onExpand }: PlaceListProps) {
   // Activities with groupable categories (hikes, on-the-water) get section headers
   const hasGroups = isActivities && places.some(p => p.category === "hike" || p.subcategory === "on-the-water");
 
@@ -26,7 +30,7 @@ export function PlaceList({ places, accent, isActivities, onAddToItinerary }: Pl
       <div style={{display:"flex",flexDirection:"column",gap:"11px"}}>
         {places.map((p, i) => (
           <ScrollReveal key={p.id} index={i} margin="-40px">
-            <PlaceCard place={p} accent={accent} onAddToItinerary={onAddToItinerary}/>
+            <PlaceCard place={p} accent={accent} enrichment={enrichmentMap?.[p.id]} trailEnrichment={trailEnrichmentMap?.[p.id]} isAdded={addedPlaceIds?.has(p.id)} onAddToItinerary={onAddToItinerary} onExpand={onExpand}/>
           </ScrollReveal>
         ))}
       </div>
@@ -54,7 +58,7 @@ export function PlaceList({ places, accent, isActivities, onAddToItinerary }: Pl
           <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
             {grouped[g].map((p, i) => (
               <ScrollReveal key={p.id} index={i} margin="-40px">
-                <PlaceCard place={p} accent={accent} onAddToItinerary={onAddToItinerary}/>
+                <PlaceCard place={p} accent={accent} enrichment={enrichmentMap?.[p.id]} trailEnrichment={trailEnrichmentMap?.[p.id]} isAdded={addedPlaceIds?.has(p.id)} onAddToItinerary={onAddToItinerary} onExpand={onExpand}/>
               </ScrollReveal>
             ))}
           </div>

@@ -34,8 +34,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Pre-cache all build assets including trip.json, icons, and the app shell.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2}'],
+        // Pre-cache build assets and icons. trip.json is intentionally excluded —
+        // it contains PII and booking data; it's handled by the runtime cache below.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         // clientsClaim: SW takes control of ALL open pages immediately after activation,
         // not just pages navigated to after the SW was installed. Without this, the
         // very first page load (which triggered the SW install) is never controlled
