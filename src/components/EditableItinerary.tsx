@@ -14,7 +14,7 @@ import {
   SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Stop, TripData, ItineraryItem, CustomItem, PlaceCategory, ItineraryCategory } from "../types";
+import type { Stop, TripData, ItineraryItem, CustomItem, Place, Booking, PlaceCategory, ItineraryCategory } from "../types";
 import { DayPickerModal } from "./DayPickerModal";
 import { BottomSheet } from "./BottomSheet";
 import { SelectableListItem } from "./SelectableListItem";
@@ -24,6 +24,8 @@ import { DayCard } from "./DayCard";
 import { ItineraryItem as ItineraryItemRow } from "./ItineraryItem";
 import { Animation, Colors, Spacing, Typography } from "../design/tokens";
 import { TimelineItem, ITINERARY_CATEGORY_ICON } from "./TimelineItem";
+import { ItineraryItemDetailSheet } from "./ItineraryItemDetailSheet";
+import { findPlaceForItem } from "../domain/trip";
 
 type ResolvedItem = (ItineraryItem & { _isCustom: false }) | (CustomItem & { _isCustom: true });
 
@@ -55,15 +57,20 @@ interface EditableItineraryProps {
   itineraryOrder: Record<string, string[]>;
   customItems: Record<string, CustomItem>;
   timeOverrides: Record<string, string>;
+  textOverrides: Record<string, string>;
   setDayOrder: (dayId: string, orderedIds: string[]) => void;
   moveItem: (itemId: string, fromDayId: string, toDayId: string, insertAtIndex: number) => void;
   addCustomItem: (dayId: string, time: string, text: string, sourcePlaceId: string | null, category?: PlaceCategory) => void;
   deleteCustomItem: (itemId: string, dayId: string) => void;
   initializeOrder: (days: TripData["itinerary_days"], items: TripData["itinerary_items"]) => void;
   setTimeOverride: (itemId: string, time: string) => void;
+  setTextOverride: (itemId: string, text: string) => void;
+  updateCustomItem: (id: string, patch: Partial<Pick<CustomItem, 'text' | 'time' | 'category' | 'addr'>>) => void;
   reservationTimes: Record<string, string>;
-  setReservationTime: (itemId: string, time: string) => void;
   scrollRef: RefObject<HTMLDivElement | null>;
+  /** Open entity detail (place card or booking card) — handled in Jernie-PWA */
+  onExpandPlace: (place: Place, rect: DOMRect) => void;
+  onExpandBooking: (booking: Booking, rect: DOMRect) => void;
 }
 
 // ── Time inference helpers ─────────────────────────────────────
@@ -137,18 +144,19 @@ function DroppableDay({ dayId, children }: { dayId: string; children: React.Reac
 // Inline read-only view. Long press triggers Edit Mode BottomSheet.
 // Drag reorder now lives inside the sheet (Bundle 3).
 
-function SortableItem({ item, accent, onConfirm, isLocked, onLongPress, displayTime, onTimeSave, reservationTime, onRequestConfirm, index, isLast, animate }: {
+function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reservationTime, index, isLast, animate, resolvedPlace, textOverride, onOpenDetail, onTapCard }: {
   item: ResolvedItem; accent: string;
-  onConfirm: (id: string, value: boolean) => void;
   isLocked: boolean;
   onLongPress?: () => void;
   displayTime: string;
-  onTimeSave: (time: string) => void;
   reservationTime: string;
-  onRequestConfirm: () => void;
   index: number;
   isLast: boolean;
   animate: boolean;
+  resolvedPlace: Place | null;
+  textOverride?: string;
+  onOpenDetail: () => void;
+  onTapCard?: (rect: DOMRect) => void;
 }) {
   const { setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -172,13 +180,14 @@ function SortableItem({ item, accent, onConfirm, isLocked, onLongPress, displayT
           isConfirmed={isLocked}
           isCustom={item._isCustom}
           displayTime={displayTime}
-          onTimeSave={onTimeSave}
           reservationTime={reservationTime}
-          onRequestConfirm={onRequestConfirm}
-          onConfirm={onConfirm}
           index={index}
           animate={animate}
           isLast={isLast}
+          resolvedPlace={resolvedPlace}
+          textOverride={textOverride}
+          onOpenDetail={onOpenDetail}
+          onTapCard={onTapCard}
         />
       </ItineraryItemRow>
     </div>
@@ -237,9 +246,10 @@ function SheetSortableItem({ item, isSelected, isLocked, onToggleSelect, display
 
 export function EditableItinerary({
   stop, data, confirms, onConfirm,
-  itineraryOrder, customItems, timeOverrides, reservationTimes,
-  setDayOrder, moveItem, addCustomItem, deleteCustomItem, initializeOrder, setTimeOverride, setReservationTime,
-  scrollRef,
+  itineraryOrder, customItems, timeOverrides, textOverrides, reservationTimes,
+  setDayOrder, moveItem, addCustomItem, deleteCustomItem, initializeOrder,
+  setTimeOverride, setTextOverride, updateCustomItem,
+  scrollRef, onExpandPlace, onExpandBooking: _onExpandBooking,
 }: EditableItineraryProps) {
   const [openDay, setOpenDay] = useState(0);
   // Refs for each DayCard — used to scroll the header into view on expand.
@@ -258,7 +268,6 @@ export function EditableItinerary({
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   const [addForm, setAddForm] = useState<AddFormState | null>(null);
   const [showMovePicker, setShowMovePicker] = useState(false);
-  const [resvPrompt, setResvPrompt] = useState<{ itemId: string; draft: string } | null>(null);
 
   // Edit Mode state — ephemeral UI state, not persisted to Firebase
   const [editModeDay, setEditModeDay] = useState<string | null>(null);
@@ -267,6 +276,12 @@ export function EditableItinerary({
   const [confirmMode, setConfirmMode] = useState<'delete' | 'exit' | null>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInitializingRef = useRef(false);
+
+  // Detail sheet state — null when closed
+  const [detailState, setDetailState] = useState<{
+    item: ResolvedItem;
+    resolvedPlace: Place | null;
+  } | null>(null);
 
   const days = data.itinerary_days.filter(d => d.stop_id === stop.id);
 
@@ -409,94 +424,6 @@ export function EditableItinerary({
     }
   }
 
-  function openResvPrompt(itemId: string, prefill = "") {
-    setResvPrompt({ itemId, draft: prefill });
-  }
-
-  // Looks at times of items surrounding itemId (up to 3 in each direction)
-  // to infer whether an ambiguous hour (1–11) is AM or PM.
-  function inferAmPm(hour: number, itemId: string): 'AM' | 'PM' {
-    // Find the day and position of this item
-    for (const day of data.itinerary_days) {
-      const ordered = resolveOrderedItems(day.id);
-      const idx = ordered.findIndex(item => item.id === itemId);
-      if (idx === -1) continue;
-
-      const neighbors = ordered.slice(Math.max(0, idx - 3), Math.min(ordered.length, idx + 4));
-      const context = neighbors
-        .map(item => item._isCustom ? (item as CustomItem).time : (item as ItineraryItem).time)
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-
-      const eveningSignals = /\b(pm|evening|dinner|sunset|night|supper)\b/.test(context);
-      const morningSignals = /\b(am|morning|breakfast|sunrise|brunch)\b/.test(context);
-
-      if (eveningSignals && !morningSignals) return 'PM';
-      if (morningSignals && !eveningSignals) return 'AM';
-      break; // found the day but no clear signal — fall through to heuristic
-    }
-
-    // Heuristic: on a trip, 1–5 is almost always PM (lunch/afternoon/dinner),
-    // 6–11 is almost always AM (morning activities).
-    return hour >= 1 && hour <= 5 ? 'PM' : 'AM';
-  }
-
-  // Formats digit-only inputs into 12-hour time strings.
-  // "700" → "7:00 PM", "7" → "7:00 PM", "730" → "7:30 PM", "0630" → "6:30 AM"
-  // AM/PM uses surrounding item context first, then hour heuristic.
-  // Strings with colons, time words, or no digits pass through unchanged.
-  function formatReservationTime(input: string, itemId: string): string {
-    if (!input) return input;
-    if (/[:\s]|am|pm|morning|afternoon|evening|night/i.test(input)) return input;
-    const digits = input.replace(/\D/g, '');
-    if (!digits) return input;
-
-    let h: number, m: number;
-    if (digits.length <= 2) {
-      // "7" or "11" — treat as bare hour
-      h = parseInt(digits, 10);
-      m = 0;
-    } else if (digits.length === 3) {
-      h = parseInt(digits[0], 10);
-      m = parseInt(digits.slice(1), 10);
-    } else if (digits.length === 4) {
-      h = parseInt(digits.slice(0, 2), 10);
-      m = parseInt(digits.slice(2), 10);
-    } else {
-      return input;
-    }
-
-    if (h > 23 || m > 59) return input;
-
-    let ampm: 'AM' | 'PM';
-    let displayH: number;
-    if (h === 0) {
-      ampm = 'AM'; displayH = 12;
-    } else if (h === 12) {
-      ampm = 'PM'; displayH = 12;
-    } else if (h > 12) {
-      ampm = 'PM'; displayH = h - 12;
-    } else {
-      // 1–11: use context
-      ampm = inferAmPm(h, itemId);
-      displayH = h;
-    }
-
-    return `${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
-  }
-
-  function handleResvSave() {
-    if (!resvPrompt) return;
-    setReservationTime(resvPrompt.itemId, formatReservationTime(resvPrompt.draft.trim(), resvPrompt.itemId));
-    onConfirm(resvPrompt.itemId, true);
-    setResvPrompt(null);
-  }
-
-  function handleResvCancel() {
-    setResvPrompt(null);
-  }
-
   // Derived edit mode items — reflects pendingOrder if a reorder is in progress
   const baseEditItems = useMemo(
     () => editModeDay ? resolveOrderedItems(editModeDay) : [],
@@ -599,7 +526,7 @@ export function EditableItinerary({
     <>
       <div style={{ marginBottom: "28px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-          <div style={{ fontWeight: "bold", color: stop.accent, fontSize: "0.78rem", letterSpacing: "0.12em", textTransform: "uppercase" }}>📅 Daily Itinerary — Loose Plan</div>
+          <div style={{ fontWeight: "bold", color: stop.accent, fontSize: "0.78rem", letterSpacing: "0.12em", textTransform: "uppercase" }}>📅 Daily Itinerary</div>
           <div style={{ flex: 1, height: "1px", background: stop.accent + "30" }} />
         </div>
 
@@ -671,10 +598,11 @@ export function EditableItinerary({
                     <SortableContext items={items.map(it => it.id)} strategy={verticalListSortingStrategy}>
                       {items.map((item, ii) => {
                         const isItemLocked = !item._isCustom && ((item as ItineraryItem).locked || confirms[item.id]);
+                        const itemPlace = findPlaceForItem(item, data.places);
                         return (
                             <SortableItem
                               key={item.id}
-                              item={item} accent={stop.accent} onConfirm={onConfirm}
+                              item={item} accent={stop.accent}
                               isLocked={isItemLocked}
                               index={ii}
                               isLast={ii === items.length - 1}
@@ -684,9 +612,14 @@ export function EditableItinerary({
                                 setSelectedItems(new Set([item.id]));
                               }}
                               displayTime={getDisplayTime(item)}
-                              onTimeSave={(t) => setTimeOverride(item.id, t)}
                               reservationTime={reservationTimes[item.id] || ""}
-                              onRequestConfirm={() => openResvPrompt(item.id)}
+                              resolvedPlace={itemPlace}
+                              textOverride={textOverrides[item.id]}
+                              onOpenDetail={() => setDetailState({ item, resolvedPlace: itemPlace })}
+                              onTapCard={itemPlace
+                                ? (rect) => onExpandPlace(itemPlace, rect)
+                                : (_rect) => setDetailState({ item, resolvedPlace: null })
+                              }
                             />
                         );
                       })}
@@ -771,10 +704,7 @@ export function EditableItinerary({
                   isConfirmed={false}
                   isCustom={activeItem._isCustom}
                   displayTime={getDisplayTime(activeItem)}
-                  onTimeSave={() => {}}
                   reservationTime=""
-                  onRequestConfirm={() => {}}
-                  onConfirm={() => {}}
                   index={0}
                   animate={false}
                   isLast={true}
@@ -874,46 +804,23 @@ export function EditableItinerary({
         onMoveItems={handleMoveItems}
       />
 
-      {/* Reservation time prompt */}
-      {resvPrompt && (
-        <>
-          <div onClick={handleResvCancel} style={{ position: "fixed", inset: 0, zIndex: 8000, background: "rgba(0,0,0,0.18)" }} />
-          <div style={{
-            position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-            zIndex: 8001, background: "#fff", borderRadius: "16px",
-            boxShadow: "0 12px 40px rgba(0,0,0,0.22)", padding: "22px 24px", width: "min(320px, 90vw)",
-            fontFamily: "Georgia,serif",
-          }}>
-            <div style={{ fontWeight: "bold", fontSize: "0.95rem", color: "#1a1a1a", marginBottom: "4px" }}>Got a reservation?</div>
-            <div style={{ fontSize: "0.78rem", color: "#999", marginBottom: "14px", fontStyle: "italic" }}>Add a time, or skip to just confirm.</div>
-            <input
-              autoFocus
-              value={resvPrompt.draft}
-              onChange={e => setResvPrompt(p => p ? { ...p, draft: e.target.value } : p)}
-              onKeyDown={e => {
-                if (e.key === "Enter") handleResvSave();
-                if (e.key === "Escape") handleResvCancel();
-              }}
-              placeholder="e.g. 7:00 PM or Evening"
-              style={{
-                width: "100%", fontSize: "0.88rem", padding: "9px 11px", border: "1px solid #ddd",
-                borderRadius: "8px", fontFamily: "Georgia,serif", boxSizing: "border-box",
-                marginBottom: "12px", outline: "none",
-              }}
-            />
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button
-                onClick={handleResvSave}
-                style={{ flex: 1, background: stop.accent, color: "#fff", border: "none", borderRadius: "8px", padding: "9px", cursor: "pointer", fontSize: "0.84rem", fontFamily: "Georgia,serif", fontWeight: "bold" }}
-              >✓ Confirm</button>
-              <button
-                onClick={handleResvCancel}
-                style={{ background: "transparent", color: "#888", border: "1px solid #ddd", borderRadius: "8px", padding: "9px 16px", cursor: "pointer", fontSize: "0.84rem", fontFamily: "Georgia,serif" }}
-              >Cancel</button>
-            </div>
-          </div>
-        </>
-      )}
+      {/* Item detail / edit sheet */}
+      <ItineraryItemDetailSheet
+        isOpen={!!detailState}
+        item={detailState?.item ?? null}
+        resolvedPlace={detailState?.resolvedPlace ?? null}
+        accent={stop.accent}
+        textOverride={detailState ? textOverrides[detailState.item.id] : undefined}
+        timeOverride={detailState ? timeOverrides[detailState.item.id] : undefined}
+        isConfirmed={detailState ? (confirms[detailState.item.id] || (!detailState.item._isCustom && (detailState.item as ItineraryItem).locked)) : false}
+        onClose={() => setDetailState(null)}
+        onSetTextOverride={setTextOverride}
+        onUpdateCustomItem={updateCustomItem}
+        onSetTimeOverride={setTimeOverride}
+        onDeleteCustomItem={deleteCustomItem}
+        onConfirm={onConfirm}
+      />
+
     </>
   );
 }

@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react';
-import type { Booking, Group, Stop } from '../types';
+import type { Booking, Group, PlaceEnrichment, Stop } from '../types';
 import { Colors, Typography, Spacing, Radius } from '../design/tokens';
 import { ScrollReveal } from './ScrollReveal';
-import { appleMapsUrl } from '../domain/trip';
 import type { FlightStatus } from '../domain/trip';
 
 // ── AlertBox ──────────────────────────────────────────────────
@@ -107,42 +106,35 @@ interface HotelCardProps {
   accent: string;
   label: string;
   booking: Booking;
+  enrichment?: PlaceEnrichment;
+  onExpand?: (booking: Booking, rect: DOMRect) => void;
 }
 
-function HotelCard({ accent, label, booking }: HotelCardProps) {
+function HotelCard({ accent, label, booking, enrichment, onExpand }: HotelCardProps) {
   return (
-    <div style={{
-      background: Colors.surfaceRaised,
-      borderRadius: `${Radius.lg}px`,
-      boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
-      borderLeft: `3px solid ${accent}`,
-      padding: `${Spacing.md}px ${Spacing.base}px`,
-    }}>
-      <div style={{
-        fontSize: `${Typography.size.xs}px`,
-        fontWeight: Typography.weight.bold,
-        color: accent,
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase' as const,
-        fontFamily: Typography.family,
-        marginBottom: `${Spacing.sm}px`,
-      }}>
-        {label}
-      </div>
-      {booking.url
-        ? <a href={booking.url} target="_blank" rel="noopener noreferrer" style={{
-            fontWeight: Typography.weight.bold,
-            fontSize: `${Typography.size.base}px`,
-            color: Colors.textPrimary,
-            textDecoration: 'none',
-            borderBottom: `1px dotted ${Colors.border}`,
-            display: 'inline-block',
-            marginBottom: `${Spacing.xs}px`,
-            fontFamily: Typography.family,
-          }}>
-            {booking.label}
-          </a>
-        : <div style={{
+    <div
+      onClick={onExpand ? (e) => onExpand(booking, (e.currentTarget as HTMLElement).getBoundingClientRect()) : undefined}
+      style={{
+        background: Colors.surfaceRaised,
+        borderRadius: `${Radius.lg}px`,
+        boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+        borderLeft: `3px solid ${accent}`,
+        cursor: onExpand ? 'pointer' : 'default',
+      }}
+    >
+      <div style={{ padding: `${Spacing.md}px ${Spacing.base}px` }}>
+        <div style={{
+          fontSize: `${Typography.size.xs}px`,
+          fontWeight: Typography.weight.bold,
+          color: accent,
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase' as const,
+          fontFamily: Typography.family,
+          marginBottom: `${Spacing.sm}px`,
+        }}>
+          {label}
+        </div>
+        <div style={{
             fontWeight: Typography.weight.bold,
             fontSize: `${Typography.size.base}px`,
             color: Colors.textPrimary,
@@ -151,45 +143,82 @@ function HotelCard({ accent, label, booking }: HotelCardProps) {
           }}>
             {booking.label}
           </div>
-      }
-      {booking.addr && (
-        <a href={appleMapsUrl(booking.addr)} target="_blank" rel="noopener noreferrer" style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: `${Spacing.xs}px`,
-          fontSize: `${Typography.size.xs}px`,
-          color: accent,
-          textDecoration: 'none',
-          marginTop: `${Spacing.xs}px`,
-          marginBottom: `${Spacing.xs}px`,
-          opacity: 0.85,
-          fontFamily: Typography.family,
-        }}>
-          📍 {booking.addr} <span style={{ fontSize: '10px', opacity: 0.6 }}>· Maps</span>
-        </a>
-      )}
-      {booking.confirmation && (
-        <div style={{
-          fontSize: `${Typography.size.xs}px`,
-          color: Colors.textMuted,
-          marginBottom: `${Spacing.xs}px`,
-          fontFamily: Typography.family,
-        }}>
-          🎫 Confirmation: <span style={{ fontWeight: Typography.weight.bold, color: Colors.textSecondary }}>{booking.confirmation}</span>
-        </div>
-      )}
-      {booking.note && (
-        <div style={{
-          color: Colors.textSecondary,
-          fontSize: `${Typography.size.sm}px`,
-          lineHeight: Typography.lineHeight.relaxed,
-          fontStyle: 'italic',
-          marginTop: `${Spacing.xs}px`,
-          fontFamily: Typography.family,
-        }}>
-          {booking.note}
-        </div>
-      )}
+
+        {/* Google rating */}
+        {enrichment?.rating != null && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: `${Spacing.xs}px`,
+            marginBottom: `${Spacing.xs}px`,
+          }}>
+            <span style={{ color: Colors.gold, fontSize: `${Typography.size.sm}px` }}>★</span>
+            <span style={{
+              fontWeight: Typography.weight.semibold,
+              fontSize: `${Typography.size.sm}px`,
+              color: Colors.textPrimary,
+              fontFamily: Typography.family,
+            }}>
+              {enrichment.rating.toFixed(1)}
+            </span>
+            {enrichment.user_ratings_total != null && (
+              <span style={{
+                fontSize: `${Typography.size.xs}px`,
+                color: Colors.textMuted,
+                fontFamily: Typography.family,
+              }}>
+                ({enrichment.user_ratings_total.toLocaleString()})
+              </span>
+            )}
+          </div>
+        )}
+
+        {booking.addr && (
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: `${Spacing.xs}px`,
+            fontSize: `${Typography.size.xs}px`,
+            color: accent,
+            marginTop: `${Spacing.xs}px`,
+            marginBottom: `${Spacing.xs}px`,
+            opacity: 0.85,
+            fontFamily: Typography.family,
+          }}>
+            📍 {booking.addr}
+          </div>
+        )}
+
+        {/* Phone from enrichment */}
+        {enrichment?.phone && (
+          <div style={{ marginTop: `${Spacing.xs}px`, marginBottom: `${Spacing.xs}px`, fontSize: `${Typography.size.xs}px`, color: accent, fontFamily: Typography.family, opacity: 0.85 }}>
+            📞 {enrichment.phone}
+          </div>
+        )}
+
+        {booking.confirmation && (
+          <div style={{
+            fontSize: `${Typography.size.xs}px`,
+            color: Colors.textMuted,
+            marginBottom: `${Spacing.xs}px`,
+            fontFamily: Typography.family,
+          }}>
+            🎫 Confirmation: <span style={{ fontWeight: Typography.weight.bold, color: Colors.textSecondary }}>{booking.confirmation}</span>
+          </div>
+        )}
+        {booking.note && (
+          <div style={{
+            color: Colors.textSecondary,
+            fontSize: `${Typography.size.sm}px`,
+            lineHeight: Typography.lineHeight.relaxed,
+            fontStyle: 'italic',
+            marginTop: `${Spacing.xs}px`,
+            fontFamily: Typography.family,
+          }}>
+            {booking.note}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -259,17 +288,7 @@ function FlightRow({ f, sMap, loading }: FlightRowProps) {
         flexWrap: 'wrap' as const, gap: `${Spacing.xs}px`, marginBottom: `${Spacing.sm}px`,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: `${Spacing.xs}px`, flexWrap: 'wrap' as const }}>
-          {f.trackingUrl
-            ? <a href={f.trackingUrl} target="_blank" rel="noopener noreferrer" style={{
-                fontWeight: Typography.weight.bold,
-                fontSize: `${Typography.size.base}px`,
-                color: Colors.textPrimary,
-                textDecoration: 'none',
-                borderBottom: `1px dotted ${Colors.textMuted}`,
-                fontFamily: Typography.family,
-              }}>{f.num}</a>
-            : <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.base}px`, fontFamily: Typography.family }}>{f.num}</span>
-          }
+          <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.base}px`, fontFamily: Typography.family }}>{f.num}</span>
           <span style={{ color: Colors.textMuted, fontSize: `${Typography.size.xs}px` }}>{f.airline}</span>
           <span style={{ color: Colors.border }}>·</span>
           <span style={{ color: Colors.textSecondary, fontSize: `${Typography.size.xs}px` }}>{f.route}</span>
@@ -317,20 +336,25 @@ interface BookingCardProps {
   accent: string;
   flightStatus: Record<string, FlightStatus>;
   flightLoading: boolean;
+  onExpand?: (booking: Booking, rect: DOMRect) => void;
 }
 
-function BookingCard({ booking, accent, flightStatus, flightLoading }: BookingCardProps) {
+function BookingCard({ booking, accent, flightStatus, flightLoading, onExpand }: BookingCardProps) {
   return (
-    <div style={{
-      background: Colors.surfaceRaised,
-      borderRadius: `${Radius.lg}px`,
-      boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
-      borderLeft: `3px solid ${accent}60`,
-      padding: `${Spacing.md}px ${Spacing.base}px`,
-      display: 'flex',
-      gap: `${Spacing.md}px`,
-      alignItems: 'flex-start',
-    }}>
+    <div
+      onClick={onExpand ? (e) => onExpand(booking, (e.currentTarget as HTMLElement).getBoundingClientRect()) : undefined}
+      style={{
+        background: Colors.surfaceRaised,
+        borderRadius: `${Radius.lg}px`,
+        boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+        borderLeft: `3px solid ${accent}60`,
+        padding: `${Spacing.md}px ${Spacing.base}px`,
+        display: 'flex',
+        gap: `${Spacing.md}px`,
+        alignItems: 'flex-start',
+        cursor: onExpand ? 'pointer' : 'default',
+      }}
+    >
       <div style={{ fontSize: '1.3rem', lineHeight: 1, marginTop: '2px', flexShrink: 0 }}>{booking.icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
@@ -351,7 +375,6 @@ function BookingCard({ booking, accent, flightStatus, flightLoading }: BookingCa
           <FlightRow key={i} f={f} sMap={flightStatus} loading={flightLoading}/>
         ))}
         {booking.lines?.map((l, i) => {
-          const isAddr = l.startsWith("📍");
           return (
             <div key={i} style={{
               fontSize: `${Typography.size.sm}px`,
@@ -361,30 +384,10 @@ function BookingCard({ booking, accent, flightStatus, flightLoading }: BookingCa
               color: l.startsWith("⏰") || l.startsWith("📅") ? Colors.textSecondary : Colors.textPrimary,
               fontFamily: Typography.family,
             }}>
-              {isAddr && booking.addr
-                ? <a href={appleMapsUrl(booking.addr)} target="_blank" rel="noopener noreferrer" style={{ color: accent, textDecoration: 'none' }}>
-                    📍 {l.replace("📍", "").trim()} <span style={{ fontSize: `${Typography.size.xs}px`, opacity: 0.7 }}>· Open in Maps</span>
-                  </a>
-                : l
-              }
+              {l}
             </div>
           );
         })}
-        {booking.confirmation_link && (
-          <div style={{ fontSize: `${Typography.size.sm}px`, lineHeight: Typography.lineHeight.normal, marginTop: `${Spacing.xxs}px` }}>
-            <a href={booking.confirmation_link.url} target="_blank" rel="noopener noreferrer" style={{
-              color: accent,
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: `${Spacing.xs}px`,
-              fontFamily: Typography.family,
-            }}>
-              🎫 {booking.confirmation_link.label}
-              <span style={{ fontSize: `${Typography.size.xs}px`, opacity: 0.7 }}>· View Reservation</span>
-            </a>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -399,9 +402,11 @@ interface TravelSectionProps {
   flightStatus: Record<string, FlightStatus>;
   flightLoading: boolean;
   lastUpdated: Record<string, Date>;
+  onBookingExpand?: (booking: Booking, rect: DOMRect) => void;
+  hotelEnrichmentMap?: Record<string, PlaceEnrichment>;
 }
 
-export function TravelSection({ stop, stopBookings, groups, flightStatus, flightLoading, lastUpdated }: TravelSectionProps) {
+export function TravelSection({ stop, stopBookings, groups, flightStatus, flightLoading, lastUpdated, onBookingExpand, hotelEnrichmentMap }: TravelSectionProps) {
   const sorted = [...stopBookings].sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999));
   const hasFlights = stopBookings.some(b => b.type === "flight");
 
@@ -419,9 +424,9 @@ export function TravelSection({ stop, stopBookings, groups, flightStatus, flight
       const groupName = b.group_ids
         ? groups.find(g => g.id === b.group_ids![0])?.name
         : "Party-Wide";
-      return <HotelCard key={b.id} accent={stop.accent} label={"🏠 " + groupName + "'s Accommodations"} booking={b}/>;
+      return <HotelCard key={b.id} accent={stop.accent} label={"🏠 " + groupName + "'s Accommodations"} booking={b} enrichment={hotelEnrichmentMap?.[b.id]} onExpand={onBookingExpand}/>;
     }
-    return <BookingCard key={b.id} booking={b} accent={stop.accent} flightStatus={flightStatus} flightLoading={flightLoading}/>;
+    return <BookingCard key={b.id} booking={b} accent={stop.accent} flightStatus={flightStatus} flightLoading={flightLoading} onExpand={onBookingExpand}/>;
   };
 
   return (

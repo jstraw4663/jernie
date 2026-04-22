@@ -13,16 +13,15 @@
 //   Framer Motion animate → Reanimated useAnimatedStyle / Moti springs
 //   No web-specific APIs below this line.
 
-import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Colors, Typography, Spacing, Animation } from '../design/tokens';
 import { Badge } from './Badge';
-import type { ItineraryItem, CustomItem, PlaceCategory, ItineraryCategory } from '../types';
+import { StarRating } from './StarRating';
+import type { ItineraryItem, CustomItem, Place, PlaceCategory, ItineraryCategory } from '../types';
 import { parseItemText } from '../utils/parseItemText';
 
 type ResolvedItem = (ItineraryItem & { _isCustom: false }) | (CustomItem & { _isCustom: true });
 
-const appleMaps = (addr: string) => `https://maps.apple.com/?q=${encodeURIComponent(addr)}`;
 
 // Category icons — shown before the item title to give instant visual context.
 // Exported so edit-mode components (SelectableListItem) can share the same map.
@@ -58,65 +57,21 @@ const CUSTOM_CATEGORY_EMOJI: Partial<Record<PlaceCategory, string>> = {
 
 const DOT_SIZE = 10;
 
-// ── InlineTimeLabel ──────────────────────────────────────────────
-// Bold, prominent time display at the top of each item.
-// Click-to-edit on open items; read-only once confirmed.
+// ── TimeDisplay ──────────────────────────────────────────────────
+// Read-only time label above the card. Editing time is now done
+// exclusively through the pencil / detail sheet.
 
-function InlineTimeLabel({ displayTime, isLocked, onSave }: {
-  displayTime: string;
-  isLocked: boolean;
-  onSave: (time: string) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(displayTime);
-
-  if (editing) {
-    return (
-      <input
-        autoFocus
-        value={draft}
-        onChange={e => setDraft(e.target.value)}
-        onBlur={() => { onSave(draft.trim()); setEditing(false); }}
-        onKeyDown={e => {
-          if (e.key === 'Enter') { onSave(draft.trim()); setEditing(false); }
-          if (e.key === 'Escape') setEditing(false);
-        }}
-        placeholder="e.g. 9:00 AM"
-        style={{
-          width: '100px',
-          fontSize: `${Typography.size.sm}px`,
-          fontWeight: Typography.weight.bold,
-          color: Colors.textPrimary,
-          border: `1px solid ${Colors.border}`,
-          borderRadius: `${Spacing.xs}px`,
-          padding: `2px ${Spacing.xs + 2}px`,
-          fontFamily: Typography.family,
-          background: Colors.surfaceRaised,
-          outline: 'none',
-        }}
-      />
-    );
-  }
-
+function TimeDisplay({ displayTime }: { displayTime: string }) {
   return (
-    <div
-      onClick={isLocked ? undefined : () => { setDraft(displayTime); setEditing(true); }}
-      title={isLocked ? undefined : 'Tap to edit time'}
-      style={{
-        fontSize: `${Typography.size.sm}px`,
-        fontWeight: Typography.weight.bold,
-        color: Colors.textPrimary,
-        fontFamily: Typography.family,
-        lineHeight: 1.3,
-        cursor: isLocked ? 'default' : 'pointer',
-        minHeight: '1em',
-        display: 'inline-block',
-        borderBottom: isLocked ? 'none' : '1px dashed transparent',
-        transition: `border-color ${Animation.duration.fast} ${Animation.easing.default}`,
-      }}
-      onMouseEnter={e => { if (!isLocked) (e.currentTarget as HTMLElement).style.borderBottomColor = Colors.border; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderBottomColor = 'transparent'; }}
-    >
+    <div style={{
+      fontSize: `${Typography.size.sm}px`,
+      fontWeight: Typography.weight.bold,
+      color: Colors.textPrimary,
+      fontFamily: Typography.family,
+      lineHeight: 1.3,
+      minHeight: '1em',
+      display: 'inline-block',
+    }}>
       {displayTime || (
         <span style={{ opacity: 0.4, fontWeight: Typography.weight.regular, color: Colors.textMuted }}>
           set time
@@ -134,16 +89,21 @@ export interface TimelineItemProps {
   isConfirmed: boolean;     // editorial lock OR user-confirmed — drives full visual state
   isCustom: boolean;
   displayTime: string;
-  onTimeSave: (time: string) => void;
   reservationTime: string;
-  onRequestConfirm: () => void;
-  onConfirm: (id: string, value: boolean) => void;
   /** Position in the day's list — drives entrance stagger delay */
   index: number;
   /** Play entrance animation; false on re-visits and drag overlays */
   animate: boolean;
   /** Hide connector line on the last item in the day */
   isLast: boolean;
+  /** Linked Place record — enables enriched display (rating, price, address, phone) */
+  resolvedPlace?: Place | null;
+  /** User-set title override stored in Firebase — takes precedence over item.text */
+  textOverride?: string;
+  /** Open the pencil edit sheet (label, time, confirm toggle) */
+  onOpenDetail?: () => void;
+  /** Tap anywhere on card body — opens entity detail (place/booking) or edit sheet fallback */
+  onTapCard?: (rect: DOMRect) => void;
 }
 
 export function TimelineItem({
@@ -152,20 +112,21 @@ export function TimelineItem({
   isConfirmed,
   isCustom,
   displayTime,
-  onTimeSave,
   reservationTime,
-  onRequestConfirm,
-  onConfirm,
   index,
   animate,
   isLast,
+  resolvedPlace,
+  textOverride,
+  onOpenDetail,
+  onTapCard,
 }: TimelineItemProps) {
   const itItem = item as ItineraryItem;
-  // User-initiated confirm: confirmed but not editorial lock — can toggle off
-  const isUserConfirmed = !isCustom && isConfirmed && !itItem.locked;
 
   // Parse title + blurb from the · / — structured text format
-  const { title, blurb } = isCustom ? { title: item.text, blurb: '' } : parseItemText(item.text);
+  const { title: parsedTitle, blurb } = isCustom ? { title: item.text, blurb: '' } : parseItemText(item.text);
+  // textOverride wins over stored text for display — lets users rename place-linked items
+  const title = textOverride || parsedTitle;
 
   // Category — only on non-custom items
   const category = !isCustom ? (itItem.category ?? null) : null;
@@ -180,6 +141,9 @@ export function TimelineItem({
 
   // Card left border — accent ties the card to its stop; shifts to gold on confirm
   const cardBorderColor = isConfirmed ? `${Colors.gold}90` : `${accent}30`;
+
+  const addr = resolvedPlace?.addr ?? (!isCustom ? itItem.addr : null) ?? (isCustom ? (item as CustomItem).addr : null);
+  const addrLabel = !isCustom ? (itItem.addr_label ?? null) : null;
 
   return (
     <motion.div
@@ -232,12 +196,10 @@ export function TimelineItem({
       {/* ── Right side: time label + card ── */}
       <div style={{ flex: 1, paddingLeft: Spacing.md }}>
 
-        {/* Time label — sits above the card, bold anchor for the item */}
+        {/* Time label — sits above the card, read-only (edit via pencil sheet) */}
         <div style={{ marginBottom: Spacing.xxs + 2 }}>
-          <InlineTimeLabel
+          <TimeDisplay
             displayTime={isConfirmed && reservationTime ? reservationTime : displayTime}
-            isLocked={isConfirmed}
-            onSave={onTimeSave}
           />
         </div>
 
@@ -245,6 +207,9 @@ export function TimelineItem({
         <motion.div
           animate={{ borderLeftColor: cardBorderColor }}
           transition={{ duration: 0.3, ease: Animation.fm.ease }}
+          onClick={onTapCard ? (e) => {
+            onTapCard((e.currentTarget as HTMLElement).getBoundingClientRect());
+          } : undefined}
           style={{
             background: Colors.surfaceRaised,
             borderRadius: `${Spacing.md}px`,
@@ -252,9 +217,10 @@ export function TimelineItem({
             padding: `${Spacing.md}px`,
             borderLeft: `3px solid`,
             borderLeftColor: cardBorderColor,
+            cursor: onTapCard ? 'pointer' : 'default',
           }}
         >
-          {/* Category icon + title */}
+          {/* Category icon + title + detail chevron */}
           <div style={{
             display: 'flex',
             alignItems: 'flex-start',
@@ -284,6 +250,41 @@ export function TimelineItem({
             }}>
               {title}
             </div>
+            {/* Pencil — opens edit sheet (label, time, confirm) */}
+            {onOpenDetail && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpenDetail(); }}
+                title="Edit"
+                style={{
+                  flexShrink: 0,
+                  width: 22,
+                  height: 22,
+                  borderRadius: '50%',
+                  border: `1px solid ${Colors.border}`,
+                  background: 'transparent',
+                  color: Colors.textMuted,
+                  cursor: 'pointer',
+                  fontSize: `${Typography.size.xs - 1}px`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  padding: 0,
+                  marginTop: 1,
+                  transition: `border-color ${Animation.duration.fast} ${Animation.easing.default}, color ${Animation.duration.fast} ${Animation.easing.default}`,
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = accent;
+                  (e.currentTarget as HTMLButtonElement).style.color = accent;
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = Colors.border;
+                  (e.currentTarget as HTMLButtonElement).style.color = Colors.textMuted;
+                }}
+              >
+                ✎
+              </button>
+            )}
           </div>
 
           {/* Blurb */}
@@ -303,50 +304,41 @@ export function TimelineItem({
             </div>
           )}
 
-          {/* Address / Maps link */}
-          {!isCustom && itItem.addr && (
-            <div style={{ marginBottom: Spacing.xs }}>
-              <a
-                href={appleMaps(itItem.addr)}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: Spacing.xs,
-                  fontSize: `${Typography.size.xs + 1}px`,
-                  color: accent,
-                  textDecoration: 'none',
+          {/* Place enrichment row — rating + price when place is linked */}
+          {resolvedPlace && (resolvedPlace.rating != null || resolvedPlace.price) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs, flexWrap: 'wrap' }}>
+              {resolvedPlace.rating != null && <StarRating rating={resolvedPlace.rating} compact />}
+              {resolvedPlace.price && (
+                <span style={{
+                  fontSize: `${Typography.size.xs - 1}px`,
+                  color: Colors.textMuted,
                   fontFamily: Typography.family,
-                  lineHeight: Typography.lineHeight.normal,
-                }}
-              >
-                📍 {itItem.addr_label || itItem.addr}
-                <span style={{ fontSize: `${Typography.size.xs - 1}px`, opacity: 0.6 }}>· Maps</span>
-              </a>
+                  letterSpacing: '0.02em',
+                }}>
+                  {resolvedPlace.price}
+                </span>
+              )}
             </div>
           )}
 
-          {/* Tide chart link */}
+          {/* Address */}
+          {addr && (
+            <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: accent, fontFamily: Typography.family, lineHeight: Typography.lineHeight.normal }}>
+              📍 {addrLabel || addr}
+            </div>
+          )}
+
+          {/* Phone — shown when resolvedPlace has a phone number */}
+          {resolvedPlace?.phone && (
+            <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: Colors.textMuted, fontFamily: Typography.family, lineHeight: Typography.lineHeight.normal }}>
+              📞 {resolvedPlace.phone}
+            </div>
+          )}
+
+          {/* Tide chart */}
           {!isCustom && itItem.tide_url && (
-            <div style={{ marginBottom: Spacing.xs }}>
-              <a
-                href={itItem.tide_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: Spacing.xs,
-                  fontSize: `${Typography.size.xs + 1}px`,
-                  color: Colors.navyLight,
-                  textDecoration: 'none',
-                  fontFamily: Typography.family,
-                }}
-              >
-                🌊 Bar Harbor Tide Chart
-                <span style={{ fontSize: `${Typography.size.xs - 1}px`, opacity: 0.6 }}>· NOAA</span>
-              </a>
+            <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: Colors.navyLight, fontFamily: Typography.family }}>
+              🌊 Bar Harbor Tide Chart
             </div>
           )}
 
@@ -361,7 +353,7 @@ export function TimelineItem({
                 transition={{ type: 'spring', ...Animation.springs.snappy }}
                 style={{ transformOrigin: 'left center', marginBottom: Spacing.xs }}
               >
-                <Badge variant="bookNow" label="📅 Book Now" href={itItem.booking_url ?? undefined} />
+                <Badge variant="bookNow" label="📅 Book Now" href={undefined} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -428,7 +420,7 @@ export function TimelineItem({
               )}
             </div>
 
-            {/* Right: gold outline pill → gold filled pill on confirm */}
+            {/* Right: confirm pill — both states open the edit sheet for time entry */}
             {!isCustom && (
               <AnimatePresence mode="wait">
                 {isConfirmed ? (
@@ -438,8 +430,8 @@ export function TimelineItem({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.85 }}
                     transition={{ type: 'spring', ...Animation.springs.snappy }}
-                    onClick={isUserConfirmed ? () => onConfirm(item.id, false) : undefined}
-                    whileTap={isUserConfirmed ? { scale: 0.94 } : undefined}
+                    onClick={(e) => { e.stopPropagation(); onOpenDetail?.(); }}
+                    whileTap={{ scale: 0.94 }}
                     style={{
                       background: Colors.gold,
                       color: '#fff',
@@ -450,7 +442,7 @@ export function TimelineItem({
                       fontFamily: Typography.family,
                       fontWeight: Typography.weight.semibold,
                       letterSpacing: '0.04em',
-                      cursor: isUserConfirmed ? 'pointer' : 'default',
+                      cursor: 'pointer',
                       boxShadow: `0 2px 8px ${Colors.gold}55`,
                       flexShrink: 0,
                       userSelect: 'none',
@@ -466,7 +458,7 @@ export function TimelineItem({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.85 }}
                     transition={{ type: 'spring', ...Animation.springs.snappy }}
-                    onClick={onRequestConfirm}
+                    onClick={(e) => { e.stopPropagation(); onOpenDetail?.(); }}
                     whileTap={{ scale: 0.94 }}
                     style={{
                       background: 'transparent',

@@ -32,7 +32,7 @@ Run through every item before creating a PR to `main`:
 4. **`git status`** — no untracked files that should be committed; no accidental `.env` staged
 5. **`CLAUDE.md` is current** — reflects every shipped feature, changed file, or new pattern in this PR
 6. **Review `trip.json` diff** — if `trip.json` changed, confirm it's a schema addition (OK) not a content/data change (requires explicit approval — see below)
-7. **Netlify env vars match** — confirm `VITE_TRIP_ID=maine-2026` and `ANTHROPIC_API_KEY` are set in Netlify dashboard (not the dev values)
+7. **Netlify env vars match** — confirm `VITE_TRIP_ID=maine-2026`, `ANTHROPIC_API_KEY`, `VITE_FIREBASE_APP_ID`, and `VITE_RECAPTCHA_SITE_KEY` are set in Netlify dashboard. Confirm `VITE_APPCHECK_DEBUG_TOKEN` is NOT in Netlify dashboard.
 8. **Never push directly to `main`** — always PR from feature branch or dev
 
 ---
@@ -69,21 +69,59 @@ Dev and prod use **separate Firebase Realtime DB paths**, scoped by `VITE_TRIP_I
 
 ### Local dev (`.env` — gitignored, never commit)
 ```
+# Firebase
 VITE_FIREBASE_API_KEY=...
 VITE_FIREBASE_AUTH_DOMAIN=...
 VITE_FIREBASE_DATABASE_URL=...
 VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_APP_ID=...          # required for App Check
+
+# Trip
 VITE_TRIP_ID=dev-maine-2026
 VITE_FLIGHT_STATUS_URL=http://localhost:8888/.netlify/functions/flight-status
+
+# Maps
+VITE_GOOGLE_MAPS_KEY=...          # HTTP-referrer restricted in Google Cloud Console
+
+# Google Places — server-side only, used by Netlify functions
+GOOGLE_PLACES_API_KEY=...
+
+# App Check
+VITE_RECAPTCHA_SITE_KEY=...       # reCAPTCHA v3 site key (public)
+VITE_APPCHECK_DEBUG_TOKEN=...     # dev only — registered in Firebase App Check console
+                                  # NEVER add to Netlify dashboard
 ```
 
 ### Production (Netlify dashboard — never in git)
 ```
-VITE_FIREBASE_*       same Firebase project as dev
-VITE_TRIP_ID          maine-2026
-VITE_FLIGHT_STATUS_URL  (not set — defaults to /.netlify/functions/flight-status)
-ANTHROPIC_API_KEY     required for flight-status serverless function
+VITE_FIREBASE_API_KEY             same Firebase project as dev
+VITE_FIREBASE_AUTH_DOMAIN         same Firebase project as dev
+VITE_FIREBASE_DATABASE_URL        same Firebase project as dev
+VITE_FIREBASE_PROJECT_ID          same Firebase project as dev
+VITE_FIREBASE_APP_ID              required for App Check
+VITE_TRIP_ID                      maine-2026
+VITE_GOOGLE_MAPS_KEY              same key as dev (referrer-restricted to prod domain)
+VITE_RECAPTCHA_SITE_KEY           same key as dev
+GOOGLE_PLACES_API_KEY             server-side key for place-details function
+ANTHROPIC_API_KEY                 required for flight-status function
 ```
+
+---
+
+## Firestore (Enrichment Cache)
+
+Firestore is used for caching Google Places and trail enrichment data — initialized in `src/lib/firebase.ts` with `persistentLocalCache()` for offline support.
+
+**Collections:**
+- `place_enrichment/{tripId}/places/{placeId}` — Google Places data (ratings, photos, hours, reviews). 24hr TTL.
+- `place_enrichment/{tripId}/bookings/{bookingId}` — Same enrichment for accommodation bookings.
+- `trail_enrichment/{tripId}/trails/{placeId}` — Trail metadata (elevation, route type, features). 30-day TTL.
+
+**Security rules are live** — `firestore.rules` at project root, deployed to `jernie-e36d8`. Rules require `auth != null && request.app.token.valid` for all writes. See `SECURITY.md` for full rule details.
+
+**Deploy rules:** `firebase deploy --only firestore:rules`
+
+**Environment isolation:** enrichment is keyed by `tripId` (`VITE_TRIP_ID`), so dev and prod caches are naturally separated within the same Firestore instance.
 
 ---
 
@@ -105,6 +143,10 @@ Without this, stale `sw.js` means browsers never discover new deployments.
 
 **Netlify functions:**
 - `netlify/functions/flight-status.js` — calls Anthropic API with `web_search` tool to fetch live flight status. Requires `ANTHROPIC_API_KEY` in Netlify dashboard.
+- `netlify/functions/place-details.js` — Google Places API proxy for enrichment data. Requires `GOOGLE_PLACES_API_KEY`.
+- `netlify/functions/trail-details.js` — static trail metadata lookup (Phase 1; no API key required).
+
+All three functions validate the HTTP `Origin` header and return 403 for requests from outside the app. See `SECURITY.md` for details.
 
 ---
 

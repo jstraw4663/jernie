@@ -73,6 +73,30 @@ export interface Booking {
   lines: string[] | null;
   confirmation_link: ConfirmationLink | null;
   flights: Flight[] | null;
+
+  // Hotel / accommodation
+  checkin_date?: string | null;    // ISO date string "YYYY-MM-DD"
+  checkin_time?: string | null;    // "HH:MM" 24-hour
+  checkout_date?: string | null;
+  checkout_time?: string | null;
+  room_type?: string | null;       // user-editable free text
+  room_number?: string | null;     // user-editable free text
+
+  // Rental car / transportation
+  car_type?: string | null;        // user-editable dropdown value
+  pickup_date?: string | null;     // ISO date string
+  pickup_time?: string | null;     // "HH:MM" 24-hour
+  return_date?: string | null;
+  return_time?: string | null;
+  airport_pickup?: boolean | null; // true = on-airport, false = off-airport
+
+  // Flight — per-leg aircraft slugs keyed by Flight.key
+  aircraft_types?: Record<string, string | null> | null;
+
+  // Linked booking — secondary (return) card points to the primary (pickup) booking.
+  // Used for rental cars that span multiple stops: e.g. pickup in Portland, return in Bangor.
+  // Both cards open the same unified detail sheet; all writes go to the primary booking's path.
+  linked_booking_id?: string | null;
 }
 
 export interface ItineraryDay {
@@ -109,6 +133,8 @@ export interface ItineraryItem {
   tide_url: string | null;
   booking_url: string | null;
   category: ItineraryCategory | null;
+  place_id?: string | null;    // links to Place.id or Firestore placeId
+  booking_id?: string | null;  // links to Booking.id for travel/lodging timeline items
 }
 
 export type PlaceCategory =
@@ -120,6 +146,8 @@ export type PlaceCategory =
   | "bar"
   | "shop"
   | "beach"
+  | "hotel"     // lodging places (distinct from booking records)
+  | "activity"  // Viator/GetYourGuide activities (matches ItineraryCategory)
   | "other";
 
 export interface Place {
@@ -138,9 +166,64 @@ export interface Place {
   group_ids: string[] | null; // null = visible to all
   flag: string | null;
   price: string | null; // "$" | "$$" | "$$$" | "$$$$"
-  difficulty: string | null; // hikes only
-  duration: string | null; // hikes only
-  distance: string | null; // hikes only
+  difficulty: string | null;    // hikes only
+  duration: string | null;     // hikes only
+  distance: string | null;     // hikes only
+  elevation_gain?: string | null; // hikes only — e.g. "520 ft"
+  route_type?: 'loop' | 'out-and-back' | 'point-to-point' | null; // hikes only
+  dogs_allowed?: boolean | null;  // hikes only
+  features?: string[] | null;     // hikes only — ["ocean views", "iron rungs", ...]
+  photos?: string[] | null;       // hikes only — carousel photo URLs (separate from hero photo_url)
+  // Optional enrichment fields — populate in trip.json as available
+  photo_url?: string | null;  // hero image URL (direct image link)
+  phone?: string | null;      // formatted phone number e.g. "(207) 555-0123"
+  addr?: string | null;       // street address for maps deep-link
+  // Phase 2: provider-fetched precise coordinates (stop coords used as fallback)
+  lat?: number | null;
+  lon?: number | null;
+  provider_id?: string | null; // Google Place ID, AllTrails trail ID, etc.
+  provider?: 'google_places' | 'alltrails' | 'manual' | null;
+}
+
+// ── Trail enrichment — manually curated, served by trail-details Netlify function ─
+// Cached in Firestore at trail_enrichment/{tripId}/trails/{placeId}.
+// Populated by the trail-details Netlify function; read by useTrailEnrichment.
+// Photos are NOT stored here — they come from PlaceEnrichment (Google Places).
+
+export interface TrailEnrichment {
+  trail_id: string;              // AllTrails slug derived from place.url
+  elevation_gain: string | null; // e.g. "520 ft"
+  route_type: 'loop' | 'out-and-back' | 'point-to-point' | null;
+  dogs_allowed: boolean | null;
+  features: string[] | null;     // ["ocean views", "scrambling", "iron rungs"]
+  cached_at: number;             // Date.now() ms
+}
+
+// ── Place enrichment from Google Places API ───────────────────────────────
+// Cached in Firestore at place_enrichment/{tripId}/{placeId}.
+// Populated by the place-details Netlify function; read by usePlaceEnrichment.
+
+export interface PlaceReview {
+  author: string;
+  rating: number;
+  text: string;
+  time: string; // human-readable relative time from Google
+}
+
+export interface PlaceEnrichment {
+  google_place_id: string;
+  rating: number | null;
+  user_ratings_total: number | null;
+  price_level: string | null;       // "$" | "$$" | "$$$" | "$$$$"
+  phone: string | null;
+  addr: string | null;
+  website: string | null;
+  open_now: boolean | null;
+  hours: string[] | null;           // ["Monday: 9:00 AM – 9:00 PM", ...]
+  photos: string[] | null;          // direct CDN photo URLs, up to 10
+  reviews: PlaceReview[] | null;    // up to 5 Google reviews
+  editorial_summary: string | null;
+  cached_at: number;                // Date.now() ms — used for 24hr TTL check
 }
 
 export interface Alert {
@@ -158,6 +241,7 @@ export interface CustomItem {
   text: string;
   category?: PlaceCategory; // optional — set when user picks a type on add
   source_place_id: string | null;  // set when created from a PlaceCard +
+  addr?: string | null;    // user-entered address for maps deep-link
   created_at: number;      // Date.now()
 }
 

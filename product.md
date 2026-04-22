@@ -34,6 +34,14 @@ PWA deployed via Netlify. Single trip, single group. Validates the concept and d
 ### Phase 2 — Product Foundation (H2 2026)
 GitHub cleanup, trip.json API separation, email parser, map integration, notifications.
 
+**Booking state reads** — add `onValue` listener for `trips/${tripId}/state/bookings/` in
+`useSharedTripState`; merge with `trip.json` bookings so edits (room type, car type, etc.)
+persist across sessions. Currently writes go to Firebase but UI reflects only trip.json values.
+
+**API providers** — wire Google Places API (hotel amenities, phone number, hours); AllTrails
+API (elevation gain, route type, difficulty); MapKit JS or a geocoding API for DistanceModule
+address search with Haversine results on custom destinations.
+
 ### Phase 3 — Jernie as a Product (Q4 2026–Q1 2027)
 Expo (React Native) migration — one codebase for iOS, Android, Web. Real auth (Supabase or
 Firebase). Trip data moves from static JSON to a proper database. Multi-user state management,
@@ -42,6 +50,52 @@ wizard-driven trip builder, templates, mobile-native UX.
 ### Phase 4 — Scale (2027+)
 LLM recommendation engine, group collaboration, affiliate integrations, SEO content engine,
 social moments, marketplace.
+
+---
+
+## v0.5.0 — Shipped Features (April 22, 2026)
+
+**Explore tab**
+- Browse every place on the trip: restaurants, hikes, activities, hotels
+- Horizontal carousels by theme — Stacy's Finds (pinned), Outdoor Adventures, Waterfront Dining, etc.
+- Seeded 4-hour shuffle — carousel order is stable per session, rotates on next app open
+- Search by name, filter by category, sort by distance / rating / name
+- Wired into AppShell, replaces the Explore placeholder
+
+**Entity detail sheets**
+- Full-height vaul sheet for every entity type: place, hike, hotel, rental car, flight, booking
+- DetailHero with photo carousel, DetailPhotoStrip, ReviewCarousel (Google reviews)
+- DistanceModule (Haversine distance from stop coords), DetailMap (Google Maps embed)
+- DateTimeRangeModule for check-in/out; rental car type picker
+- Per-entity builders: buildPlaceDetailConfig, buildHikeDetailConfig, buildFlightDetailConfig, buildBookingDetailConfig, buildHotelDetailConfig, buildRentalCarDetailConfig
+
+**Live enrichment**
+- Google Places data (ratings, photos, hours, reviews, phone, address) via place-details Netlify function — 24hr Firestore cache
+- Trail metadata (elevation, route type, dogs allowed, features) via trail-details Netlify function — static curated data for 6 Maine trails, 30-day Firestore cache
+- useBookingEnrichment — user-editable booking fields (check-in/out, room type, car type) from Firebase RTDB
+
+**Security hardening**
+- Firebase App Check (reCAPTCHA v3) — protects all RTDB and Firestore operations
+- Firestore security rules live: `request.auth != null && request.app.token.valid && cached_at is number`
+- RTDB rules tightened: read/write require `auth != null`
+- Origin header validation on all 3 Netlify functions
+- `authReady` promise pattern in firebase.ts prevents Firestore calls before anonymous auth propagates
+- SECURITY.md documents full threat model, rules, troubleshooting, and Phase 2 migration path
+
+**PIN persistence fix**
+- Unlock state moved from sessionStorage to localStorage with 24hr TTL
+- Fixes iOS re-showing PIN gate on every app switch (iOS clears sessionStorage when PWA is backgrounded)
+
+**Infrastructure**
+- 2 new Netlify functions: place-details (Google Places proxy), trail-details (static trail data)
+- Firebase CLI config: .firebaserc, firebase.json — enables `firebase deploy` for rules
+- Platform layer (src/platform/): provider abstraction for Google Places + AllTrails
+- Asset library: public/assets/aircraft/ (40+ webp), public/assets/cars/ (12 jpg)
+
+## v0.4.0 — Shipped Features (April 22, 2026)
+
+Component refactor, domain layer, Vitest suite, documentation architecture.
+(See git log for details — no product-facing changes.)
 
 ---
 

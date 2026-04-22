@@ -154,16 +154,13 @@
       "url": null,
       "addr": null,
       "note": null,
-      "confirmation": null,
+      "confirmation": "08749981US2",
       "lines": [
         "Full-Size SUV",
         "Pickup: Portland International Jetport (PWM)",
         "Drop-off: Bangor International Airport (BGR) — May 29"
       ],
-      "confirmation_link": {
-        "label": "Confirmation: 08749981US2",
-        "url": "https://www.avis.com/en/reservation/reservation-details?confirmationNumber=08749981US2&lastName=STRAW"
-      },
+      "confirmation_link": null,
       "flights": null
     },
     {
@@ -261,7 +258,8 @@
         "⏰ Allow ~30 min from The Claremont — plan checkout accordingly."
       ],
       "confirmation_link": null,
-      "flights": null
+      "flights": null,
+      "linked_booking_id": "book-portland-car"
     },
     {
       "id": "book-swh-hotel-jj",
@@ -449,7 +447,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "travel"
+      "category": "travel",
+      "place_id": null
     },
     {
       "id": "item-portland-1-2",
@@ -463,7 +462,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "lodging"
+      "category": "lodging",
+      "place_id": null
     },
     {
       "id": "item-portland-1-3",
@@ -477,7 +477,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "sight"
+      "category": "sight",
+      "place_id": "place-portland-a-01"
     },
     {
       "id": "item-portland-1-4",
@@ -491,7 +492,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "leisure"
+      "category": "leisure",
+      "place_id": "place-portland-a-02"
     },
     {
       "id": "item-portland-1-5",
@@ -505,7 +507,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-portland-r-01"
     },
     {
       "id": "item-portland-2-1",
@@ -519,7 +522,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-portland-r-05"
     },
     {
       "id": "item-portland-2-2",
@@ -533,7 +537,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "sight"
+      "category": "sight",
+      "place_id": "place-portland-a-03"
     },
     {
       "id": "item-portland-2-3",
@@ -547,7 +552,8 @@
       "addr_label": "170 Commercial St, Portland, ME",
       "tide_url": null,
       "booking_url": null,
-      "category": "activity"
+      "category": "activity",
+      "place_id": null
     },
     {
       "id": "item-portland-2-4",
@@ -561,7 +567,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "leisure"
+      "category": "leisure",
+      "place_id": "place-portland-r-13"
     },
     {
       "id": "item-portland-2-5",
@@ -575,7 +582,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-portland-r-06"
     },
     {
       "id": "item-portland-2-6",
@@ -589,7 +597,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": "https://www.opentable.com/scales",
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-portland-r-02"
     },
     {
       "id": "item-portland-3-1",
@@ -603,7 +612,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-portland-r-10"
     },
     {
       "id": "item-portland-3-2",
@@ -617,7 +627,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "travel"
+      "category": "travel",
+      "place_id": null
     },
     {
       "id": "item-portland-3-3",
@@ -631,7 +642,8 @@
       "addr_label": "McLoon’s Lobster, South Thomaston, ME",
       "tide_url": null,
       "booking_url": null,
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-barharbor-r-06"
     },
     {
       "id": "item-portland-3-4",
@@ -645,7 +657,8 @@
       "addr_label": "Damariscotta, ME",
       "tide_url": null,
       "booking_url": null,
-      "category": "activity"
+      "category": "activity",
+      "place_id": null
     },
     {
       "id": "item-portland-3-5",
@@ -659,7 +672,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "lodging"
+      "category": "lodging",
+      "place_id": null
     },
     {
       "id": "item-portland-3-6",
@@ -673,7 +687,8 @@
       "addr_label": null,
       "tide_url": "https://tidesandcurrents.noaa.gov/noaatidepredictions.html?id=8413320",
       "booking_url": null,
-      "category": "leisure"
+      "category": "leisure",
+      "place_id": "place-barharbor-a-09"
     },
     {
       "id": "item-portland-3-7",
@@ -687,7 +702,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": "https://www.opentable.com/booking/restref/availability?rid=36787&lang=en-US&partySize=4&dateTime=2026-05-24T19:00",
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-barharbor-r-01"
     },
     {
       "id": "item-barharbor-1-1",
@@ -701,7 +717,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "lodging"
+      "category": "lodging",
+      "place_id": null
     },
     {
       "id": "item-barharbor-1-2",
@@ -715,7 +732,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "leisure"
+      "category": "leisure",
+      "place_id": "place-barharbor-a-09"
     },
     {
       "id": "item-barharbor-1-3",
@@ -729,7 +747,8 @@
       "addr_label": null,
       "tide_url": "https://tidesandcurrents.noaa.gov/noaatidepredictions.html?id=8413320",
       "booking_url": null,
-      "category": "sight"
+      "category": "sight",
+      "place_id": "place-barharbor-a-07"
     },
     {
       "id": "item-barharbor-1-4",
@@ -743,7 +762,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": "https://www.opentable.com/booking/restref/availability?rid=36787&lang=en-US&partySize=4&dateTime=2026-05-24T19:00",
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-barharbor-r-01"
     },
     {
       "id": "item-barharbor-2-1",
@@ -757,7 +777,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-barharbor-r-03"
     },
     {
       "id": "item-barharbor-2-2",
@@ -771,7 +792,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "hike"
+      "category": "hike",
+      "place_id": "place-barharbor-a-08"
     },
     {
       "id": "item-barharbor-2-3",
@@ -785,7 +807,8 @@
       "addr_label": null,
       "tide_url": "https://tidesandcurrents.noaa.gov/noaatidepredictions.html?id=8413320",
       "booking_url": null,
-      "category": "sight"
+      "category": "sight",
+      "place_id": "place-barharbor-a-06"
     },
     {
       "id": "item-barharbor-2-4",
@@ -799,7 +822,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-barharbor-r-02"
     },
     {
       "id": "item-barharbor-2-5",
@@ -813,7 +837,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "leisure"
+      "category": "leisure",
+      "place_id": "place-barharbor-r-11"
     },
     {
       "id": "item-barharbor-2-6",
@@ -827,7 +852,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "activity"
+      "category": "activity",
+      "place_id": null
     },
     {
       "id": "item-barharbor-3-1",
@@ -841,7 +867,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "hike"
+      "category": "hike",
+      "place_id": "place-barharbor-a-01"
     },
     {
       "id": "item-barharbor-3-2",
@@ -855,7 +882,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-barharbor-a-03"
     },
     {
       "id": "item-barharbor-3-3",
@@ -869,7 +897,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "sight"
+      "category": "sight",
+      "place_id": "place-barharbor-a-11"
     },
     {
       "id": "item-barharbor-3-4",
@@ -883,7 +912,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "activity"
+      "category": "activity",
+      "place_id": "place-barharbor-a-05"
     },
     {
       "id": "item-barharbor-3-5",
@@ -897,7 +927,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": "https://www.opentable.com/reading-room-restaurant-at-the-bar-harbor-inn",
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-barharbor-r-04"
     },
     {
       "id": "item-barharbor-4-1",
@@ -911,7 +942,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "sight"
+      "category": "sight",
+      "place_id": "place-barharbor-a-02"
     },
     {
       "id": "item-barharbor-4-2",
@@ -925,7 +957,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-barharbor-r-08"
     },
     {
       "id": "item-barharbor-4-3",
@@ -939,7 +972,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "sight"
+      "category": "sight",
+      "place_id": "place-barharbor-a-10"
     },
     {
       "id": "item-barharbor-4-4",
@@ -953,7 +987,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-barharbor-r-10"
     },
     {
       "id": "item-barharbor-4-5",
@@ -967,7 +1002,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "lodging"
+      "category": "lodging",
+      "place_id": null
     },
     {
       "id": "item-barharbor-4-6",
@@ -981,7 +1017,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": "https://resy.com/cities/southwest-harbor-me/venues/little-fern",
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-swh-r-01"
     },
     {
       "id": "item-swh-1-1",
@@ -995,7 +1032,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "leisure"
+      "category": "leisure",
+      "place_id": null
     },
     {
       "id": "item-swh-1-2",
@@ -1009,7 +1047,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "activity"
+      "category": "activity",
+      "place_id": "place-swh-a-04"
     },
     {
       "id": "item-swh-1-3",
@@ -1023,7 +1062,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-swh-r-02"
     },
     {
       "id": "item-swh-1-4",
@@ -1037,7 +1077,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "hike"
+      "category": "hike",
+      "place_id": "place-swh-a-02"
     },
     {
       "id": "item-swh-1-5",
@@ -1051,7 +1092,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "sight"
+      "category": "sight",
+      "place_id": "place-swh-a-01"
     },
     {
       "id": "item-swh-1-6",
@@ -1065,7 +1107,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-swh-r-03"
     },
     {
       "id": "item-swh-1-7",
@@ -1079,7 +1122,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": "https://resy.com/cities/southwest-harbor-me/venues/little-fern",
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": "place-swh-r-01"
     },
     {
       "id": "item-swh-2-1",
@@ -1093,7 +1137,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "restaurant"
+      "category": "restaurant",
+      "place_id": null
     },
     {
       "id": "item-swh-2-2",
@@ -1107,7 +1152,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "lodging"
+      "category": "lodging",
+      "place_id": null
     },
     {
       "id": "item-swh-2-3",
@@ -1121,7 +1167,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "travel"
+      "category": "travel",
+      "place_id": null
     },
     {
       "id": "item-swh-2-4",
@@ -1135,7 +1182,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "travel"
+      "category": "travel",
+      "place_id": null
     },
     {
       "id": "item-swh-2-5",
@@ -1149,7 +1197,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "travel"
+      "category": "travel",
+      "place_id": null
     },
     {
       "id": "item-swh-2-6",
@@ -1163,7 +1212,8 @@
       "addr_label": null,
       "tide_url": null,
       "booking_url": null,
-      "category": "travel"
+      "category": "travel",
+      "place_id": null
     }
   ],
   "places": [
@@ -1185,7 +1235,10 @@
       "price": "$$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 774-8538",
+      "addr": "86 Middle St, Portland, ME 04101"
     },
     {
       "id": "place-portland-r-02",
@@ -1205,7 +1258,10 @@
       "price": "$$$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 805-0444",
+      "addr": "68 Commercial St, Portland, ME 04101"
     },
     {
       "id": "place-portland-r-03",
@@ -1225,7 +1281,10 @@
       "price": "$$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 772-8862",
+      "addr": "51 Wharf St, Portland, ME 04101"
     },
     {
       "id": "place-portland-r-04",
@@ -1245,7 +1304,10 @@
       "price": "$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 775-0900",
+      "addr": "60 Portland Pier, Portland, ME 04101"
     },
     {
       "id": "place-portland-r-05",
@@ -1265,7 +1327,10 @@
       "price": "$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 899-0088",
+      "addr": "742 Congress St, Portland, ME 04102"
     },
     {
       "id": "place-portland-r-06",
@@ -1285,7 +1350,10 @@
       "price": "$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 874-7774",
+      "addr": "194 Park Ave, Portland, ME 04102"
     },
     {
       "id": "place-portland-r-07",
@@ -1305,7 +1373,10 @@
       "price": "$$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 536-0669",
+      "addr": "519 Congress St, Portland, ME 04101"
     },
     {
       "id": "place-portland-r-08",
@@ -1325,7 +1396,10 @@
       "price": "$$$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 361-1000",
+      "addr": "Shore Rd, Cape Neddick, ME 03902"
     },
     {
       "id": "place-portland-r-09",
@@ -1345,7 +1419,10 @@
       "price": "$$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 775-0887",
+      "addr": "33 Wharf St, Portland, ME 04101"
     },
     {
       "id": "place-portland-r-10",
@@ -1365,7 +1442,10 @@
       "price": "$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 773-7070",
+      "addr": "390 Commercial St, Portland, ME 04101"
     },
     {
       "id": "place-portland-r-11",
@@ -1385,7 +1465,10 @@
       "price": "$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 899-4788",
+      "addr": "185 Middle St, Portland, ME 04101"
     },
     {
       "id": "place-portland-r-12",
@@ -1405,7 +1488,10 @@
       "price": "$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": null,
+      "addr": "72 Commercial St, Portland, ME 04101"
     },
     {
       "id": "place-portland-r-13",
@@ -1425,7 +1511,10 @@
       "price": "$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 775-0251",
+      "addr": "9 Custom House Wharf, Portland, ME 04101"
     },
     {
       "id": "place-portland-a-01",
@@ -1445,7 +1534,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Portland_Head_Light_-_Cape_Elizabeth_-_Maine_-_USA.jpg/1280px-Portland_Head_Light_-_Cape_Elizabeth_-_Maine_-_USA.jpg",
+      "phone": null,
+      "addr": "1000 Shore Rd, Cape Elizabeth, ME 04107"
     },
     {
       "id": "place-portland-a-02",
@@ -1465,7 +1557,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": null,
+      "addr": "Exchange St, Portland, ME 04101"
     },
     {
       "id": "place-portland-a-03",
@@ -1485,7 +1580,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Spring_Point_Light-LOC.jpg/1280px-Spring_Point_Light-LOC.jpg",
+      "phone": null,
+      "addr": "1000 Fort Rd, South Portland, ME 04106"
     },
     {
       "id": "place-portland-a-04",
@@ -1505,7 +1603,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 774-7871",
+      "addr": "56 Commercial St, Portland, ME 04101"
     },
     {
       "id": "place-portland-a-05",
@@ -1525,7 +1626,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": null,
+      "addr": "Eastern Promenade, Portland, ME 04101"
     },
     {
       "id": "place-portland-a-06",
@@ -1545,7 +1649,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 772-7468",
+      "addr": "45 Custom House Wharf, Portland, ME 04101"
     },
     {
       "id": "place-portland-a-07",
@@ -1565,7 +1672,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": null,
+      "addr": "Kennebunkport, ME 04046"
     },
     {
       "id": "place-barharbor-r-01",
@@ -1585,7 +1695,10 @@
       "price": "$$$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 288-2822",
+      "addr": "318 Main St, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-r-02",
@@ -1605,7 +1718,10 @@
       "price": "$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": null,
+      "addr": "1 Cottage St, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-r-03",
@@ -1625,7 +1741,10 @@
       "price": "$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 288-4166",
+      "addr": "18 Cottage St, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-r-04",
@@ -1645,7 +1764,10 @@
       "price": "$$$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 288-3351",
+      "addr": "1 Newport Dr, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-r-05",
@@ -1665,7 +1787,10 @@
       "price": "$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": null,
+      "addr": null
     },
     {
       "id": "place-barharbor-r-06",
@@ -1685,7 +1810,10 @@
       "price": "$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 596-7007",
+      "addr": "3 Island Rd, South Thomaston, ME 04858"
     },
     {
       "id": "place-barharbor-r-07",
@@ -1705,7 +1833,10 @@
       "price": "$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 288-2002",
+      "addr": "231 Main St, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-r-08",
@@ -1725,7 +1856,10 @@
       "price": "$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 288-4429",
+      "addr": "222 Main St, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-r-09",
@@ -1745,7 +1879,10 @@
       "price": "$$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 276-5827",
+      "addr": "96 Harbour View Dr, Mount Desert, ME 04660"
     },
     {
       "id": "place-barharbor-r-10",
@@ -1765,7 +1902,10 @@
       "price": "$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 801-2591",
+      "addr": "49 Rodick St, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-r-11",
@@ -1785,7 +1925,10 @@
       "price": "$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 288-3281",
+      "addr": "66 Main St, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-r-12",
@@ -1805,7 +1948,10 @@
       "price": "$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": null,
+      "addr": "100 Eden St, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-a-01",
@@ -1827,7 +1973,24 @@
       "price": null,
       "difficulty": "strenuous",
       "duration": "2–3 hrs",
-      "distance": "1.6 miles"
+      "distance": "1.6 miles",
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Acadia_National_Park_Beach.jpg/1280px-Acadia_National_Park_Beach.jpg",
+      "phone": null,
+      "addr": "Sand Beach Parking Area, Park Loop Rd, Bar Harbor, ME 04609",
+      "lat": 44.3196,
+      "lon": -68.1827,
+      "elevation_gain": "520 ft",
+      "route_type": "loop",
+      "dogs_allowed": false,
+      "features": [
+        "ocean views",
+        "iron rungs",
+        "exposed ledges",
+        "scrambling"
+      ],
+      "photos": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/AcadiaNationalPark_06.JPG/1280px-AcadiaNationalPark_06.JPG"
+      ]
     },
     {
       "id": "place-barharbor-a-02",
@@ -1847,7 +2010,24 @@
       "price": null,
       "difficulty": "moderate",
       "duration": "2–3 hrs",
-      "distance": "4.4 miles"
+      "distance": "4.4 miles",
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Cadillac_Mountain_from_Champlain_Mountain_-_panoramio.jpg/1280px-Cadillac_Mountain_from_Champlain_Mountain_-_panoramio.jpg",
+      "phone": null,
+      "addr": "Cadillac Mountain Summit Rd, Bar Harbor, ME 04609",
+      "lat": 44.3512,
+      "lon": -68.2234,
+      "elevation_gain": "1,194 ft",
+      "route_type": "out-and-back",
+      "dogs_allowed": true,
+      "features": [
+        "summit",
+        "panoramic views",
+        "sunrise",
+        "alpine"
+      ],
+      "photos": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/AcadiaNationalPark_06.JPG/1280px-AcadiaNationalPark_06.JPG"
+      ]
     },
     {
       "id": "place-barharbor-a-03",
@@ -1867,7 +2047,25 @@
       "price": null,
       "difficulty": "easy",
       "duration": "1.5–2 hrs",
-      "distance": "3.5 miles"
+      "distance": "3.5 miles",
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Acadia_National_Park_02.JPG/1280px-Acadia_National_Park_02.JPG",
+      "phone": "(207) 276-3316",
+      "addr": "2928 Park Loop Rd, Seal Harbor, ME 04675",
+      "lat": 44.3202,
+      "lon": -68.2584,
+      "elevation_gain": "165 ft",
+      "route_type": "loop",
+      "dogs_allowed": true,
+      "features": [
+        "lake",
+        "mountain views",
+        "wildlife",
+        "carriage roads"
+      ],
+      "photos": [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Jordan_Pond,_Acadia_National_Park.JPG/1280px-Jordan_Pond,_Acadia_National_Park.JPG",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/A311,_Jordan_Pond,_Acadia_National_Park,_Maine,_USA,_2009.JPG/1280px-A311,_Jordan_Pond,_Acadia_National_Park,_Maine,_USA,_2009.JPG"
+      ]
     },
     {
       "id": "place-barharbor-a-04",
@@ -1887,7 +2085,22 @@
       "price": null,
       "difficulty": "easy",
       "duration": "45 min",
-      "distance": "1.3 miles"
+      "distance": "1.3 miles",
+      "photo_url": null,
+      "phone": null,
+      "addr": "Ship Harbor Trailhead, ME-102A, Tremont, ME 04612",
+      "lat": 44.2355,
+      "lon": -68.3294,
+      "elevation_gain": "50 ft",
+      "route_type": "loop",
+      "dogs_allowed": true,
+      "features": [
+        "coastal",
+        "tidal pools",
+        "spruce forest",
+        "rocky shore"
+      ],
+      "photos": null
     },
     {
       "id": "place-barharbor-a-05",
@@ -1907,7 +2120,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": null,
+      "addr": "Bar Harbor Town Pier, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-a-06",
@@ -1927,7 +2143,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": null,
+      "addr": "Park Loop Rd, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-a-07",
@@ -1947,7 +2166,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": null,
+      "addr": "Bridge St, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-a-08",
@@ -1967,7 +2189,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Acadia_National_Park_Beach.jpg/1280px-Acadia_National_Park_Beach.jpg",
+      "phone": null,
+      "addr": "Sand Beach Parking Area, Park Loop Rd, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-a-09",
@@ -1987,7 +2212,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": null,
+      "addr": "1 Main St, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-a-10",
@@ -2007,7 +2235,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/BlackDike_SchoodicHeadME.jpg/1280px-BlackDike_SchoodicHeadME.jpg",
+      "phone": null,
+      "addr": "Schoodic Dr, Winter Harbor, ME 04693"
     },
     {
       "id": "place-barharbor-a-11",
@@ -2027,7 +2258,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 276-3727",
+      "addr": "3 Thuya Dr, Northeast Harbor, ME 04662"
     },
     {
       "id": "place-barharbor-a-12",
@@ -2047,7 +2281,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 288-3161",
+      "addr": "56 Main St, Bar Harbor, ME 04609"
     },
     {
       "id": "place-barharbor-a-13",
@@ -2067,7 +2304,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": null,
+      "addr": "43 Cottage St, Bar Harbor, ME 04609"
     },
     {
       "id": "place-swh-r-01",
@@ -2087,7 +2327,10 @@
       "price": "$$$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 244-5036",
+      "addr": "22 Claremont Rd, Southwest Harbor, ME 04679"
     },
     {
       "id": "place-swh-r-02",
@@ -2107,7 +2350,10 @@
       "price": "$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": null,
+      "addr": "26 Clark Point Rd, Southwest Harbor, ME 04679"
     },
     {
       "id": "place-swh-r-03",
@@ -2127,7 +2373,10 @@
       "price": "$$",
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 244-5036",
+      "addr": "22 Claremont Rd, Southwest Harbor, ME 04679"
     },
     {
       "id": "place-swh-a-01",
@@ -2147,7 +2396,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Bass_Harbor_Head_Light_Station_2016.jpg/1280px-Bass_Harbor_Head_Light_Station_2016.jpg",
+      "phone": null,
+      "addr": "Lighthouse Rd, Tremont, ME 04653"
     },
     {
       "id": "place-swh-a-02",
@@ -2167,7 +2419,22 @@
       "price": null,
       "difficulty": "moderate",
       "duration": "1.5–2 hrs",
-      "distance": "2.5 miles RT"
+      "distance": "2.5 miles RT",
+      "photo_url": null,
+      "phone": null,
+      "addr": "Acadia Mountain Trailhead, ME-102, Southwest Harbor, ME 04679",
+      "lat": 44.301,
+      "lon": -68.3444,
+      "elevation_gain": "490 ft",
+      "route_type": "out-and-back",
+      "dogs_allowed": true,
+      "features": [
+        "summit",
+        "fjord views",
+        "Somes Sound",
+        "forest"
+      ],
+      "photos": null
     },
     {
       "id": "place-swh-a-03",
@@ -2187,7 +2454,22 @@
       "price": null,
       "difficulty": "moderate",
       "duration": "1.5–2 hrs",
-      "distance": "2.7 miles"
+      "distance": "2.7 miles",
+      "photo_url": null,
+      "phone": null,
+      "addr": "Beech Hill Rd, Southwest Harbor, ME 04679",
+      "lat": 44.3087,
+      "lon": -68.3406,
+      "elevation_gain": "620 ft",
+      "route_type": "loop",
+      "dogs_allowed": true,
+      "features": [
+        "fire tower",
+        "360° views",
+        "Echo Lake",
+        "forest"
+      ],
+      "photos": null
     },
     {
       "id": "place-swh-a-04",
@@ -2207,7 +2489,10 @@
       "price": null,
       "difficulty": null,
       "duration": null,
-      "distance": null
+      "distance": null,
+      "photo_url": null,
+      "phone": "(207) 244-5036",
+      "addr": "22 Claremont Rd, Southwest Harbor, ME 04679"
     }
   ],
   "alerts": [
