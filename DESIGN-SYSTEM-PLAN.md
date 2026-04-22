@@ -209,6 +209,36 @@ Disabled for locked/confirmed items.
 
 ---
 
+## Screen Layout — Safe Area Rule
+
+Every screen in the app must respect the iOS notch / Dynamic Island. The content of a screen begins directly below the status bar — the same vertical position as the compacted trip date that sits above the title in the Jernie tab.
+
+**Rule:** Any screen that owns a sticky header must include a safe-area spacer as its first child:
+```tsx
+<div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+```
+
+This spacer sits inside the header's background div so the background color fills the notch area seamlessly. Never add `padding-top: env(safe-area-inset-top)` to the scrollable content area — only to the fixed/sticky header.
+
+**Reference implementations:**
+- `src/components/StickyHeader.tsx:90` — original pattern (Jernie tab)
+- `src/features/explore/ExploreScreen.tsx` — same pattern applied to Explore sticky header
+
+**On Expo migration:** replace with `useSafeAreaInsets().top` from `react-native-safe-area-context`, applied as `paddingTop` on the header View.
+
+### EntityDetailSheet top boundary — `data-sticky-nav`
+
+`EntityDetailSheet` (the full-height vaul drawer) measures `[data-sticky-nav].getBoundingClientRect().bottom` to set its `top` position — this ensures the sheet never covers the nav header. **Every screen that can open an EntityDetailSheet must add `data-sticky-nav` to its sticky header element.**
+
+- Jernie tab: `StickyHeader.tsx` outermost div (line 67)
+- Explore tab: `ExploreScreen.tsx` sticky header div
+
+Fallback: if no `[data-sticky-nav]` is found, EntityDetailSheet falls back to `--sat` (`env(safe-area-inset-top)`) defined in `index.css :root`, so it never goes behind the notch even on screens without a nav bar.
+
+`AddToItinerarySheet` (smaller BottomSheet-based panel) slides from the bottom and is **not** affected by `data-sticky-nav`.
+
+---
+
 ## Component Inventory
 
 | Component | File | Animation |

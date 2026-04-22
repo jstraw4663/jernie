@@ -4,6 +4,7 @@
 }
 
 :root {
+  --sat: env(safe-area-inset-top, 0px);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -41,4 +42,24 @@ a {
 
 h1, h2, h3, h4 {
   margin: 0;
+}
+
+.bottom-bar-shell {
+  flex-shrink: 0;
+}
+
+@media (display-mode: standalone) {
+  .bottom-bar-shell {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* vaul sheet animation speed — default 0.5s, slowed for a more deliberate feel.
+   !important required because vaul injects its CSS at runtime after this stylesheet. */
+[data-vaul-drawer] {
+  animation-duration: 0.75s !important;
+  transition-duration: 0.75s !important;
+}
+[data-vaul-overlay] {
+  animation-duration: 0.75s !important;
 }

@@ -157,6 +157,9 @@ export const Animation = {
     // Slow, deliberate spring — matches BottomSheet entrance (~380ms feel).
     // Use for DayCard content expand and other layout shifts that need breathing room.
     lazy:      { stiffness: 160, damping: 24 },
+    // Card-to-fullscreen expand — used by EntityDetailSheet origin-rect animation.
+    // Snappy enough to feel responsive, damped enough not to overshoot on small rects.
+    cardExpand: { stiffness: 340, damping: 30 },
   },
   // Framer Motion easing arrays — same curves as Animation.easing but as number tuples.
   // Required because FM's Easing type rejects CSS cubic-bezier() strings.

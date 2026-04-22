@@ -1,7 +1,7 @@
 # Jernie — Dev Context
 
 > Operational hub. Detailed context lives in supporting docs — load them only when the task requires.
-> Last updated: April 13, 2026 — v0.4.0
+> Last updated: April 22, 2026 — v0.5.0
 
 ---
 
@@ -17,12 +17,12 @@ Don't be a cheerleader. Help him move. When planning is done, push toward execut
 
 **Jernie** — personal travel guide PWA. POC: Maine Coast trip, May 22–29, 2026.
 Main component: `src/Jernie-PWA.tsx` (exported as `MaineGuide` via `src/App.tsx`).
-Firebase Realtime DB for shared state. `public/trip.json` for static content. Netlify deploy.
+Firebase Realtime DB for shared state. Firestore for enrichment cache. `public/trip.json` for static content. Netlify deploy.
 
 ## Stack
 
-Vite 5 + React 19 + TypeScript · Framer Motion · @dnd-kit · Firebase · vite-plugin-pwa (Workbox)
-APIs: Open-Meteo (weather, 3hr cache) · Anthropic + web_search (flight status, 48hr guard)
+Vite 5 + React 19 + TypeScript · Framer Motion · @dnd-kit · Firebase (RTDB + Firestore) · vite-plugin-pwa (Workbox)
+APIs: Open-Meteo (weather, 3hr cache) · Anthropic + web_search (flight status, 48hr guard) · Google Places (enrichment, 24hr Firestore cache)
 
 ---
 
@@ -33,18 +33,34 @@ APIs: Open-Meteo (weather, 3hr cache) · Anthropic + web_search (flight status, 
 | `src/Jernie-PWA.tsx` | Main component — section layout, data loading, stop nav |
 | `src/App.tsx` | Entry point |
 | `src/design/tokens.ts` | Design token source of truth — colors, spacing, animation |
-| `src/types.ts` | All TypeScript interfaces (Trip, Stop, Place, Booking, etc.) |
+| `src/types.ts` | All TypeScript interfaces (Trip, Stop, Place, Booking, PlaceEnrichment, TrailEnrichment, etc.) |
 | `src/domain/trip.ts` | Pure domain helpers — weather, flights, places, stops, URLs |
-| `src/hooks/useSharedTripState.ts` | Firebase sync + offline write queue (critical — read before editing) |
+| `src/domain/airports.ts` | Airport code → name/city mapping |
+| `src/domain/geo.ts` | Haversine distance helpers |
+| `src/domain/hike.ts` | Hike difficulty/stat formatting helpers |
+| `src/hooks/useSharedTripState.ts` | Firebase RTDB sync + offline write queue (critical — read before editing) |
 | `src/hooks/useTripData.ts` | Lightweight trip data access |
-| `src/lib/firebase.ts` | Firebase initialization |
+| `src/hooks/useFirestoreEnrichment.ts` | Generic Firestore TTL-cache hook (backing place + trail enrichment) |
+| `src/hooks/usePlaceEnrichment.ts` | Google Places enrichment per stop (ratings, photos, hours, reviews) |
+| `src/hooks/useTrailEnrichment.ts` | Trail enrichment per stop (elevation, route type, dogs, features) |
+| `src/hooks/useBookingEnrichment.ts` | User-editable booking fields from RTDB (check-in/out, room type, car type) |
+| `src/lib/firebase.ts` | Firebase init — RTDB, Firestore, App Check, `authReady` promise |
 | `src/contexts/SheetContext.tsx` | Tracks open sheet count; StopNavigator consults before drag |
-| `src/components/EditableItinerary.tsx` | Itinerary — drag-reorder, edit mode, custom items (919 lines — hotspot) |
+| `src/features/entityDetail/` | Full-height detail sheets — place, hike, hotel, flight, booking, rental car |
+| `src/features/entityDetail/EntityDetailSheet.tsx` | Vaul sheet wrapper — z-index 300, anchors below sticky nav |
+| `src/features/entityDetail/builders/` | One builder per entity type (buildPlaceDetailConfig, buildHikeDetailConfig, etc.) |
+| `src/features/explore/ExploreScreen.tsx` | Explore tab — carousels, search, filter, sort across all places |
+| `src/platform/` | Provider abstraction layer (Google Places, AllTrails) |
+| `src/components/EditableItinerary.tsx` | Itinerary — drag-reorder, edit mode, custom items (hotspot) |
 | `src/components/TimelineItem.tsx` | Timeline cards — animation state, category chips, confirm logic (hotspot) |
-| `src/components/TravelSection.tsx` | Bookings + hotel + flight rows (446 lines — hotspot) |
+| `src/components/TravelSection.tsx` | Bookings + hotel + flight rows (hotspot) |
 | `src/components/BottomSheet.tsx` | Swipe-dismiss sheet — reference impl for mountFrames pattern |
 | `src/components/ScrollReveal.tsx` | Standard scroll-triggered entrance — wrap all below-fold cards |
 | `netlify/functions/flight-status.js` | Anthropic API serverless function for flight status |
+| `netlify/functions/place-details.js` | Google Places API proxy — requires `GOOGLE_PLACES_API_KEY` in Netlify dashboard |
+| `netlify/functions/trail-details.js` | Static trail metadata for 6 Maine trails (Phase 1; no API key) |
+| `firestore.rules` | Firestore security rules — deploy via `firebase deploy --only firestore:rules` |
+| `database.rules.json` | RTDB security rules — deploy via `firebase deploy --only database` |
 | `public/trip.json` | Trip content — must stay git-tracked; see content rules in DEPLOYMENT.md |
 | `CLAUDE.md` | This file |
 
@@ -85,6 +101,8 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 - **Token-driven:** all colors, spacing, animation via `src/design/tokens.ts` — no hardcoded hex
 - **Scroll-reveal:** every discrete card or list item below the fold must be wrapped in `<ScrollReveal>` — this is a design language rule, not optional polish
 - **mountFrames:** any component that mounts then animates in must chain `Animation.mountFrames` RAF calls before setting visible state — see `BottomSheet.tsx` for the pattern
+- **Safe-area top:** every screen's sticky header must start with `<div style={{ height: 'env(safe-area-inset-top, 0px)' }} />` as its first child — content begins below the notch, same visual position as the compact date above the Jernie tab title. See `StickyHeader.tsx:90` and `ExploreScreen.tsx` for the pattern.
+- **authReady:** all Firestore operations must await `authReady` from `src/lib/firebase.ts` before making any calls — prevents permission errors on first load before anonymous auth token propagates.
 - **No tech debt:** name shortcuts before taking them; present tradeoffs on ambiguous decisions
 - **Build for Phase 2:** every decision assumes Expo migration; avoid PWA-only patterns
 
@@ -92,7 +110,7 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 
 ## Current Status & Known Issues
 
-- **v0.3.0 shipped:** live PWA, all core features QA'd; current work is uncommitted refactoring
+- **v0.5.0 shipped:** Explore screen, EntityDetail system, enrichment pipeline, security hardening, PIN persistence fix
 - **V1-Maine target:** May 15, 2026
 - **Bug 1 (deferred):** colored bar visible at bottom of all screens on iOS (viewport-fit=cover)
 - **No offline state indicator:** silent failure when refresh attempted without network
@@ -107,5 +125,6 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 | `ARCHITECTURE.md` | Adding major feature, refactoring state/API, mapping repo, choosing between design approaches, planning Expo migration |
 | `DESIGN-SYSTEM-PLAN.md` | Building or modifying a component, animation patterns, scroll-reveal rules, token usage |
 | `TESTING-NOTES.md` | Adding a test, understanding test philosophy, pre-deploy test run, identifying coverage gaps |
-| `product.md` | Roadmap decisions, Phase 2 scope, product guardrails, v0.3.0 feature history, market context |
+| `product.md` | Roadmap decisions, Phase 2 scope, product guardrails, feature history, market context |
 | `DEPLOYMENT.md` | Deploying to production, pre-deploy checklist, Netlify config, env vars, branch/release process |
+| `SECURITY.md` | Debugging auth/permission errors, adding Firebase collections or Netlify functions, reviewing security model, planning Phase 2 auth migration |

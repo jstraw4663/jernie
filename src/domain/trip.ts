@@ -2,7 +2,7 @@
 // Pure, side-effect-free helpers for trip domain logic.
 // No React imports. All functions are unit-testable in isolation.
 
-import type { Booking, Place, Stop } from '../types';
+import type { Booking, CustomItem, ItineraryItem, Place, Stop } from '../types';
 
 // ── Weather types ─────────────────────────────────────────────
 
@@ -46,6 +46,21 @@ export function getActiveStop(stops: Stop[], activeId: string): Stop | undefined
 
 // ── Places ────────────────────────────────────────────────────
 
+/**
+ * Resolve the linked Place for an itinerary item.
+ * ItineraryItem links via place_id; CustomItem links via source_place_id.
+ * Returns null when no link is set or the place is not found.
+ */
+export function findPlaceForItem(
+  item: ItineraryItem | CustomItem,
+  places: Place[],
+): Place | null {
+  const placeId = 'source_place_id' in item
+    ? item.source_place_id
+    : (item.place_id ?? null);
+  return placeId ? (places.find(p => p.id === placeId) ?? null) : null;
+}
+
 /** Filter trip places to only those belonging to a given stop. */
 export function filterStopPlaces(places: Place[], stopId: string): Place[] {
   return places.filter(p => p.stop_id === stopId);
@@ -69,6 +84,7 @@ export interface FlightStatus {
   actualArr?: string;
   gate?: string;
   terminal?: string;
+  aircraftType?: string; // e.g. "Boeing 737-800" — as reported by FlightAware
 }
 
 // ── Flights ───────────────────────────────────────────────────
@@ -112,6 +128,24 @@ export function deriveFlightGroups(bookings: Booking[]): Record<string, FlightGr
       });
     });
   return groups;
+}
+
+// ── Booking helpers ───────────────────────────────────────────
+
+const RENTAL_CAR_KEYWORDS = [
+  'rental', 'rent a car', 'avis', 'hertz', 'enterprise',
+  'national', 'budget', 'alamo', 'sixt', 'dollar', 'thrifty',
+];
+
+/**
+ * Returns true when a transportation booking is a rental car.
+ * Detects by: explicit car_type field set, or recognisable brand/keyword in label.
+ */
+export function isRentalCar(booking: Booking): boolean {
+  if (booking.type !== 'transportation') return false;
+  if (booking.car_type != null) return true;
+  const label = booking.label.toLowerCase();
+  return RENTAL_CAR_KEYWORDS.some(k => label.includes(k));
 }
 
 /**

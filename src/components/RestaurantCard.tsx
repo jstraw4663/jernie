@@ -8,33 +8,18 @@
 //   All values from design tokens — no hardcoded hex.
 //   React Native migration: <View>/<Text>/<Pressable> with StyleSheet from same tokens.
 
-import type { Place } from '../types';
+import type { Place, PlaceEnrichment } from '../types';
 import { Badge } from './Badge';
+import { StarRating } from './StarRating';
 import { Colors, Shadow, Radius, Spacing, Typography } from '../design/tokens';
 
 interface RestaurantCardProps {
   place: Place;
   accent: string;
+  enrichment?: PlaceEnrichment;
+  isAdded?: boolean;
   onAddToItinerary?: (place: Place) => void;
-  onExpand?: (place: Place) => void; // future hook — not wired yet
-}
-
-function StarRating({ rating }: { rating: number }) {
-  const full = Math.floor(rating);
-  const half = rating - full >= 0.3;
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: `${Typography.size.xs - 1}px` }}>
-      {[1, 2, 3, 4, 5].map(i => (
-        <span
-          key={i}
-          style={{ color: i <= full ? '#F59E0B' : i === full + 1 && half ? '#F59E0B' : Colors.border, fontSize: `${Typography.size.xs}px` }}
-        >
-          {i <= full ? '★' : i === full + 1 && half ? '⯨' : '★'}
-        </span>
-      ))}
-      <span style={{ color: Colors.textMuted, marginLeft: 3, fontFamily: Typography.family }}>{rating}</span>
-    </span>
-  );
+  onExpand?: (place: Place, rect: DOMRect) => void;
 }
 
 function PriceBadge({ price }: { price: string }) {
@@ -50,9 +35,15 @@ function PriceBadge({ price }: { price: string }) {
   );
 }
 
-export function RestaurantCard({ place, accent, onAddToItinerary }: RestaurantCardProps) {
+export function RestaurantCard({ place, accent, enrichment, isAdded, onAddToItinerary, onExpand }: RestaurantCardProps) {
+  const displayRating = enrichment?.rating ?? place.rating;
+  const ratingCount = enrichment?.user_ratings_total ?? null;
+  const displayPrice = enrichment?.price_level ?? place.price;
+  const displayPhone = enrichment?.phone ?? place.phone ?? null;
+  const displayAddr = enrichment?.addr ?? place.addr ?? null;
   return (
     <div
+      onClick={onExpand ? (e) => onExpand(place, (e.currentTarget as HTMLElement).getBoundingClientRect()) : undefined}
       style={{
         background: Colors.surface,
         borderRadius: `${Radius.md}px`,
@@ -63,12 +54,13 @@ export function RestaurantCard({ place, accent, onAddToItinerary }: RestaurantCa
         alignItems: 'flex-start',
         boxShadow: place.must ? `0 2px 10px ${accent}12` : Shadow.cardResting,
         position: 'relative',
+        cursor: onExpand ? 'pointer' : 'default',
       }}
     >
       {onAddToItinerary && (
         <button
-          onClick={() => onAddToItinerary(place)}
-          title="Add to itinerary"
+          onClick={(e) => { e.stopPropagation(); onAddToItinerary(place); }}
+          title={isAdded ? 'Already in itinerary' : 'Add to itinerary'}
           style={{
             position: 'absolute',
             top: `${Spacing.sm}px`,
@@ -76,11 +68,11 @@ export function RestaurantCard({ place, accent, onAddToItinerary }: RestaurantCa
             width: 24,
             height: 24,
             borderRadius: `${Radius.full}px`,
-            background: accent,
+            background: isAdded ? Colors.gold : accent,
             color: '#fff',
             border: 'none',
             cursor: 'pointer',
-            fontSize: '1rem',
+            fontSize: isAdded ? '0.75rem' : '1rem',
             lineHeight: 1,
             display: 'flex',
             alignItems: 'center',
@@ -89,7 +81,7 @@ export function RestaurantCard({ place, accent, onAddToItinerary }: RestaurantCa
             zIndex: 1,
           }}
         >
-          +
+          {isAdded ? '✓' : '+'}
         </button>
       )}
 
@@ -104,20 +96,30 @@ export function RestaurantCard({ place, accent, onAddToItinerary }: RestaurantCa
         {/* Name row */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: `${Spacing.sm}px`, flexWrap: 'wrap', marginBottom: 3 }}>
           <span style={{ fontSize: '1.1rem', lineHeight: 1, flexShrink: 0 }}>{place.emoji}</span>
-          {place.url
-            ? <a href={place.url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.base - 1}px`, color: Colors.textPrimary, textDecoration: 'none', borderBottom: `1px dotted ${Colors.border}` }}>{place.name}</a>
-            : <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.base - 1}px` }}>{place.name}</span>
-          }
+          <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.base - 1}px` }}>{place.name}</span>
           <span style={{ fontSize: `${Typography.size.xs + 1}px`, color: Colors.textMuted, fontStyle: 'italic' }}>{place.subcategory.replace(/-/g, ' ')}</span>
           {place.attribution_handle === 'stacy' && <Badge variant="note" label="Stacy's Find" />}
           {place.flag && <Badge variant="alert" label={`⚠ ${place.flag}`} />}
         </div>
 
         {/* Rating + price row */}
-        {place.rating != null && (
+        {displayRating != null && (
           <div style={{ display: 'flex', alignItems: 'center', gap: `${Spacing.sm}px`, marginBottom: `${Spacing.xs}px`, flexWrap: 'wrap' }}>
-            <StarRating rating={place.rating} />
-            {place.price && <PriceBadge price={place.price} />}
+            <StarRating rating={displayRating} />
+            {ratingCount != null && (
+              <span style={{ color: Colors.textMuted, fontSize: `${Typography.size.xs}px` }}>
+                ({ratingCount.toLocaleString()})
+              </span>
+            )}
+            {displayPrice && <PriceBadge price={displayPrice} />}
+          </div>
+        )}
+
+        {/* Address + phone row — from enrichment when available */}
+        {(displayAddr || displayPhone) && (
+          <div style={{ color: Colors.textMuted, fontSize: `${Typography.size.xs + 1}px`, marginBottom: 3, display: 'flex', gap: `${Spacing.sm}px`, flexWrap: 'wrap' }}>
+            {displayAddr && <span>{displayAddr}</span>}
+            {displayPhone && <span>{displayPhone}</span>}
           </div>
         )}
 

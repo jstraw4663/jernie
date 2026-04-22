@@ -42,7 +42,7 @@ export function AddToItinerarySheet({
   const title = `Add to your Jernie`;
 
   return (
-    <BottomSheet isOpen={isOpen} onRequestClose={onClose} title={title}>
+    <BottomSheet isOpen={isOpen} onRequestClose={onClose} title={title} zIndex={302}>
       {/* Place context */}
       <div
         style={{

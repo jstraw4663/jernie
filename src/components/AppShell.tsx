@@ -23,7 +23,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import MaineGuide from '../Jernie-PWA';
-import { PinGate, SESSION_KEY } from './PinGate';
+import { ExploreScreen } from '../features/explore/ExploreScreen';
+import { PinGate } from './PinGate';
 import { BottomBar } from './BottomBar';
 import type { TabId, BottomBarTab } from './BottomBar';
 import {
@@ -99,7 +100,7 @@ const TABS: TabConfig[] = [
     id: 'explore',
     label: 'Explore',
     icon: IconSearch,
-    screen: () => <PlaceholderScreen label="Explore" Icon={IconSearch} />,
+    screen: ExploreScreen,
   },
   {
     id: 'profile',
@@ -133,12 +134,32 @@ const screenVariants = {
 };
 
 // ---------------------------------------------------------------------------
+// Unlock persistence — localStorage + 24h TTL.
+// sessionStorage is cleared when iOS kills the PWA WebView on background,
+// causing the PIN gate to re-show on every app switch. localStorage survives
+// page reloads; the 24h TTL ensures the gate re-shows after a full day.
+// ---------------------------------------------------------------------------
+const UNLOCK_KEY = 'maine2026_unlocked_v2';
+const UNLOCK_TTL_MS = 24 * 60 * 60 * 1000;
+
+function readUnlocked(): boolean {
+  try {
+    const raw = localStorage.getItem(UNLOCK_KEY);
+    if (!raw) return false;
+    const { v, ts } = JSON.parse(raw) as { v: string; ts: number };
+    return v === '1' && Date.now() - ts < UNLOCK_TTL_MS;
+  } catch { return false; }
+}
+
+function writeUnlocked(): void {
+  try { localStorage.setItem(UNLOCK_KEY, JSON.stringify({ v: '1', ts: Date.now() })); } catch {}
+}
+
+// ---------------------------------------------------------------------------
 // AppShell
 // ---------------------------------------------------------------------------
 export function AppShell() {
-  const [unlocked, setUnlocked] = useState(() => {
-    try { return sessionStorage.getItem(SESSION_KEY) === '1'; } catch { return false; }
-  });
+  const [unlocked, setUnlocked] = useState(readUnlocked);
   const [activeTab, setActiveTab] = useState<TabId>('jernie');
   const [direction, setDirection] = useState(0);
   const prevIndexRef = useRef(TAB_INDEX['jernie']);
@@ -159,7 +180,7 @@ export function AppShell() {
   };
 
   if (!unlocked) {
-    return <PinGate onUnlock={() => setUnlocked(true)} />;
+    return <PinGate onUnlock={() => { writeUnlocked(); setUnlocked(true); }} />;
   }
 
   const ActiveScreen = TABS.find(t => t.id === activeTab)!.screen;

@@ -1,20 +1,32 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useAddedPlaceIds } from "./hooks/useAddedPlaceIds";
 import { useTripData } from "./hooks/useTripData";
 import { useSharedTripState } from "./hooks/useSharedTripState";
 import { EditableItinerary } from "./components/EditableItinerary";
 import { AddToItinerarySheet } from "./components/AddToItinerarySheet";
 import { StickyHeader } from "./components/StickyHeader";
 import { StopNavigator } from "./components/StopNavigator";
-import type { Place, Stop } from "./types";
+import type { Booking, Place, Stop } from "./types";
 import { motion } from 'framer-motion';
 import { Animation } from "./design/tokens";
-import { deriveFlightGroups, isWithinFlightWindow } from "./domain/trip";
+import { deriveFlightGroups, isWithinFlightWindow, isRentalCar } from "./domain/trip";
 import type { FlightGroupEntry, FlightStatus, WeatherDaily } from "./domain/trip";
 import { CollapsibleSection } from "./components/CollapsibleSection";
 import { WeatherStrip } from "./components/WeatherStrip";
 import { PlaceList } from "./components/PlaceList";
 import { AlertBox, LegSummary, SecHead, TravelSection } from "./components/TravelSection";
 import { WhatToPack } from "./components/WhatToPack";
+import type { SelectedEntity } from "./features/entityDetail/detailTypes";
+import { EntityDetailSheet } from "./features/entityDetail/EntityDetailSheet";
+import { buildPlaceDetailConfig } from "./features/entityDetail/builders/buildPlaceDetailConfig";
+import { usePlaceEnrichment } from "./hooks/usePlaceEnrichment";
+import { useTrailEnrichment } from "./hooks/useTrailEnrichment";
+import { useBookingEnrichment } from "./hooks/useBookingEnrichment";
+import { buildHikeDetailConfig } from "./features/entityDetail/builders/buildHikeDetailConfig";
+import { buildFlightDetailConfig } from "./features/entityDetail/builders/buildFlightDetailConfig";
+import { buildBookingDetailConfig } from "./features/entityDetail/builders/buildBookingDetailConfig";
+import { buildHotelDetailConfig } from "./features/entityDetail/builders/buildHotelDetailConfig";
+import { buildRentalCarDetailConfig } from "./features/entityDetail/builders/buildRentalCarDetailConfig";
 
 const FLIGHT_STATUS_URL: string = import.meta.env.VITE_FLIGHT_STATUS_URL ?? "/.netlify/functions/flight-status";
 
@@ -188,15 +200,18 @@ export default function MaineGuide() {
   // Phase 2: replace with trip ID from router when multi-trip support is added.
   const tripId: string = import.meta.env.VITE_TRIP_ID ?? "maine-2026";
   const { confirms, packing, setConfirm, setPacking, resetPacking,
-          itineraryOrder, customItems, timeOverrides, reservationTimes, initializeOrder, setDayOrder, moveItem,
-          addCustomItem, deleteCustomItem, setTimeOverride, setReservationTime } = useSharedTripState(tripId);
+          itineraryOrder, customItems, timeOverrides, textOverrides, reservationTimes, initializeOrder, setDayOrder, moveItem,
+          addCustomItem, deleteCustomItem, setTimeOverride, setTextOverride, updateCustomItem,
+          setBookingField, bookingOverrides } = useSharedTripState(tripId);
+  const addedPlaceIds = useAddedPlaceIds(data, customItems);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const ACTIVE_STOP_KEY = "jernie_active_stop";
   const [active, setActive] = useState(() => {
-    try { return sessionStorage.getItem(ACTIVE_STOP_KEY) || "portland"; } catch { return "portland"; }
+    try { return localStorage.getItem(ACTIVE_STOP_KEY) || "portland"; } catch { return "portland"; }
   });
   const handleSetActive = (id: string) => {
-    try { sessionStorage.setItem(ACTIVE_STOP_KEY, id); } catch {}
+    try { localStorage.setItem(ACTIVE_STOP_KEY, id); } catch {}
     setActive(id);
   };
   const [weatherData, setWeatherData] = useState<Record<string, WeatherDaily>>({});
@@ -207,9 +222,96 @@ export default function MaineGuide() {
   const [eatOpen, setEatOpen] = useState(true);
   const [doOpen, setDoOpen] = useState(true);
   const [addPlaceContext, setAddPlaceContext] = useState<Place|null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
   // Memoized so useCountdown's [departure] dependency stays stable — prevents interval churn
   // Must be at top level (before early returns) to satisfy Rules of Hooks
   const departure = useMemo(() => data ? new Date(data.trip.departure) : null, [data?.trip?.departure]);
+
+  // Stable callback for hotel/rental car field mutations.
+  // For linked rental cars, resolves the primary booking ID so both the pickup and
+  // return cards always write to the same Firebase path.
+  const onBookingChange = useCallback(
+    (field: keyof Booking, value: string | null | boolean | Record<string, string | null>) => {
+      if (!selectedEntity || !data) return;
+      const tapped = data.bookings.find(b => b.id === selectedEntity.id);
+      const primaryId = tapped?.linked_booking_id ?? selectedEntity.id;
+      setBookingField(primaryId, field, value);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedEntity?.id, setBookingField, data],
+  );
+
+  const onLegAircraftChange = useCallback(
+    (bookingId: string, legKey: string, value: string | null) => {
+      const current = (bookingOverrides[bookingId]?.aircraft_types ?? {}) as Record<string, string | null>;
+      setBookingField(bookingId, 'aircraft_types', { ...current, [legKey]: value });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [setBookingField, bookingOverrides],
+  );
+
+  // Load Google Places enrichment for active stop — must be before early returns (Rules of Hooks).
+  // Safe to call with empty array when data isn't ready yet; effect won't fire.
+  const activeStopPlaces = data?.places.filter(p => p.stop_id === active) ?? [];
+  const enrichmentMap = usePlaceEnrichment(tripId, activeStopPlaces);
+  const trailEnrichmentMap = useTrailEnrichment(tripId, activeStopPlaces);
+
+  // Load enrichment for accommodation bookings at the active stop.
+  const activeStopAccommodations = data?.bookings.filter(
+    b => b.stop_id === active && b.type === 'accommodation'
+  ) ?? [];
+  const hotelEnrichmentMap = useBookingEnrichment(tripId, activeStopAccommodations);
+
+  // Derive DetailConfig for entity detail sheet. Must be before early returns (Rules of Hooks).
+  const detailConfig = useMemo(() => {
+    if (!selectedEntity || !data) return null;
+
+    if (selectedEntity.kind === 'place') {
+      const place = data.places.find(p => p.id === selectedEntity.id);
+      if (!place) return null;
+      const placeStop = data.stops.find(s => s.id === place.stop_id) ?? data.stops[0];
+      if (!placeStop) return null;
+      return place.category === 'hike'
+        ? buildHikeDetailConfig(place, placeStop, data.stops, trailEnrichmentMap[place.id], enrichmentMap[place.id])
+        : buildPlaceDetailConfig(place, placeStop, data.stops, enrichmentMap[place.id]);
+    }
+
+    const booking = data.bookings.find(b => b.id === selectedEntity.id);
+    if (!booking) return null;
+
+    // For linked rental cars: resolve which booking is primary (pickup) and which is
+    // return (secondary). Both cards open the same unified detail sheet; Firebase
+    // overrides are always keyed to the primary booking's ID.
+    let primaryBooking = booking;
+    let returnBooking: Booking | null = null;
+    if (isRentalCar(booking)) {
+      if (booking.linked_booking_id) {
+        // Tapped the return card — find and use the primary
+        const found = data.bookings.find(b => b.id === booking.linked_booking_id);
+        if (found) { primaryBooking = found; returnBooking = booking; }
+      } else {
+        // Tapped the pickup card — find the return card if one exists
+        returnBooking = data.bookings.find(b => b.linked_booking_id === booking.id) ?? null;
+      }
+    }
+
+    const bookingStop = data.stops.find(s => s.id === primaryBooking.stop_id) ?? data.stops[0];
+    if (!bookingStop) return null;
+
+    // Merge Firebase overrides onto the primary booking
+    const mergedBooking: Booking = { ...primaryBooking, ...(bookingOverrides[primaryBooking.id] ?? {}) } as Booking;
+
+    if (mergedBooking.type === 'flight') {
+      const primaryId = mergedBooking.id;
+      return buildFlightDetailConfig(
+        mergedBooking, bookingStop, flightStatus,
+        (legKey, value) => onLegAircraftChange(primaryId, legKey, value),
+      );
+    }
+    if (mergedBooking.type === 'accommodation') return buildHotelDetailConfig(mergedBooking, bookingStop, data.stops, onBookingChange, hotelEnrichmentMap[mergedBooking.id]);
+    if (isRentalCar(mergedBooking))             return buildRentalCarDetailConfig(mergedBooking, bookingStop, data.stops, onBookingChange, returnBooking);
+    return buildBookingDetailConfig(mergedBooking, bookingStop);
+  }, [selectedEntity, data, onBookingChange, onLegAircraftChange, bookingOverrides, hotelEnrichmentMap, flightStatus, enrichmentMap, trailEnrichmentMap]);
 
   // Load caches and kick off fetches once data is available
   useEffect(() => {
@@ -300,6 +402,15 @@ export default function MaineGuide() {
   const activities = stopPlaces.filter(p => p.category !== "restaurant");
   const hasFlights = stopBookings.some(b => b.type === "flight");
 
+  // Plain functions — not hooks, so safe after early returns. stop.accent is stable per stop.
+  const handlePlaceExpand = (place: Place, rect: DOMRect) => {
+    setSelectedEntity({ kind: 'place', id: place.id, originRect: rect, accent: stop.accent });
+  };
+
+  const handleBookingExpand = (booking: Booking, rect: DOMRect) => {
+    setSelectedEntity({ kind: 'booking', id: booking.id, originRect: rect, accent: stop.accent });
+  };
+
   return (
     <>
     <div
@@ -363,6 +474,8 @@ export default function MaineGuide() {
               flightStatus={flightStatus}
               flightLoading={flightLoading}
               lastUpdated={lastUpdated}
+              onBookingExpand={handleBookingExpand}
+              hotelEnrichmentMap={hotelEnrichmentMap}
             />
           </CollapsibleSection>
         </motion.div>
@@ -385,12 +498,16 @@ export default function MaineGuide() {
             stop={stop} data={data}
             confirms={confirms} onConfirm={setConfirm}
             itineraryOrder={itineraryOrder} customItems={customItems}
-            timeOverrides={timeOverrides} reservationTimes={reservationTimes}
+            timeOverrides={timeOverrides} textOverrides={textOverrides}
+            reservationTimes={reservationTimes}
             setDayOrder={setDayOrder} moveItem={moveItem}
             addCustomItem={addCustomItem} deleteCustomItem={deleteCustomItem}
-            initializeOrder={initializeOrder} setTimeOverride={setTimeOverride}
-            setReservationTime={setReservationTime}
+            initializeOrder={initializeOrder}
+            setTimeOverride={setTimeOverride} setTextOverride={setTextOverride}
+            updateCustomItem={updateCustomItem}
             scrollRef={scrollRef}
+            onExpandPlace={handlePlaceExpand}
+            onExpandBooking={handleBookingExpand}
           />
         </motion.div>
 
@@ -398,12 +515,12 @@ export default function MaineGuide() {
         <motion.div variants={contentSectionVariants}>
           {active==="barharbor" ? (
             <CollapsibleSection color={stop.accent} label="🍽️ Where to Eat" open={eatOpen} onToggle={()=>setEatOpen(v=>!v)}>
-              <PlaceList places={restaurants} accent={stop.accent} onAddToItinerary={p=>setAddPlaceContext(p)}/>
+              <PlaceList places={restaurants} accent={stop.accent} enrichmentMap={enrichmentMap} onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
             </CollapsibleSection>
           ) : (
             <div style={{marginBottom:"28px"}}>
               <SecHead label="🍽️ Where to Eat"/>
-              <PlaceList places={restaurants} accent={stop.accent} onAddToItinerary={p=>setAddPlaceContext(p)}/>
+              <PlaceList places={restaurants} accent={stop.accent} enrichmentMap={enrichmentMap} onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
             </div>
           )}
         </motion.div>
@@ -413,12 +530,12 @@ export default function MaineGuide() {
           <motion.div variants={contentSectionVariants}>
             {active==="barharbor" ? (
               <CollapsibleSection color={stop.accent} label="📍 What to Do" open={doOpen} onToggle={()=>setDoOpen(v=>!v)}>
-                <PlaceList places={activities} accent={stop.accent} isActivities onAddToItinerary={p=>setAddPlaceContext(p)}/>
+                <PlaceList places={activities} accent={stop.accent} enrichmentMap={enrichmentMap} trailEnrichmentMap={trailEnrichmentMap} isActivities onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
               </CollapsibleSection>
             ) : (
               <div style={{marginBottom:"28px"}}>
                 <SecHead label="📍 What to Do"/>
-                <PlaceList places={activities} accent={stop.accent} isActivities onAddToItinerary={p=>setAddPlaceContext(p)}/>
+                <PlaceList places={activities} accent={stop.accent} enrichmentMap={enrichmentMap} trailEnrichmentMap={trailEnrichmentMap} isActivities onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
               </div>
             )}
           </motion.div>
@@ -448,6 +565,22 @@ export default function MaineGuide() {
         addCustomItem(toDayId, "", place.name + (place.note ? " — " + place.note : ""), place.id);
       }}
     />
+
+    {/* Entity detail sheet — expands from tapped card origin rect to fullscreen */}
+    {detailConfig && selectedEntity && (
+      <EntityDetailSheet
+        isOpen={!!selectedEntity}
+        originRect={selectedEntity.originRect}
+        config={detailConfig}
+        onClose={() => setSelectedEntity(null)}
+        onAddToItinerary={(() => {
+          if (selectedEntity.kind !== 'place') return undefined;
+          const place = data.places.find(p => p.id === selectedEntity.id);
+          return place ? () => setAddPlaceContext(place) : undefined;
+        })()}
+        isAdded={selectedEntity.kind === 'place' && addedPlaceIds.has(selectedEntity.id)}
+      />
+    )}
     </>
   );
 }
