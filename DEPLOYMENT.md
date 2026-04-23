@@ -8,7 +8,7 @@
 ## Deployment Flow
 
 ```
-local build + test → user approval → push to dev → PR to main → Netlify auto-deploys
+local build + test → user approval → push to dev → PR to main → tag + release → Netlify auto-deploys
 ```
 
 1. Build and test locally: `npm run build` + `npm test`
@@ -16,9 +16,44 @@ local build + test → user approval → push to dev → PR to main → Netlify 
 3. **Get explicit approval from Jeremy before touching git push or GitHub**
 4. Push feature branch → PR to `dev` first
 5. After validation, PR `dev` → `main`
-6. Netlify detects the `main` push and auto-deploys — no manual trigger needed
+6. **Create an annotated git tag and GitHub release** (see below — required for every main merge)
+7. Netlify detects the `main` push and auto-deploys — no manual trigger needed
 
 **Never auto-deploy. Never push to main without explicit go-ahead.**
+
+---
+
+## Tagging & Releases — Required for Every Main Merge
+
+Every merge to `main` must have a matching git tag and GitHub release. This keeps the release history navigable and gives the team a stable reference for each deployed version.
+
+**Version bumping:**
+- `patch` (x.x.N) — bug fixes, copy changes, doc-only updates
+- `minor` (x.N.0) — new features, new screens, new integrations
+- `major` (N.0.0) — breaking changes, major architecture shifts (rare before Phase 2)
+
+**Steps after merging to main:**
+
+```bash
+# 1. Create an annotated tag pointing at the merge commit on main
+git tag -a vX.Y.Z <commit-sha> -m "vX.Y.Z — one-line summary"
+git push origin vX.Y.Z
+
+# 2. Create the GitHub release
+gh release create vX.Y.Z \
+  --title "vX.Y.Z — Short title" \
+  --latest \
+  --notes "..."
+```
+
+**Release notes must include:**
+- A section per feature area (what changed and why it matters to the user)
+- Any manual steps required (Firebase deploys, Netlify env vars, Google Cloud config)
+- Nothing that belongs in a commit message — focus on the product story, not the diff
+
+**What gets tagged:**
+- The tip of `main` after all PRs for the release are merged (including any hotfixes that are part of the same release)
+- Never tag a feature branch or dev — tags always point to main commits
 
 ---
 
