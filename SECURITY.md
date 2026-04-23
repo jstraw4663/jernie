@@ -170,7 +170,7 @@ Some keys must be in the client bundle by design:
 | Key | Env var | Why it's client-side | Protection |
 |-----|---------|---------------------|------------|
 | Firebase config | `VITE_FIREBASE_*` | Firebase Auth, RTDB, Firestore SDK | App Check + security rules |
-| Google Maps Embed | `VITE_GOOGLE_MAPS_KEY` | Maps Embed API requires browser key | HTTP referrer restricted in Google Cloud Console to production domain only |
+| Google Maps Embed | `VITE_GOOGLE_MAPS_KEY` | Maps Embed API requires browser key | HTTP referrer restricted in Google Cloud Console to `https://celebrated-sfogliatella-d458c4.netlify.app/*` |
 | reCAPTCHA site key | `VITE_RECAPTCHA_SITE_KEY` | reCAPTCHA v3 requires public site key | By design — site keys are public |
 
 Keys that must **never** be in the client bundle: `GOOGLE_PLACES_API_KEY`, `ANTHROPIC_API_KEY`, `VITE_APPCHECK_DEBUG_TOKEN`.
@@ -256,6 +256,7 @@ Changes made during initial security hardening pass:
 | 11 | Added security headers to Netlify | `netlify.toml` | Low |
 | 12 | Verified `VITE_GOOGLE_MAPS_KEY` is HTTP-referrer restricted | Google Cloud Console | Medium |
 | 13 | Added dev IP to Maps key allowed referrers | Google Cloud Console | Ops |
+| 14 | Added `https://celebrated-sfogliatella-d458c4.netlify.app/*` to Maps key referrers | Google Cloud Console | High — production domain was never in allowlist |
 
 Open issues:
 - **Separate Firebase project for dev** — deferred; shared project is acceptable for Phase 1 Maine trip
