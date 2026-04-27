@@ -6,14 +6,14 @@
 // Native input trigger pattern: invisible <input type="date|time"> revealed via ref.showPicker().
 // readOnly mode: all pickers are hidden; values are rendered as plain text pills.
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Colors, Spacing, Radius, Shadow, Typography } from '../../../design/tokens';
 
 export interface DateTimeRangeModuleProps {
   startLabel: string;              // e.g. "Check-in", "Pickup"
   endLabel: string;                // e.g. "Check-out", "Return"
-  startIcon: string;               // emoji or text icon
-  endIcon: string;
+  startIcon: ReactNode;
+  endIcon: ReactNode;
   startDate: string | null;
   startTime: string | null;
   endDate: string | null;
@@ -143,7 +143,7 @@ function Pill({ value, placeholder, type, isoValue, onChange, readOnly, displayT
 // ── Row component ───────────────────────────────────────────────────────────
 
 interface RowProps {
-  icon: string;
+  icon: ReactNode;
   label: string;
   date: string | null;
   time: string | null;
@@ -163,7 +163,7 @@ function DateTimeRow({ icon, label, date, time, onDateChange, onTimeChange, read
       }}
     >
       {/* Icon + label */}
-      <span style={{ fontSize: `${Typography.size.base}px`, flexShrink: 0 }}>{icon}</span>
+      <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>{icon}</span>
       <span
         style={{
           fontFamily: Typography.family,

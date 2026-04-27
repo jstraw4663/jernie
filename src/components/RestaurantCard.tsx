@@ -10,14 +10,17 @@
 
 import type { Place, PlaceEnrichment } from '../types';
 import { Badge } from './Badge';
+import { PlaceIcon } from './PlaceIcon';
 import { StarRating } from './StarRating';
 import { Colors, Shadow, Radius, Spacing, Typography } from '../design/tokens';
+import { ItineraryBadge } from './ItineraryBadge';
 
 interface RestaurantCardProps {
   place: Place;
   accent: string;
   enrichment?: PlaceEnrichment;
   isAdded?: boolean;
+  hideNote?: boolean;
   onAddToItinerary?: (place: Place) => void;
   onExpand?: (place: Place, rect: DOMRect) => void;
 }
@@ -35,7 +38,7 @@ function PriceBadge({ price }: { price: string }) {
   );
 }
 
-export function RestaurantCard({ place, accent, enrichment, isAdded, onAddToItinerary, onExpand }: RestaurantCardProps) {
+export function RestaurantCard({ place, accent, enrichment, isAdded, hideNote, onAddToItinerary, onExpand }: RestaurantCardProps) {
   const displayRating = enrichment?.rating ?? place.rating;
   const ratingCount = enrichment?.user_ratings_total ?? null;
   const displayPrice = enrichment?.price_level ?? place.price;
@@ -58,31 +61,7 @@ export function RestaurantCard({ place, accent, enrichment, isAdded, onAddToItin
       }}
     >
       {onAddToItinerary && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onAddToItinerary(place); }}
-          title={isAdded ? 'Already in itinerary' : 'Add to itinerary'}
-          style={{
-            position: 'absolute',
-            top: `${Spacing.sm}px`,
-            right: `${Spacing.sm}px`,
-            width: 24,
-            height: 24,
-            borderRadius: `${Radius.full}px`,
-            background: isAdded ? Colors.gold : accent,
-            color: '#fff',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: isAdded ? '0.75rem' : '1rem',
-            lineHeight: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-            zIndex: 1,
-          }}
-        >
-          {isAdded ? '✓' : '+'}
-        </button>
+        <ItineraryBadge place={place} isAdded={isAdded} accent={accent} onAdd={onAddToItinerary} />
       )}
 
       {/* Left column: Must badge or spacer */}
@@ -95,7 +74,7 @@ export function RestaurantCard({ place, accent, enrichment, isAdded, onAddToItin
       <div style={{ flex: 1 }}>
         {/* Name row */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: `${Spacing.sm}px`, flexWrap: 'wrap', marginBottom: 3 }}>
-          <span style={{ fontSize: '1.1rem', lineHeight: 1, flexShrink: 0 }}>{place.emoji}</span>
+          <PlaceIcon emoji={place.emoji} size={18} />
           <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.base - 1}px` }}>{place.name}</span>
           <span style={{ fontSize: `${Typography.size.xs + 1}px`, color: Colors.textMuted, fontStyle: 'italic' }}>{place.subcategory.replace(/-/g, ' ')}</span>
           {place.attribution_handle === 'stacy' && <Badge variant="note" label="Stacy's Find" />}
@@ -124,7 +103,7 @@ export function RestaurantCard({ place, accent, enrichment, isAdded, onAddToItin
         )}
 
         {/* Note */}
-        {place.note && (
+        {!hideNote && place.note && (
           <div style={{ color: Colors.textSecondary, fontSize: `${Typography.size.sm}px`, lineHeight: Typography.lineHeight.normal, marginTop: 3 }}>
             {place.note}
           </div>

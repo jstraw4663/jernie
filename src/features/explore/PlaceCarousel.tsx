@@ -9,7 +9,9 @@ interface PlaceCarouselProps {
   places: Place[];
   stopMap: Record<string, Stop>;
   enrichmentMap: Record<string, PlaceEnrichment>;
+  addedPlaceIds?: Set<string>;
   onCardClick?: (place: Place, rect: DOMRect) => void;
+  onAddToItinerary?: (place: Place) => void;
 }
 
 function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
@@ -23,7 +25,7 @@ function ChevronIcon({ direction }: { direction: 'left' | 'right' }) {
   );
 }
 
-export function PlaceCarousel({ label, places, stopMap, enrichmentMap, onCardClick }: PlaceCarouselProps) {
+export function PlaceCarousel({ label, places, stopMap, enrichmentMap, addedPlaceIds, onCardClick, onAddToItinerary }: PlaceCarouselProps) {
   const { scrollRef, canScrollLeft, canScrollRight, scroll } = useScrollCarousel(places.length);
 
   if (places.length < 2) return null;
@@ -98,7 +100,9 @@ export function PlaceCarousel({ label, places, stopMap, enrichmentMap, onCardCli
                 stopName={stopMap[place.stop_id]?.city ?? ''}
                 accent={stopMap[place.stop_id]?.accent ?? Colors.navy}
                 enrichment={enrichmentMap[place.id]}
+                isAdded={addedPlaceIds?.has(place.id)}
                 onClick={onCardClick}
+                onAddToItinerary={onAddToItinerary}
               />
             </motion.div>
           ))}

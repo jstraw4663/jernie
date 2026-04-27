@@ -17,6 +17,11 @@ exports.handler = async (event) => {
     return { statusCode: 403, body: 'Forbidden' };
   }
 
+  const appSecret = process.env.APP_SECRET;
+  if (appSecret && (event.headers['x-app-token'] || '') !== appSecret) {
+    return { statusCode: 403, body: 'Forbidden' };
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return { statusCode: 500, body: JSON.stringify({ error: "API key not configured" }) };
@@ -26,6 +31,9 @@ exports.handler = async (event) => {
   const flights = body.flights;
   if (!flights || flights.length === 0) {
     return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) };
+  }
+  if (flights.length > 10) {
+    return { statusCode: 400, body: JSON.stringify({ error: "Max 10 flights per request" }) };
   }
 
   const resp = await fetch("https://api.anthropic.com/v1/messages", {

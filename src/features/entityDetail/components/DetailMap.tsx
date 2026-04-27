@@ -6,7 +6,8 @@
 //   addr only             → "View on Maps" deep-link fallback
 //   nothing               → DetailFallbackState
 
-import { Colors, Radius, Spacing } from '../../../design/tokens';
+import { Icons } from '../../../design/icons';
+import { Colors, IconColors, Radius, Spacing } from '../../../design/tokens';
 import { DetailFallbackState } from './DetailFallbackState';
 
 const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY as string;
@@ -70,7 +71,7 @@ export function DetailMap({ lat, lon, label, addr, trailEmbedUrl }: DetailMapPro
     }
     return (
       <DetailFallbackState
-        emoji="🗺️"
+        emoji={<Icons.Map size={28} weight="duotone" color={IconColors.travel} />}
         message="Precise coordinates not available for this item."
       />
     );

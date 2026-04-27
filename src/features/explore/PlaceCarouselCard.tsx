@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import type { Place, PlaceEnrichment } from '../../types';
 import { Colors, Radius, Spacing, Typography, Shadow, Animation } from '../../design/tokens';
+import { ItineraryBadge } from '../../components/ItineraryBadge';
 
 interface PlaceCarouselCardProps {
   place: Place;
   stopName: string;
   accent: string;
   enrichment?: PlaceEnrichment;
+  isAdded?: boolean;
   onClick?: (place: Place, rect: DOMRect) => void;
+  onAddToItinerary?: (place: Place) => void;
 }
 
-export function PlaceCarouselCard({ place, stopName, accent, enrichment, onClick }: PlaceCarouselCardProps) {
+export function PlaceCarouselCard({ place, stopName, accent, enrichment, isAdded, onClick, onAddToItinerary }: PlaceCarouselCardProps) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
 
@@ -99,6 +102,11 @@ export function PlaceCarouselCard({ place, stopName, accent, enrichment, onClick
           }}>
             Must
           </div>
+        )}
+
+        {/* Add-to-itinerary badge */}
+        {onAddToItinerary && (
+          <ItineraryBadge place={place} isAdded={isAdded} accent={accent} onAdd={onAddToItinerary} top={Spacing.xs} right={Spacing.xs} zIndex={2} />
         )}
       </div>
 

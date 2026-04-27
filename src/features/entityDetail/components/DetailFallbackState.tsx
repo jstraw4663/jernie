@@ -1,11 +1,12 @@
 // DetailFallbackState — shown inside a detail section when content is unavailable.
 // Used by DetailMap when coordinates are missing, and as a generic empty-state block.
 
+import type { ReactNode } from 'react';
 import { Colors, Spacing, Typography, Radius } from '../../../design/tokens';
 
 interface DetailFallbackStateProps {
   message: string;
-  emoji?: string;
+  emoji?: ReactNode;
 }
 
 export function DetailFallbackState({ message, emoji = '📭' }: DetailFallbackStateProps) {
@@ -23,7 +24,7 @@ export function DetailFallbackState({ message, emoji = '📭' }: DetailFallbackS
         border: `1px dashed ${Colors.border}`,
       }}
     >
-      <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{emoji}</span>
+      <span style={{ lineHeight: 1 }}>{emoji}</span>
       <span
         style={{
           fontFamily: Typography.family,

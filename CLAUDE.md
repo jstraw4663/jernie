@@ -1,7 +1,7 @@
 # Jernie — Dev Context
 
 > Operational hub. Detailed context lives in supporting docs — load them only when the task requires.
-> Last updated: April 22, 2026 — v0.5.0
+> Last updated: April 27, 2026 — v0.6.0
 
 ---
 
@@ -45,11 +45,17 @@ APIs: Open-Meteo (weather, 3hr cache) · Anthropic + web_search (flight status, 
 | `src/hooks/useTrailEnrichment.ts` | Trail enrichment per stop (elevation, route type, dogs, features) |
 | `src/hooks/useBookingEnrichment.ts` | User-editable booking fields from RTDB (check-in/out, room type, car type) |
 | `src/lib/firebase.ts` | Firebase init — RTDB, Firestore, App Check, `authReady` promise |
+| `src/navigation.ts` | Module-level one-shot Explore deep-link signal + `FilterId` / `ExploreDeepLink` types |
+| `src/contexts/NavigationContext.tsx` | `navigateToExplore(link)` context — AppShell provides, any screen consumes via `useNavigation()` |
 | `src/contexts/SheetContext.tsx` | Tracks open sheet count; StopNavigator consults before drag |
+| `src/components/ItineraryBadge.tsx` | Shared gold-checkmark / blue-plus badge — used by RestaurantCard, ActivityCard, PlaceCarouselCard |
 | `src/features/entityDetail/` | Full-height detail sheets — place, hike, hotel, flight, booking, rental car |
 | `src/features/entityDetail/EntityDetailSheet.tsx` | Vaul sheet wrapper — z-index 300, anchors below sticky nav |
 | `src/features/entityDetail/builders/` | One builder per entity type (buildPlaceDetailConfig, buildHikeDetailConfig, etc.) |
 | `src/features/explore/ExploreScreen.tsx` | Explore tab — carousels, search, filter, sort across all places |
+| `src/features/overview/OverviewScreen.tsx` | Overview tab — trip-wide management grouped by type (flights, stays, rental car, restaurants, activities) |
+| `src/features/overview/selectors.ts` | Pure grouping helpers — selectFlightBookings, groupAccommodationsByStop, selectRentalCars, etc. |
+| `src/features/overview/OverviewAnchorNav.tsx` | Sticky horizontal category jump row with IntersectionObserver scroll tracking |
 | `src/platform/` | Provider abstraction layer (Google Places, AllTrails) |
 | `src/components/EditableItinerary.tsx` | Itinerary — drag-reorder, edit mode, custom items (hotspot) |
 | `src/components/TimelineItem.tsx` | Timeline cards — animation state, category chips, confirm logic (hotspot) |
@@ -99,10 +105,13 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 
 - **Offline-first:** all UI works offline; live data (weather, flight) shows last-cached value + timestamp
 - **Token-driven:** all colors, spacing, animation via `src/design/tokens.ts` — no hardcoded hex
-- **Scroll-reveal:** every discrete card or list item below the fold must be wrapped in `<ScrollReveal>` — this is a design language rule, not optional polish
+- **Scroll-reveal:** every discrete card or list item below the fold must be wrapped in `<ScrollReveal>` — this is a design language rule, not optional polish. Screens with a custom `overflow:auto` scroll container (Overview, Explore, any non-window scroll) must pass `root={scrollRef}` and `margin="80px"` to `<ScrollReveal>` and `scrollRoot`/`revealMargin` to `<PlaceList>` — without `root`, the IO uses the browser viewport and fires on mount for all elements
 - **mountFrames:** any component that mounts then animates in must chain `Animation.mountFrames` RAF calls before setting visible state — see `BottomSheet.tsx` for the pattern
 - **Safe-area top:** every screen's sticky header must start with `<div style={{ height: 'env(safe-area-inset-top, 0px)' }} />` as its first child — content begins below the notch, same visual position as the compact date above the Jernie tab title. See `StickyHeader.tsx:90` and `ExploreScreen.tsx` for the pattern.
 - **authReady:** all Firestore operations must await `authReady` from `src/lib/firebase.ts` before making any calls — prevents permission errors on first load before anonymous auth token propagates.
+- **NavigationContext:** cross-tab navigation (e.g., Overview → Explore with filter) uses `useNavigation()` from `NavigationContext.tsx`; the one-shot payload travels via `navigation.ts` module state (safe because Explore remounts on tab switch via AnimatePresence key).
+- **ItineraryBadge:** use `<ItineraryBadge>` from `components/ItineraryBadge.tsx` for all add-to-itinerary / view-detail badges; never inline badge button logic in card components.
+- **ACTIVITY_CATEGORIES:** use the exported Set from `features/overview/selectors.ts` when filtering activities — never use `category !== 'restaurant'` (includes hotels).
 - **No tech debt:** name shortcuts before taking them; present tradeoffs on ambiguous decisions
 - **Build for Phase 2:** every decision assumes Expo migration; avoid PWA-only patterns
 
@@ -110,6 +119,7 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 
 ## Current Status & Known Issues
 
+- **v0.6.0 shipped:** Overview itinerary-only restaurant/activity filter; Overview → Explore deep-link navigation; Explore stop-filter pill row + carousel badge; Jernie tab 5-item cap + Explore More buttons; ItineraryBadge shared component; NavigationContext
 - **v0.5.0 shipped:** Explore screen, EntityDetail system, enrichment pipeline, security hardening, PIN persistence fix
 - **V1-Maine target:** May 15, 2026
 - **Bug 1 (deferred):** colored bar visible at bottom of all screens on iOS (viewport-fit=cover)

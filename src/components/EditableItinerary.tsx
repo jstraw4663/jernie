@@ -14,7 +14,7 @@ import {
   SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Stop, TripData, ItineraryItem, CustomItem, Place, Booking, PlaceCategory, ItineraryCategory } from "../types";
+import type { Stop, TripData, ItineraryItem, CustomItem, Place, Booking, PlaceCategory } from "../types";
 import { DayPickerModal } from "./DayPickerModal";
 import { BottomSheet } from "./BottomSheet";
 import { SelectableListItem } from "./SelectableListItem";
@@ -22,8 +22,9 @@ import { ActionBar } from "./ActionBar";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DayCard } from "./DayCard";
 import { ItineraryItem as ItineraryItemRow } from "./ItineraryItem";
+import { Icons, CATEGORY_ICON_MAP } from '../design/icons';
 import { Animation, Colors, Spacing, Typography } from "../design/tokens";
-import { TimelineItem, ITINERARY_CATEGORY_ICON } from "./TimelineItem";
+import { TimelineItem } from "./TimelineItem";
 import { ItineraryItemDetailSheet } from "./ItineraryItemDetailSheet";
 import { findPlaceForItem } from "../domain/trip";
 
@@ -38,15 +39,15 @@ interface AddFormState {
 
 const CATEGORY_OPTIONS: { value: PlaceCategory | ''; label: string }[] = [
   { value: '',           label: 'Type (optional)' },
-  { value: 'attraction', label: '🎭 Attraction' },
-  { value: 'bar',        label: '🍻 Bar' },
-  { value: 'beach',      label: '🏖 Beach' },
-  { value: 'hike',       label: '🥾 Hike' },
-  { value: 'museum',     label: '🏛 Museum' },
-  { value: 'restaurant', label: '🍽 Restaurant' },
-  { value: 'shop',       label: '🛍 Shop' },
-  { value: 'sight',      label: '👁 Sight' },
-  { value: 'other',      label: '✏ Other' },
+  { value: 'attraction', label: 'Attraction' },
+  { value: 'bar',        label: 'Bar' },
+  { value: 'beach',      label: 'Beach' },
+  { value: 'hike',       label: 'Hike' },
+  { value: 'museum',     label: 'Museum' },
+  { value: 'restaurant', label: 'Restaurant' },
+  { value: 'shop',       label: 'Shop' },
+  { value: 'sight',      label: 'Sight' },
+  { value: 'other',      label: 'Other' },
 ];
 
 interface EditableItineraryProps {
@@ -212,8 +213,11 @@ function SheetSortableItem({ item, isSelected, isLocked, onToggleSelect, display
     data: { item },
   });
 
-  const categoryIcon = !item._isCustom
-    ? ITINERARY_CATEGORY_ICON[(item as ItineraryItem).category as ItineraryCategory] ?? undefined
+  const categoryIconEntry = !item._isCustom
+    ? CATEGORY_ICON_MAP[(item as ItineraryItem).category ?? ''] ?? undefined
+    : undefined;
+  const categoryIcon = categoryIconEntry
+    ? <categoryIconEntry.Icon size={Typography.size.sm} weight="regular" color={categoryIconEntry.color} />
     : undefined;
 
   return (
@@ -526,7 +530,7 @@ export function EditableItinerary({
     <>
       <div style={{ marginBottom: "28px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-          <div style={{ fontWeight: "bold", color: stop.accent, fontSize: "0.78rem", letterSpacing: "0.12em", textTransform: "uppercase" }}>📅 Daily Itinerary</div>
+          <div style={{ fontWeight: "bold", color: stop.accent, fontSize: "0.78rem", letterSpacing: "0.12em", textTransform: "uppercase", display: 'flex', alignItems: 'center', gap: 5 }}><Icons.Calendar size={14} weight="duotone" color={stop.accent} /> Daily Itinerary</div>
           <div style={{ flex: 1, height: "1px", background: stop.accent + "30" }} />
         </div>
 
@@ -631,7 +635,7 @@ export function EditableItinerary({
                         {/* Row 1: time + category */}
                         <div style={{ display: "flex", gap: "8px" }}>
                           <input
-                            placeholder="⏰ Time (optional)"
+                            placeholder="Time (optional)"
                             value={addForm.time}
                             onChange={e => setAddForm(f => f ? { ...f, time: e.target.value } : f)}
                             style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: `1px solid ${Colors.border}`, borderRadius: "6px", fontFamily: "Georgia,serif", minWidth: 0 }}

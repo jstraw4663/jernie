@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
+import { Icons } from '../design/icons';
 import type { Booking, Group, PlaceEnrichment, Stop } from '../types';
 import { Colors, Typography, Spacing, Radius } from '../design/tokens';
 import { ScrollReveal } from './ScrollReveal';
+import { PlaceIcon } from './PlaceIcon';
 import type { FlightStatus } from '../domain/trip';
 
 // ── AlertBox ──────────────────────────────────────────────────
@@ -85,7 +87,7 @@ export function LegSummary({ stop }: { stop: Stop }) {
         fontFamily: Typography.family,
         marginBottom: `${Spacing.xs}px`,
       }}>
-        {stop.emoji} {stop.city} · {stop.dates}
+        <span style={{display:'inline-flex',alignItems:'center',gap:5}}><PlaceIcon emoji={stop.emoji} size={13} weight="regular" /> {stop.city} · {stop.dates}</span>
       </div>
       <div style={{
         fontSize: `${Typography.size.sm}px`,
@@ -102,15 +104,16 @@ export function LegSummary({ stop }: { stop: Stop }) {
 
 // ── HotelCard ─────────────────────────────────────────────────
 
-interface HotelCardProps {
+export interface HotelCardProps {
   accent: string;
   label: string;
   booking: Booking;
   enrichment?: PlaceEnrichment;
+  hideNote?: boolean;
   onExpand?: (booking: Booking, rect: DOMRect) => void;
 }
 
-function HotelCard({ accent, label, booking, enrichment, onExpand }: HotelCardProps) {
+export function HotelCard({ accent, label, booking, enrichment, hideNote, onExpand }: HotelCardProps) {
   return (
     <div
       onClick={onExpand ? (e) => onExpand(booking, (e.currentTarget as HTMLElement).getBoundingClientRect()) : undefined}
@@ -185,14 +188,14 @@ function HotelCard({ accent, label, booking, enrichment, onExpand }: HotelCardPr
             opacity: 0.85,
             fontFamily: Typography.family,
           }}>
-            📍 {booking.addr}
+            <Icons.Pin size={11} weight="duotone" color={accent} /> {booking.addr}
           </div>
         )}
 
         {/* Phone from enrichment */}
         {enrichment?.phone && (
           <div style={{ marginTop: `${Spacing.xs}px`, marginBottom: `${Spacing.xs}px`, fontSize: `${Typography.size.xs}px`, color: accent, fontFamily: Typography.family, opacity: 0.85 }}>
-            📞 {enrichment.phone}
+            <Icons.Phone size={11} weight="duotone" color={accent} /> {enrichment.phone}
           </div>
         )}
 
@@ -203,10 +206,10 @@ function HotelCard({ accent, label, booking, enrichment, onExpand }: HotelCardPr
             marginBottom: `${Spacing.xs}px`,
             fontFamily: Typography.family,
           }}>
-            🎫 Confirmation: <span style={{ fontWeight: Typography.weight.bold, color: Colors.textSecondary }}>{booking.confirmation}</span>
+            <span style={{display:'inline-flex',alignItems:'center',gap:4}}><Icons.Theater size={11} weight="duotone" color={Colors.textMuted} /> Confirmation: <span style={{ fontWeight: Typography.weight.bold, color: Colors.textSecondary }}>{booking.confirmation}</span></span>
           </div>
         )}
-        {booking.note && (
+        {!hideNote && booking.note && (
           <div style={{
             color: Colors.textSecondary,
             fontSize: `${Typography.size.sm}px`,
@@ -331,7 +334,7 @@ function FlightRow({ f, sMap, loading }: FlightRowProps) {
 
 // ── BookingCard ───────────────────────────────────────────────
 
-interface BookingCardProps {
+export interface BookingCardProps {
   booking: Booking;
   accent: string;
   flightStatus: Record<string, FlightStatus>;
@@ -339,7 +342,7 @@ interface BookingCardProps {
   onExpand?: (booking: Booking, rect: DOMRect) => void;
 }
 
-function BookingCard({ booking, accent, flightStatus, flightLoading, onExpand }: BookingCardProps) {
+export function BookingCard({ booking, accent, flightStatus, flightLoading, onExpand }: BookingCardProps) {
   return (
     <div
       onClick={onExpand ? (e) => onExpand(booking, (e.currentTarget as HTMLElement).getBoundingClientRect()) : undefined}
@@ -355,7 +358,7 @@ function BookingCard({ booking, accent, flightStatus, flightLoading, onExpand }:
         cursor: onExpand ? 'pointer' : 'default',
       }}
     >
-      <div style={{ fontSize: '1.3rem', lineHeight: 1, marginTop: '2px', flexShrink: 0 }}>{booking.icon}</div>
+      <div style={{ lineHeight: 1, marginTop: '2px', flexShrink: 0 }}><PlaceIcon emoji={booking.icon} size={22} /></div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontWeight: Typography.weight.bold,
@@ -424,7 +427,7 @@ export function TravelSection({ stop, stopBookings, groups, flightStatus, flight
       const groupName = b.group_ids
         ? groups.find(g => g.id === b.group_ids![0])?.name
         : "Party-Wide";
-      return <HotelCard key={b.id} accent={stop.accent} label={"🏠 " + groupName + "'s Accommodations"} booking={b} enrichment={hotelEnrichmentMap?.[b.id]} onExpand={onBookingExpand}/>;
+      return <HotelCard key={b.id} accent={stop.accent} label={groupName + "'s Accommodations"} booking={b} enrichment={hotelEnrichmentMap?.[b.id]} onExpand={onBookingExpand}/>;
     }
     return <BookingCard key={b.id} booking={b} accent={stop.accent} flightStatus={flightStatus} flightLoading={flightLoading} onExpand={onBookingExpand}/>;
   };

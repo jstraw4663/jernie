@@ -10,8 +10,11 @@
 
 import type { Place, PlaceEnrichment, TrailEnrichment } from '../types';
 import { Badge } from './Badge';
+import { Icons } from '../design/icons';
 import { Colors, Shadow, Radius, Spacing, Typography } from '../design/tokens';
+import { ItineraryBadge } from './ItineraryBadge';
 import { ROUTE_TYPE_LABELS } from '../domain/hike';
+import { PlaceIcon } from './PlaceIcon';
 
 interface ActivityCardProps {
   place: Place;
@@ -19,6 +22,7 @@ interface ActivityCardProps {
   enrichment?: PlaceEnrichment;
   trailEnrichment?: TrailEnrichment;
   isAdded?: boolean;
+  hideNote?: boolean;
   onAddToItinerary?: (place: Place) => void;
   onExpand?: (place: Place, rect: DOMRect) => void;
 }
@@ -29,7 +33,7 @@ const DIFFICULTY_STYLES: Record<string, { bg: string; color: string }> = {
   easy:      { bg: Colors.successLight, color: Colors.success },
 };
 
-export function ActivityCard({ place, accent, enrichment, trailEnrichment, isAdded, onAddToItinerary, onExpand }: ActivityCardProps) {
+export function ActivityCard({ place, accent, enrichment, trailEnrichment, isAdded, hideNote, onAddToItinerary, onExpand }: ActivityCardProps) {
   const isAllTrails = place.url?.includes('alltrails.com');
   const isHike = place.category === 'hike';
   const displayRating = enrichment?.rating ?? place.rating;
@@ -56,36 +60,12 @@ export function ActivityCard({ place, accent, enrichment, trailEnrichment, isAdd
       }}
     >
       {onAddToItinerary && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onAddToItinerary(place); }}
-          title={isAdded ? 'Already in itinerary' : 'Add to itinerary'}
-          style={{
-            position: 'absolute',
-            top: `${Spacing.sm}px`,
-            right: `${Spacing.sm}px`,
-            width: 24,
-            height: 24,
-            borderRadius: `${Radius.full}px`,
-            background: isAdded ? Colors.gold : accent,
-            color: '#fff',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: isAdded ? '0.75rem' : '1rem',
-            lineHeight: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-            zIndex: 1,
-          }}
-        >
-          {isAdded ? '✓' : '+'}
-        </button>
+        <ItineraryBadge place={place} isAdded={isAdded} accent={accent} onAdd={onAddToItinerary} />
       )}
 
-      {/* Left column: emoji */}
-      <div style={{ fontSize: '1.2rem', flexShrink: 0, lineHeight: 1, marginTop: 1, width: 22, textAlign: 'center' }}>
-        {place.emoji}
+      {/* Left column: category icon */}
+      <div style={{ flexShrink: 0, lineHeight: 1, marginTop: 1, width: 22, textAlign: 'center' }}>
+        <PlaceIcon emoji={place.emoji} size={22} />
       </div>
 
       {/* Content */}
@@ -93,7 +73,7 @@ export function ActivityCard({ place, accent, enrichment, trailEnrichment, isAdd
         {/* Name + badge row */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: `${Spacing.sm}px`, flexWrap: 'wrap', marginBottom: 3 }}>
           <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.sm + 1}px` }}>{place.name}</span>
-          {isHike && isAllTrails && <Badge variant="bookNow" href={undefined} label="🌿 AllTrails" />}
+          {isHike && isAllTrails && <Badge variant="bookNow" href={undefined} label="AllTrails" />}
           {place.flag && <Badge variant="alert" label={`⚠ ${place.flag}`} />}
         </div>
 
@@ -106,13 +86,13 @@ export function ActivityCard({ place, accent, enrichment, trailEnrichment, isAdd
               </span>
             )}
             {place.distance && (
-              <span style={{ fontSize: `${Typography.size.xs - 1}px`, background: '#F0F4FF', color: '#3557A0', padding: `1px ${Spacing.sm}px`, borderRadius: `${Radius.full}px`, letterSpacing: '0.04em' }}>
-                📏 {place.distance}
+              <span style={{ fontSize: `${Typography.size.xs - 1}px`, background: '#F0F4FF', color: '#3557A0', padding: `1px ${Spacing.sm}px`, borderRadius: `${Radius.full}px`, letterSpacing: '0.04em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <Icons.Ruler size={10} weight="regular" /> {place.distance}
               </span>
             )}
             {place.duration && (
-              <span style={{ fontSize: `${Typography.size.xs - 1}px`, background: '#F5F0FF', color: '#5B3FA6', padding: `1px ${Spacing.sm}px`, borderRadius: `${Radius.full}px`, letterSpacing: '0.04em' }}>
-                ⏱ {place.duration}
+              <span style={{ fontSize: `${Typography.size.xs - 1}px`, background: '#F5F0FF', color: '#5B3FA6', padding: `1px ${Spacing.sm}px`, borderRadius: `${Radius.full}px`, letterSpacing: '0.04em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <Icons.Timer size={10} weight="regular" /> {place.duration}
               </span>
             )}
             {(() => {
@@ -143,7 +123,7 @@ export function ActivityCard({ place, accent, enrichment, trailEnrichment, isAdd
         )}
 
         {/* Note */}
-        {place.note && (
+        {!hideNote && place.note && (
           <div style={{ color: Colors.textSecondary, fontSize: `${Typography.size.sm}px`, lineHeight: Typography.lineHeight.normal, marginTop: 3 }}>
             {place.note}
           </div>
