@@ -14,27 +14,15 @@
 //   No web-specific APIs below this line.
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { Icons, CATEGORY_ICON_MAP } from '../design/icons';
 import { Colors, Typography, Spacing, Animation } from '../design/tokens';
 import { Badge } from './Badge';
 import { StarRating } from './StarRating';
-import type { ItineraryItem, CustomItem, Place, PlaceCategory, ItineraryCategory } from '../types';
+import type { ItineraryItem, CustomItem, Place, ItineraryCategory } from '../types';
 import { parseItemText } from '../utils/parseItemText';
 
 type ResolvedItem = (ItineraryItem & { _isCustom: false }) | (CustomItem & { _isCustom: true });
 
-
-// Category icons — shown before the item title to give instant visual context.
-// Exported so edit-mode components (SelectableListItem) can share the same map.
-export const ITINERARY_CATEGORY_ICON: Record<ItineraryCategory, string> = {
-  restaurant: '🍽',
-  hike:       '🥾',
-  sight:      '👁',
-  activity:   '⚓',
-  travel:     '✈️',
-  lodging:    '🏨',
-  leisure:    '☀️',
-  other:      '📍',
-};
 
 // Subtle muted color tint per category — used on the category label chip only
 const ITINERARY_CATEGORY_COLOR: Record<ItineraryCategory, { bg: string; text: string }> = {
@@ -46,12 +34,6 @@ const ITINERARY_CATEGORY_COLOR: Record<ItineraryCategory, { bg: string; text: st
   lodging:    { bg: '#F3EEFA', text: '#6A3FA0' },
   leisure:    { bg: '#FDF8E8', text: '#8F6A1B' },
   other:      { bg: '#F0F0F0', text: '#666666' },
-};
-
-// Custom item category icons (for the existing PlaceCategory type)
-const CUSTOM_CATEGORY_EMOJI: Partial<Record<PlaceCategory, string>> = {
-  restaurant: '🍽', bar: '🍻', hike: '🥾', attraction: '🎭',
-  museum: '🏛', sight: '👁', beach: '🏖', shop: '🛍', other: '✏',
 };
 
 
@@ -130,7 +112,7 @@ export function TimelineItem({
 
   // Category — only on non-custom items
   const category = !isCustom ? (itItem.category ?? null) : null;
-  const categoryIcon  = category ? ITINERARY_CATEGORY_ICON[category]  : null;
+  const categoryEntry = category ? CATEGORY_ICON_MAP[category] : null;
   const categoryColor = category ? ITINERARY_CATEGORY_COLOR[category] : null;
 
   // Dot + connector colors — animate between open and confirmed states
@@ -227,17 +209,17 @@ export function TimelineItem({
             gap: Spacing.xs,
             marginBottom: blurb ? Spacing.xxs : (Spacing.xs),
           }}>
-            {/* Icon — category for curated items, emoji for custom */}
-            {(categoryIcon || (isCustom && (item as CustomItem).category)) && (
-              <span style={{
-                fontSize: `${Typography.size.base}px`,
-                lineHeight: Typography.lineHeight.normal,
-                flexShrink: 0,
-                marginTop: 1,
-              }}>
-                {categoryIcon ?? CUSTOM_CATEGORY_EMOJI[(item as CustomItem).category!]}
-              </span>
-            )}
+            {/* Icon — category for curated items, category for custom */}
+            {(() => {
+              const entry = categoryEntry ?? CATEGORY_ICON_MAP[(item as CustomItem).category ?? ''];
+              if (!entry) return null;
+              const { Icon: CatIcon, color: catColor } = entry;
+              return (
+                <span style={{ lineHeight: 1, flexShrink: 0, marginTop: 2 }}>
+                  <CatIcon size={Typography.size.base} weight="duotone" color={catColor} />
+                </span>
+              );
+            })()}
             {/* Title */}
             <div style={{
               fontSize: `${Typography.size.base}px`,
@@ -296,7 +278,7 @@ export function TimelineItem({
               fontFamily: Typography.family,
               fontStyle: 'italic',
               marginBottom: Spacing.xs,
-              paddingLeft: (categoryIcon || (isCustom && (item as CustomItem).category))
+              paddingLeft: (categoryEntry || (isCustom && (item as CustomItem).category))
                 ? `${Typography.size.base + Spacing.xs}px`
                 : 0,
             }}>
@@ -324,21 +306,21 @@ export function TimelineItem({
           {/* Address */}
           {addr && (
             <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: accent, fontFamily: Typography.family, lineHeight: Typography.lineHeight.normal }}>
-              📍 {addrLabel || addr}
+              <Icons.Pin size={12} weight="duotone" color={accent} /> {addrLabel || addr}
             </div>
           )}
 
           {/* Phone — shown when resolvedPlace has a phone number */}
           {resolvedPlace?.phone && (
             <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: Colors.textMuted, fontFamily: Typography.family, lineHeight: Typography.lineHeight.normal }}>
-              📞 {resolvedPlace.phone}
+              <Icons.Phone size={12} weight="duotone" color={Colors.textMuted} /> {resolvedPlace.phone}
             </div>
           )}
 
           {/* Tide chart */}
           {!isCustom && itItem.tide_url && (
             <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: Colors.navyLight, fontFamily: Typography.family }}>
-              🌊 Bar Harbor Tide Chart
+              <Icons.Waves size={12} weight="duotone" color={Colors.navyLight} /> Bar Harbor Tide Chart
             </div>
           )}
 
@@ -353,7 +335,7 @@ export function TimelineItem({
                 transition={{ type: 'spring', ...Animation.springs.snappy }}
                 style={{ transformOrigin: 'left center', marginBottom: Spacing.xs }}
               >
-                <Badge variant="bookNow" label="📅 Book Now" href={undefined} />
+                <Badge variant="bookNow" label="Book Now" href={undefined} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -367,7 +349,7 @@ export function TimelineItem({
                 transition={{ type: 'spring', ...Animation.springs.snappy }}
                 style={{ transformOrigin: 'left center', marginBottom: Spacing.xs }}
               >
-                <Badge variant="alert" label="⚠ Note" />
+                <Badge variant="alert" label="Note" />
               </motion.div>
             )}
           </AnimatePresence>
@@ -415,7 +397,7 @@ export function TimelineItem({
                   letterSpacing: '0.04em',
                   fontFamily: Typography.family,
                 }}>
-                  {CUSTOM_CATEGORY_EMOJI[(item as CustomItem).category!]} {(item as CustomItem).category}
+                  {(() => { const e = CATEGORY_ICON_MAP[(item as CustomItem).category ?? '']; return e ? <e.Icon size={11} weight="duotone" color={e.color} /> : null; })()} {(item as CustomItem).category}
                 </div>
               )}
             </div>

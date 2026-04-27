@@ -33,8 +33,8 @@ export interface SelectableListItemProps {
   dragAttributes?: DraggableAttributes;
   /** Stop accent color — drives card left border */
   accent?: string;
-  /** Category emoji icon pre-computed from item.category */
-  categoryIcon?: string;
+  /** Category icon pre-rendered from CATEGORY_ICON_MAP */
+  categoryIcon?: React.ReactNode;
 }
 
 // Six-dot drag handle icon
@@ -183,11 +183,7 @@ export function SelectableListItem({
           {/* Category icon + title */}
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: Spacing.xs }}>
             {categoryIcon && (
-              <span style={{
-                fontSize: `${Typography.size.sm}px`,
-                lineHeight: Typography.lineHeight.normal,
-                flexShrink: 0,
-              }}>
+              <span style={{ lineHeight: 1, flexShrink: 0, marginTop: 1 }}>
                 {categoryIcon}
               </span>
             )}

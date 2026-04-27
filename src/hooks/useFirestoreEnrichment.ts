@@ -63,7 +63,10 @@ export function useFirestoreEnrichment<T extends { cached_at: number }>(
       try {
         const res = await fetch(options.endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-App-Token': import.meta.env.VITE_APP_SECRET ?? '',
+          },
           body: JSON.stringify({ tripId, places: needsRefresh.map(options.buildPayload) }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

@@ -10,6 +10,8 @@
 
 import { useState } from 'react';
 import type { Booking, PlaceEnrichment, Stop } from '../../../types';
+import { Icons } from '../../../design/icons';
+import { IconColors } from '../../../design/tokens';
 import { ReviewCarousel } from '../components/ReviewCarousel';
 import type { DetailConfig, DetailRow, DetailSectionConfig } from '../detailTypes';
 import { Colors, Spacing, Radius, Typography } from '../../../design/tokens';
@@ -130,8 +132,8 @@ export function buildHotelDetailConfig(
         <DateTimeRangeModule
           startLabel="Check-in"
           endLabel="Check-out"
-          startIcon="🏨"
-          endIcon="👋"
+          startIcon={<Icons.Key size={16} weight="duotone" color={IconColors.accommodation} />}
+          endIcon={<Icons.DoorOpen size={16} weight="duotone" color={IconColors.accommodation} />}
           durationUnit="nights"
           startDate={booking.checkin_date ?? null}
           startTime={booking.checkin_time ?? null}
@@ -260,7 +262,7 @@ export function buildHotelDetailConfig(
     kind: 'booking',
     title: booking.label,
     subtitle: `Accommodation · ${stop.city}`,
-    heroEmoji: booking.icon,
+    heroEmoji: <Icons.Hotel size={36} weight="duotone" color={IconColors.accommodation} />,
     heroGradient,
     heroLogoUrl: logoUrl ?? undefined,
     heroPhotoUrl: photos?.[0] ?? undefined,

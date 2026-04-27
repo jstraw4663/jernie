@@ -157,33 +157,41 @@ style={{
 
 ## Scroll Reveal — Design Language Rule
 
-**Every discrete card or list item that appears below the fold must be wrapped in `<ScrollReveal>`.**
+**Every discrete card or list item that appears below the fold must be wrapped in `<ScrollReveal>`.** This is the standard scroll entrance for all screens — not optional polish.
 
 ```tsx
 import { ScrollReveal } from '../components/ScrollReveal';
 
-// Single card
-<ScrollReveal>
-  <MyCard />
-</ScrollReveal>
-
-// List — index prop adds 0.025s stagger per item
+// Window-scroll screens (Jernie tab)
 {items.map((item, i) => (
   <ScrollReveal key={item.id} index={i}>
     <MyCard item={item} />
   </ScrollReveal>
 ))}
+
+// Custom scroll-container screens (Overview, Explore, any tab with overflow:auto div)
+const scrollRef = useRef<HTMLDivElement>(null);
+
+<div ref={scrollRef} style={{ overflowY: 'auto' }}>
+  {items.map((item, i) => (
+    <ScrollReveal key={item.id} index={i} root={scrollRef} margin="80px">
+      <MyCard item={item} />
+    </ScrollReveal>
+  ))}
+</div>
 ```
 
-Props:
+**Props:**
 - `index` — stagger offset; delay = `0.08 + index × 0.025s` (default `0`)
-- `margin` — IO root margin before triggering (default `'-30px'`; use `'-60px'` for tall cards)
+- `margin` — IO `rootMargin` string. Positive = fires before card enters view (early). Negative = fires after card enters view (late). Default `'-30px'` for window scroll. Use `'80px'` for custom scroll containers so the spring is underway by the time the card is visible.
+- `root` — `React.RefObject` to the scroll container div. **Required for any screen whose scroll is inside an `overflow:auto` div rather than the window.** Without it, the IO uses the browser viewport as root — which misfires inside custom containers.
 - `style` — forwarded to the `motion.div` wrapper
 
-**`viewport={{ once: true }}`** — fires exactly once per mount. Never re-triggers on scroll.
+**Implementation:** uses native `IntersectionObserver` (not Framer Motion's `viewport` prop). The IO reads `root?.current` in `useEffect`, after React has committed all refs — so the container element is always populated. On intersection, a `visible` state flag flips and drives `animate={{ opacity: 1, y: 0 }}` via Framer Motion spring.
 
-Components with complex internal animation (DayCard, TimelineItem) use `whileInView` directly
-rather than ScrollReveal since they also animate non-entrance properties (borderColor, boxShadow, dot state).
+Fires exactly once per mount (`observer.disconnect()` on first intersection). Never re-triggers on scroll-back.
+
+Components with complex internal animation (DayCard, TimelineItem) implement `whileInView` directly since they also animate non-entrance properties (borderColor, boxShadow, dot state).
 
 ---
 
@@ -196,8 +204,10 @@ Defined in `Jernie-PWA.tsx` as `contentContainerVariants` + `contentSectionVaria
 - Fires once on first mount after PIN unlock. Stop swipes do NOT re-trigger it.
 
 ### Scroll reveal (card-level)
-`ScrollReveal` component. Fires once per mount via `whileInView + once:true`.
+`ScrollReveal` component. Native `IntersectionObserver`, fires once per mount.
+Animation: `opacity: 0, y: 16 → 1, 0` via `springs.gentle`.
 Base delay: `0.08s`. Per-item stagger: `+0.025s × index`.
+Pass `root={scrollRef}` and `margin="80px"` on screens with custom scroll containers.
 
 ### Sheet entrance
 BottomSheet: `springs.gentle` slide from off-screen. Exit: `0.65s tween, [0.4,0,0.55,1]`.
@@ -251,7 +261,7 @@ Fallback: if no `[data-sticky-nav]` is found, EntityDetailSheet falls back to `-
 | SelectableListItem | `src/components/SelectableListItem.tsx` | Card-style edit row, drag handle inside card |
 | RestaurantCard | `src/components/RestaurantCard.tsx` | Token-driven, Must badge, Stacy pill |
 | ActivityCard | `src/components/ActivityCard.tsx` | Token-driven, AllTrails badge, difficulty chips |
-| ScrollReveal | `src/components/ScrollReveal.tsx` | whileInView, once:true — standard scroll entrance |
+| ScrollReveal | `src/components/ScrollReveal.tsx` | native IO, once — standard scroll entrance for all screens |
 | Badge | `src/components/Badge.tsx` | scale pop-in via springs.snappy |
 | ActionButton | `src/components/ActionButton.tsx` | whileTap scale 0.97 |
 | ItineraryItem | `src/components/ItineraryItem.tsx` | whileTap scale 0.97, useLongPress |
@@ -267,7 +277,7 @@ Fallback: if no `[data-sticky-nav]` is found, EntityDetailSheet falls back to `-
 | Web | React Native / Expo |
 |-----|---------------------|
 | `motion.div` | `Animated.View` + `useAnimatedStyle` (Reanimated) |
-| `whileInView` | `useSharedValue` + IO polyfill or `useAnimatedScrollHandler` |
+| `ScrollReveal` native IO | `useSharedValue` + IO polyfill or Reanimated's `useInViewport` |
 | `useMotionValue/useVelocity` | `useSharedValue` + `useAnimatedGestureHandler` |
 | `AnimatePresence` | Conditional render + `useAnimatedStyle` height |
 | `drag="x"` (StopNavigator) | `Gesture.Pan()` via Gesture Handler |

@@ -26,7 +26,7 @@ export interface DetailConfig {
   kind: 'place' | 'flight' | 'booking' | 'generic';
   title: string;
   subtitle?: string;
-  heroEmoji?: string;
+  heroEmoji?: ReactNode;
   heroGradient: string;    // always present — gradient fallback when no photo
   heroPhotoUrl?: string;   // direct image URL — shown full-bleed when present
   photos?: string[];       // additional photos for strip (index 0 = hero, 1+ = strip)
