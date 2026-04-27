@@ -20,10 +20,14 @@
 //   2. TabId union in BottomBar.tsx already covers the 5 tab ids — extend
 //      it there if you add a 6th.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { NavigationContext } from '../contexts/NavigationContext';
+import { navigation } from '../navigation';
+import type { ExploreDeepLink } from '../navigation';
 import MaineGuide from '../Jernie-PWA';
 import { ExploreScreen } from '../features/explore/ExploreScreen';
+import { OverviewScreen } from '../features/overview/OverviewScreen';
 import { PinGate } from './PinGate';
 import { BottomBar } from './BottomBar';
 import type { TabId, BottomBarTab } from './BottomBar';
@@ -82,7 +86,7 @@ const TABS: TabConfig[] = [
     id: 'overview',
     label: 'Overview',
     icon: IconClipboard,
-    screen: () => <PlaceholderScreen label="Overview" Icon={IconClipboard} />,
+    screen: OverviewScreen,
   },
   {
     id: 'saved',
@@ -163,6 +167,8 @@ export function AppShell() {
   const [activeTab, setActiveTab] = useState<TabId>('jernie');
   const [direction, setDirection] = useState(0);
   const prevIndexRef = useRef(TAB_INDEX['jernie']);
+  const activeTabRef = useRef<TabId>('jernie');
+  activeTabRef.current = activeTab;
 
   // Sync body/html background so Safari's bottom chrome matches the active surface.
   useEffect(() => {
@@ -171,13 +177,20 @@ export function AppShell() {
     document.documentElement.style.background = bg;
   }, [unlocked]);
 
-  const handleTabChange = (tab: TabId) => {
-    if (tab === activeTab) return;
+  const handleTabChange = useCallback((tab: TabId) => {
+    if (tab === activeTabRef.current) return;
     const newIndex = TAB_INDEX[tab];
     setDirection(newIndex > prevIndexRef.current ? 1 : -1);
     prevIndexRef.current = newIndex;
     setActiveTab(tab);
-  };
+  }, []);
+
+  const navigateToExplore = useCallback((link: ExploreDeepLink) => {
+    navigation.scheduleExplore(link);
+    handleTabChange('explore');
+  }, [handleTabChange]);
+
+  const navContextValue = useMemo(() => ({ navigateToExplore }), [navigateToExplore]);
 
   if (!unlocked) {
     return <PinGate onUnlock={() => { writeUnlocked(); setUnlocked(true); }} />;
@@ -186,6 +199,7 @@ export function AppShell() {
   const ActiveScreen = TABS.find(t => t.id === activeTab)!.screen;
 
   return (
+    <NavigationContext.Provider value={navContextValue}>
     <div
       style={{
         position: 'fixed',
@@ -223,5 +237,6 @@ export function AppShell() {
         onTabChange={handleTabChange}
       />
     </div>
+    </NavigationContext.Provider>
   );
 }

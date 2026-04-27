@@ -126,6 +126,25 @@ export const Shadow = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Icon colors — categorical palette for Phosphor icons
+// ---------------------------------------------------------------------------
+
+export const IconColors = {
+  travel:        '#3B82F6',  // blue-500
+  food:          '#F59E0B',  // amber-500
+  nature:        '#22C55E',  // green-500
+  accommodation: '#8B5CF6',  // violet-500
+  activity:      '#EC4899',  // pink-500
+  shopping:      '#F97316',  // orange-500
+  weatherClear:  '#F59E0B',  // amber — warm sun
+  weatherCloud:  '#94A3B8',  // slate-400
+  weatherRain:   '#60A5FA',  // blue-400
+  weatherStorm:  '#7C3AED',  // violet-600
+  weatherSnow:   '#BAE6FD',  // sky-200
+  weatherFog:    '#94A3B8',  // slate-400
+} as const;
+
+// ---------------------------------------------------------------------------
 // Animation
 // ---------------------------------------------------------------------------
 

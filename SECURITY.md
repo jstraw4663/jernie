@@ -142,7 +142,9 @@ service cloud.firestore {
 
 ## Netlify Function Protection
 
-All three serverless functions (`place-details.js`, `flight-status.js`, `trail-details.js`) validate the HTTP `Origin` header:
+All three serverless functions (`place-details.js`, `flight-status.js`, `trail-details.js`) have two layers of protection:
+
+### Layer 1 — Origin header check
 
 ```js
 const origin = event.headers.origin || '';
@@ -153,9 +155,26 @@ if (origin && !allowed.has(origin)) {
 ```
 
 - `process.env.URL` is automatically set by Netlify to the production site URL on every deploy
-- `origin && ...` — empty Origin is allowed because same-origin browser fetch requests may omit it
-- Blocks requests from other domains and simple curl abuse that sets a foreign Origin
-- Does not block a determined attacker who spoofs the Origin header — the defense-in-depth layer for that is App Check on Firebase and API key restrictions on Google Cloud
+- Blocks browser requests from other domains
+- Does not block non-browser clients (curl, scripts) that omit the Origin header — Layer 2 handles that
+
+### Layer 2 — Shared app secret
+
+```js
+const appSecret = process.env.APP_SECRET;
+if (appSecret && (event.headers['x-app-token'] || '') !== appSecret) {
+  return { statusCode: 403, body: 'Forbidden' };
+}
+```
+
+- `APP_SECRET` is a server-side env var set in the Netlify dashboard — never in the client bundle
+- `VITE_APP_SECRET` is the same value set as a Vite env var — baked into the client bundle, sent as `X-App-Token` on every function call
+- If `APP_SECRET` is not set (e.g., local dev), the check is skipped entirely — no breaking change to dev workflow
+- Requires an attacker to reverse-engineer the value from the JS bundle before they can call the functions; this is not a cryptographic guarantee, but adds meaningful friction against casual abuse
+
+**Payload limits:**
+- `flight-status`: max 10 flights per request
+- `place-details`: max 20 places per request
 
 **API keys in functions:**
 - `GOOGLE_PLACES_API_KEY` — server-side only, never in client bundle, stored in `.env` and Netlify dashboard
@@ -187,8 +206,18 @@ Set via `netlify.toml` — active on all production responses:
 | `X-Content-Type-Options` | `nosniff` | MIME-type sniffing attacks |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | URL leakage — sends origin only (no path) to third parties |
 | `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | Enforces HTTPS for 1 year after first visit |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(self), payment=()` | Restricts browser API access to only what the app needs |
+| `Content-Security-Policy` | See below | Limits resource origins; blocks plugin-based XSS |
 
-Note: Content-Security-Policy is not set. The combination of reCAPTCHA v3 iframes, Firebase long-polling iframes, Google Maps embeds, and AllTrails embeds makes a safe CSP complex to configure without breaking the app. Deferred to Phase 2.
+**Content-Security-Policy:**
+```
+default-src 'self' *.googleapis.com *.gstatic.com *.firebaseio.com *.firebaseapp.com www.google.com www.alltrails.com;
+img-src 'self' data: blob: *.googleusercontent.com *.gstatic.com;
+frame-src www.google.com www.alltrails.com;
+object-src 'none'
+```
+
+Note: `script-src` is not locked. reCAPTCHA v3 injects inline scripts that require `'unsafe-inline'` or a nonce, which conflicts with strict CSP. Locking `script-src` is deferred to Phase 2. `object-src 'none'` blocks plugin-based XSS regardless.
 
 ---
 
@@ -236,6 +265,23 @@ The request has an `Origin` header that isn't in the allowed list. For local dev
 Anonymous Authentication is not enabled in the Firebase console. Go to Authentication → Sign-in providers → Anonymous → Enable.
 
 ---
+
+## Security Audit Log — 2026-04-23
+
+Changes made during second security pass (vibe-security audit):
+
+| # | Change | File(s) | Severity addressed |
+|---|--------|---------|-------------------|
+| 1 | Added payload size caps (10 flights, 20 places) | `netlify/functions/flight-status.js`, `netlify/functions/place-details.js` | High |
+| 2 | Added `APP_SECRET` / `X-App-Token` shared secret to all Netlify functions | All 3 functions + `useFirestoreEnrichment.ts` + `Jernie-PWA.tsx` | High |
+| 3 | Added `Permissions-Policy` header | `netlify.toml` | Low |
+| 4 | Added partial `Content-Security-Policy` (no `script-src` — deferred) | `netlify.toml` | Medium |
+
+Open items after this pass:
+- **Spending caps on Anthropic + Google** — must be set manually in Anthropic Console and Google Cloud Console (no code change)
+- **Content-Security-Policy `script-src`** — deferred; reCAPTCHA v3 requires inline script access, needs tuning
+- **RTDB write PIN / owner UID rules** — deferred to Phase 2 (vandalism risk is low given App Check + obscurity)
+- **True rate limiting** — `APP_SECRET` adds meaningful friction but is not a hard rate limit; Upstash Redis is Phase 2
 
 ## Security Audit Log — 2026-04-22
 

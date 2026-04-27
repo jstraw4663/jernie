@@ -140,6 +140,11 @@ exports.handler = async function (event) {
     return { statusCode: 403, body: 'Forbidden' };
   }
 
+  const appSecret = process.env.APP_SECRET;
+  if (appSecret && (event.headers['x-app-token'] || '') !== appSecret) {
+    return { statusCode: 403, body: 'Forbidden' };
+  }
+
   const apiKey = process.env.GOOGLE_PLACES_API_KEY;
   if (!apiKey) {
     return { statusCode: 500, body: JSON.stringify({ error: 'GOOGLE_PLACES_API_KEY not set' }) };
@@ -155,6 +160,9 @@ exports.handler = async function (event) {
   const places = body.places;
   if (!Array.isArray(places) || places.length === 0) {
     return { statusCode: 400, body: JSON.stringify({ error: 'places array required' }) };
+  }
+  if (places.length > 20) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Max 20 places per request' }) };
   }
 
   // Enrich all places in parallel — individual failures return null

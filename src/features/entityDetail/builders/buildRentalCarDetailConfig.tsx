@@ -10,6 +10,8 @@
 
 import { useState, useEffect } from 'react';
 import type { Booking, Stop } from '../../../types';
+import { Icons } from '../../../design/icons';
+import { IconColors } from '../../../design/tokens';
 import type { DetailConfig, DetailRow, DetailSectionConfig } from '../detailTypes';
 import { Colors, Spacing, Radius, Typography } from '../../../design/tokens';
 import { domainFromUrl, brandLogoUrl, brandColor, labelToBrandDomain } from '../brandAssets';
@@ -21,27 +23,11 @@ import { PillSelect } from '../../../components/PillSelect';
 import type { PillSelectOption } from '../../../components/PillSelect';
 import { section } from './utils';
 
-// ── Car type emoji map ─────────────────────────────────────────────────────
-
-const CAR_EMOJI: Record<string, string> = {
-  economy:      '🚗',
-  compact:      '🚙',
-  midsize:      '🚗',
-  fullsize:     '🚘',
-  fullsize_suv: '🚐',
-  suv:          '🛻',
-  minivan:      '🚐',
-  convertible:  '🏎',
-  pickup:       '🛻',
-  luxury:       '✨',
-  electric:     '⚡',
-};
-
 const CAR_OPTIONS: PillSelectOption[] = CAR_TYPE_OPTIONS.map(slug => ({
   id:    slug,
   value: slug,
   label: CAR_TYPE_LABELS[slug] ?? slug,
-  icon:  CAR_EMOJI[slug],
+  icon:  <Icons.Car size={12} weight="duotone" color={IconColors.travel} />,
 }));
 
 // ── CarTypeField — PillSelect + car image preview ──────────────────────────
@@ -235,8 +221,8 @@ export function buildRentalCarDetailConfig(
         <DateTimeRangeModule
           startLabel="Pickup"
           endLabel="Return"
-          startIcon="🔑"
-          endIcon="🚗"
+          startIcon={<Icons.Key size={16} weight="duotone" color={IconColors.travel} />}
+          endIcon={<Icons.Car size={16} weight="duotone" color={IconColors.travel} />}
           durationUnit="days"
           startDate={booking.pickup_date ?? null}
           startTime={booking.pickup_time ?? null}
@@ -330,7 +316,7 @@ export function buildRentalCarDetailConfig(
     kind: 'booking',
     title: booking.label,
     subtitle: `Transportation · ${stop.city}`,
-    heroEmoji: booking.icon,
+    heroEmoji: <Icons.Car size={36} weight="duotone" color={IconColors.travel} />,
     heroGradient,
     heroLogoUrl: logoUrl ?? undefined,
     categoryChip: 'Rental Car',
