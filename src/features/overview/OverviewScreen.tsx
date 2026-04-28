@@ -370,7 +370,7 @@ export function OverviewScreen() {
       {/* ── Scrollable content ────────────────────────────────── */}
       <div
         ref={scrollRef}
-        style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingTop: Spacing.xl, paddingBottom: Spacing.xxxl }}
+        style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', paddingTop: Spacing.xl, paddingBottom: Spacing.xxxl }}
       >
 
         {/* ── Flights ─────────────────────────────────────────── */}

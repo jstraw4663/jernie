@@ -6,13 +6,13 @@ import { EditableItinerary } from "./components/EditableItinerary";
 import { AddToItinerarySheet } from "./components/AddToItinerarySheet";
 import { StickyHeader } from "./components/StickyHeader";
 import { StopNavigator } from "./components/StopNavigator";
-import type { Booking, Place, Stop } from "./types";
+import type { Booking, Place } from "./types";
 import { motion } from 'framer-motion';
 import { Animation } from "./design/tokens";
 import { useNavigation } from "./contexts/NavigationContext";
 import { ACTIVITY_CATEGORIES } from "./features/overview/selectors";
 import { deriveFlightGroups, isWithinFlightWindow, isRentalCar } from "./domain/trip";
-import type { FlightGroupEntry, FlightStatus, WeatherDaily } from "./domain/trip";
+import type { FlightGroupEntry, FlightStatus } from "./domain/trip";
 import { CollapsibleSection } from "./components/CollapsibleSection";
 import { WeatherStrip } from "./components/WeatherStrip";
 import { PlaceList } from "./components/PlaceList";
@@ -24,6 +24,8 @@ import { buildPlaceDetailConfig } from "./features/entityDetail/builders/buildPl
 import { usePlaceEnrichment } from "./hooks/usePlaceEnrichment";
 import { useTrailEnrichment } from "./hooks/useTrailEnrichment";
 import { useBookingEnrichment } from "./hooks/useBookingEnrichment";
+import { useWeatherEnrichment } from "./hooks/useWeatherEnrichment";
+import { readCache, writeCache } from "./utils/cache";
 import { buildHikeDetailConfig } from "./features/entityDetail/builders/buildHikeDetailConfig";
 import { buildFlightDetailConfig } from "./features/entityDetail/builders/buildFlightDetailConfig";
 import { buildBookingDetailConfig } from "./features/entityDetail/builders/buildBookingDetailConfig";
@@ -52,58 +54,6 @@ function useCountdown(departure: Date | null) {
     return () => clearInterval(id);
   }, [departure]);
   return t;
-}
-
-// ── Cache Utilities ───────────────────────────────────────────
-
-interface CacheEntry<T> {
-  data: T;
-  cachedAt: number;
-}
-
-function readCache<T>(key: string): CacheEntry<T> | null {
-  try {
-    const r = localStorage.getItem(key);
-    return r ? JSON.parse(r) as CacheEntry<T> : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCache(key: string, data: unknown): void {
-  try { localStorage.setItem(key, JSON.stringify({ data, cachedAt: Date.now() })); }
-  catch {}
-}
-
-async function fetchWeatherForStop(
-  s: Stop,
-  signal?: AbortSignal,
-): Promise<{ data: WeatherDaily; fromCache: boolean } | null> {
-  const key = "jernie_weather_" + s.id;
-  const cached = readCache<WeatherDaily>(key);
-  if (cached && (Date.now() - cached.cachedAt) < 3 * 3_600_000) {
-    return { data: cached.data, fromCache: true };
-  }
-  const daysUntilTrip = Math.ceil((new Date(s.weather_start).getTime() - Date.now()) / 86_400_000);
-  if (daysUntilTrip > 16) return null;
-  if (!navigator.onLine) {
-    return cached ? { data: cached.data, fromCache: true } : null;
-  }
-  try {
-    const url =
-      "https://api.open-meteo.com/v1/forecast?latitude=" + s.lat +
-      "&longitude=" + s.lon +
-      "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode" +
-      "&temperature_unit=fahrenheit&timezone=America%2FNew_York" +
-      "&start_date=" + s.weather_start + "&end_date=" + s.weather_end;
-    const r = await fetch(url, { signal });
-    const d = await r.json() as { error?: boolean; daily?: WeatherDaily };
-    if (d.error || !d.daily?.time?.length) return cached ? { data: cached.data, fromCache: true } : null;
-    writeCache(key, d.daily);
-    return { data: d.daily, fromCache: false };
-  } catch {
-    return cached ? { data: cached.data, fromCache: true } : null;
-  }
 }
 
 type StatusSetter = (fn: (prev: Record<string, FlightStatus>) => Record<string, FlightStatus>) => void;
@@ -238,7 +188,7 @@ export default function MaineGuide() {
     try { localStorage.setItem(ACTIVE_STOP_KEY, id); } catch {}
     setActive(id);
   };
-  const [weatherData, setWeatherData] = useState<Record<string, WeatherDaily>>({});
+  const weatherData = useWeatherEnrichment(tripId, data?.stops ?? []);
   const [flightStatus, setFlightStatus] = useState<Record<string, FlightStatus>>({});
   const [flightLoading, setFlightLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Record<string, Date>>({});
@@ -337,32 +287,10 @@ export default function MaineGuide() {
     return buildBookingDetailConfig(mergedBooking, bookingStop);
   }, [selectedEntity, data, onBookingChange, onLegAircraftChange, bookingOverrides, hotelEnrichmentMap, flightStatus, enrichmentMap, trailEnrichmentMap]);
 
-  // Load caches and kick off fetches once data is available
+  // Seed flight status from cache then fetch if within window
   useEffect(() => {
     if (!data) return;
 
-    // Weather: seed from cache immediately, then fetch all stops in parallel.
-    // Promise.allSettled ensures a single setWeatherData call when all complete —
-    // prevents 3 separate re-renders (one per stop) that could cause scroll jitter on iOS.
-    const weatherInit: Record<string, WeatherDaily> = {};
-    data.stops.forEach(s => {
-      const c = readCache<WeatherDaily>("jernie_weather_" + s.id);
-      if (c) weatherInit[s.id] = c.data;
-    });
-    setWeatherData(weatherInit);
-
-    const weatherController = new AbortController();
-    Promise.allSettled(data.stops.map(s => fetchWeatherForStop(s, weatherController.signal)))
-      .then(results => {
-        if (weatherController.signal.aborted) return;
-        const updates: Record<string, WeatherDaily> = {};
-        results.forEach((r, i) => {
-          if (r.status === "fulfilled" && r.value) updates[data.stops[i].id] = r.value.data;
-        });
-        if (Object.keys(updates).length) setWeatherData(prev => ({ ...prev, ...updates }));
-      });
-
-    // Flights: load cache then fetch if within window
     const flightInit: Record<string, FlightStatus> = {};
     const lastUpdatedInit: Record<string, Date> = {};
     const groups = deriveFlightGroups(data.bookings);
@@ -380,8 +308,6 @@ export default function MaineGuide() {
         fetchFlightStatusGroupWithData(dateKey, group.flights, setFlightStatus, setFlightLoading, setLastUpdated);
       }
     });
-
-    return () => weatherController.abort();
   }, [data]);
 
   useEffect(() => {

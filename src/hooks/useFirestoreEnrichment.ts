@@ -1,31 +1,33 @@
 import { useEffect, useState } from 'react';
 import { collection, getDocs, setDoc, doc } from 'firebase/firestore';
 import { authReady, firestore } from '../lib/firebase';
-import type { Place } from '../types';
 
-interface EnrichmentOptions {
+interface EnrichmentOptions<E extends { id: string }> {
   /** Firestore collection path segments after the tripId, e.g. ['places'] or ['trails'] */
   subcollection: string[];
   /** Top-level Firestore collection name, e.g. 'place_enrichment' or 'trail_enrichment' */
   rootCollection: string;
   endpoint: string;
   ttlMs: number;
-  filterPlaces: (places: Place[]) => Place[];
-  buildPayload: (p: Place) => object;
+  filterEntities: (entities: E[]) => E[];
+  buildPayload: (e: E) => object;
   label: string;
 }
 
-export function useFirestoreEnrichment<T extends { cached_at: number }>(
+// Prevents duplicate API calls when a component remounts while a fetch is in progress.
+const inFlight = new Set<string>();
+
+export function useFirestoreEnrichment<T extends { cached_at: number }, E extends { id: string }>(
   tripId: string,
-  places: Place[],
-  options: EnrichmentOptions,
+  entities: E[],
+  options: EnrichmentOptions<E>,
 ): Record<string, T> {
   const [enrichmentMap, setEnrichmentMap] = useState<Record<string, T>>({});
 
   useEffect(() => {
-    if (!tripId || places.length === 0) return;
+    if (!tripId || entities.length === 0) return;
 
-    const filtered = options.filterPlaces(places);
+    const filtered = options.filterEntities(entities);
     if (filtered.length === 0) return;
 
     let cancelled = false;
@@ -52,12 +54,20 @@ export function useFirestoreEnrichment<T extends { cached_at: number }>(
       }
 
       const now = Date.now();
-      const needsRefresh = filtered.filter(p => {
-        const cached = firestoreMap[p.id];
+      const needsRefresh = filtered.filter(e => {
+        const cached = firestoreMap[e.id];
         return !cached || (now - cached.cached_at) > options.ttlMs;
       });
 
       if (needsRefresh.length === 0) return;
+
+      const dedupedNeedsRefresh = needsRefresh.filter(e =>
+        !inFlight.has(`${tripId}:${options.rootCollection}:${e.id}`)
+      );
+      if (dedupedNeedsRefresh.length === 0) return;
+      dedupedNeedsRefresh.forEach(e =>
+        inFlight.add(`${tripId}:${options.rootCollection}:${e.id}`)
+      );
 
       let freshData: Record<string, T | null>;
       try {
@@ -67,23 +77,27 @@ export function useFirestoreEnrichment<T extends { cached_at: number }>(
             'Content-Type': 'application/json',
             'X-App-Token': import.meta.env.VITE_APP_SECRET ?? '',
           },
-          body: JSON.stringify({ tripId, places: needsRefresh.map(options.buildPayload) }),
+          body: JSON.stringify({ tripId, places: dedupedNeedsRefresh.map(options.buildPayload) }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         freshData = await res.json();
       } catch (err) {
         console.warn(`[${options.label}] Fetch failed:`, err);
         return;
+      } finally {
+        dedupedNeedsRefresh.forEach(e =>
+          inFlight.delete(`${tripId}:${options.rootCollection}:${e.id}`)
+        );
       }
       if (cancelled) return;
 
       const updates: Record<string, T> = {};
       const writes: Promise<void>[] = [];
 
-      for (const [placeId, enrichment] of Object.entries(freshData)) {
+      for (const [entityId, enrichment] of Object.entries(freshData)) {
         if (!enrichment) continue;
-        updates[placeId] = enrichment;
-        const docRef = doc(firestore, options.rootCollection, tripId, ...options.subcollection, placeId);
+        updates[entityId] = enrichment;
+        const docRef = doc(firestore, options.rootCollection, tripId, ...options.subcollection, entityId);
         writes.push(setDoc(docRef, enrichment, { merge: true }));
       }
 
@@ -99,7 +113,7 @@ export function useFirestoreEnrichment<T extends { cached_at: number }>(
     load();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripId, places.map(p => p.id).join(',')]);
+  }, [tripId, entities.map(e => e.id).join(',')]);
 
   return enrichmentMap;
 }
