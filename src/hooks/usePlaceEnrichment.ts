@@ -11,12 +11,12 @@ export function usePlaceEnrichment(
   tripId: string,
   places: Place[],
 ): Record<string, PlaceEnrichment> {
-  return useFirestoreEnrichment<PlaceEnrichment>(tripId, places, {
+  return useFirestoreEnrichment<PlaceEnrichment, Place>(tripId, places, {
     rootCollection: 'place_enrichment',
     subcollection: ['places'],
     endpoint: '/.netlify/functions/place-details',
     ttlMs: 24 * 60 * 60 * 1000,
-    filterPlaces: ps => ps.filter(p => ENRICHABLE_CATEGORIES.has(p.category)),
+    filterEntities: ps => ps.filter(p => ENRICHABLE_CATEGORIES.has(p.category)),
     buildPayload: p => ({ id: p.id, name: p.name, addr: p.addr ?? undefined }),
     label: 'usePlaceEnrichment',
   });
