@@ -109,7 +109,7 @@ export function BottomSheet({
           </div>
 
           {footer ? (
-            <div style={{ flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+            <div data-vaul-no-drag style={{ flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
               {footer}
             </div>
           ) : (

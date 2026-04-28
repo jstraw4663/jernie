@@ -199,17 +199,20 @@ function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reserv
 // Wraps SelectableListItem so the drag handle gets @dnd-kit listeners while
 // keeping SelectableListItem's API platform-agnostic.
 
-function SheetSortableItem({ item, isSelected, isLocked, onToggleSelect, displayTime, accent }: {
+function SheetSortableItem({ item, isSelected, isLocked, isDragDisabled, onToggleSelect, displayTime, accent }: {
   item: ResolvedItem;
   isSelected: boolean;
+  /** Lock icon shown, item cannot be selected/deleted/moved to another day */
   isLocked: boolean;
+  /** Drag handle hidden; item cannot be reordered */
+  isDragDisabled: boolean;
   onToggleSelect: () => void;
   displayTime: string;
   accent: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
-    disabled: isLocked,
+    disabled: isDragDisabled,
     data: { item },
   });
 
@@ -235,7 +238,7 @@ function SheetSortableItem({ item, isSelected, isLocked, onToggleSelect, display
         label={item.text}
         isSelected={isSelected}
         isLocked={isLocked}
-        showDragHandle={!isLocked}
+        showDragHandle={!isDragDisabled}
         onToggleSelect={onToggleSelect}
         dragListeners={listeners}
         dragAttributes={attributes}
@@ -482,9 +485,8 @@ export function EditableItinerary({
   }
 
   function handleDeleteConfirmed() {
-    // Only custom items can be deleted; locked/static items are silently skipped
     editItems.forEach(item => {
-      if (selectedItems.has(item.id) && item._isCustom && editModeDay) {
+      if (selectedItems.has(item.id) && editModeDay) {
         deleteCustomItem(item.id, editModeDay);
       }
     });
@@ -601,7 +603,7 @@ export function EditableItinerary({
                   >
                     <SortableContext items={items.map(it => it.id)} strategy={verticalListSortingStrategy}>
                       {items.map((item, ii) => {
-                        const isItemLocked = !item._isCustom && ((item as ItineraryItem).locked || confirms[item.id]);
+                        const isItemLocked = confirms[item.id] || (!item._isCustom && !!(item as ItineraryItem).locked);
                         const itemPlace = findPlaceForItem(item, data.places);
                         return (
                             <SortableItem
@@ -721,7 +723,7 @@ export function EditableItinerary({
 
       {/* Edit Mode BottomSheet */}
       <BottomSheet
-        isOpen={!!editModeDay}
+        isOpen={!!editModeDay && !showMovePicker}
         onRequestClose={handleRequestClose}
         title={editDay ? `${editDay.date} · ${editDay.label}` : ""}
         headerRight={
@@ -778,13 +780,17 @@ export function EditableItinerary({
           <SortableContext items={editItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
             <div style={{ padding: `${Spacing.xs}px ${Spacing.base}px` }}>
               {editItems.map(item => {
-                const isItemLocked = !item._isCustom && ((item as ItineraryItem).locked || confirms[item.id]);
+                // Lock = user-confirmed OR editorial locked in trip data.
+                // Both selection and drag are gated on the same condition.
+                const isItemLocked = confirms[item.id] || (!item._isCustom && !!(item as ItineraryItem).locked);
+                const isItemDragDisabled = isItemLocked;
                 return (
                   <SheetSortableItem
                     key={item.id}
                     item={item}
                     isSelected={selectedItems.has(item.id)}
                     isLocked={isItemLocked}
+                    isDragDisabled={isItemDragDisabled}
                     onToggleSelect={() => toggleItem(item.id)}
                     displayTime={getDisplayTime(item)}
                     accent={stop.accent}
