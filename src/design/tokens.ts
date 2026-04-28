@@ -46,6 +46,10 @@ export const Colors = {
   unselectedFill:  'transparent',
   unselectedBorder:'#CCCCCC',
 
+  // Stops bar band
+  tabBg:     '#EDE8DC',
+  tabBorder: '#D4C9B0',
+
   // Overlay — BottomSheet backdrop
   overlay: 'rgba(0,0,0,0.45)',
 } as const;
@@ -179,6 +183,10 @@ export const Animation = {
     // Card-to-fullscreen expand — used by EntityDetailSheet origin-rect animation.
     // Snappy enough to feel responsive, damped enough not to overshoot on small rects.
     cardExpand: { stiffness: 340, damping: 30 },
+    // Stops bar springs
+    settle: { stiffness: 170, damping: 24, mass: 1.05 }, // ~580ms — "train pulling in"
+    bloom:  { stiffness: 240, damping: 22 },              // emoji chip activation
+    trail:  { stiffness: 140, damping: 30 },              // trail fill lags pill by ~80ms
   },
   // Framer Motion easing arrays — same curves as Animation.easing but as number tuples.
   // Required because FM's Easing type rejects CSS cubic-bezier() strings.

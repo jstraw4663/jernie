@@ -17,10 +17,10 @@ import {
   useScroll,
   useTransform,
   useSpring,
-  LayoutGroup,
 } from 'framer-motion';
 import type { Stop } from '../types';
-import { Colors, Spacing, Typography, Animation } from '../design/tokens';
+import { Spacing, Typography } from '../design/tokens';
+import { StopsBar } from './StopsBar';
 
 export interface StickyHeaderProps {
   stops: Stop[];
@@ -61,7 +61,6 @@ export function StickyHeader({
   const detailsMaxHeight = useTransform(smoothY, [0, 350], [300, 0]);
   const headerPaddingTop = useTransform(smoothY, [0, 300], [48, 8]);
   const headerPaddingBottom = useTransform(smoothY, [0, 300], [36, 6]);
-  const tabPaddingY = useTransform(smoothY, [0, 180], [Spacing.md, Spacing.xs]);
   return (
     <div
       data-sticky-nav
@@ -173,90 +172,8 @@ export function StickyHeader({
         </div>
       </motion.div>
 
-      {/* ── Tab bar ─────────────────────────────────────────── */}
-      <div
-        style={{
-          background: '#EDE8DC',
-          borderBottom: '2px solid #D4C9B0',
-          overflowX: 'auto',
-          // Hide scrollbar for cleanliness
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-        }}
-      >
-        <LayoutGroup>
-          <div
-            style={{
-              display: 'flex',
-              minWidth: 'max-content',
-              width: '100%',
-            }}
-          >
-            {stops.map(s => {
-              const isActive = s.id === active;
-              return (
-                <motion.button
-                  key={s.id}
-                  onClick={() => onTabChange(s.id)}
-                  style={{
-                    flex: '1 1 auto',
-                    minWidth: '110px',
-                    border: 'none',
-                    background: isActive ? Colors.background : 'transparent',
-                    cursor: 'pointer',
-                    fontFamily: Typography.family,
-                    color: isActive ? s.accent : Colors.textSecondary,
-                    fontWeight: isActive ? Typography.weight.bold : Typography.weight.regular,
-                    textAlign: 'center',
-                    lineHeight: Typography.lineHeight.tight,
-                    position: 'relative',
-                    paddingTop: tabPaddingY,
-                    paddingBottom: tabPaddingY,
-                    paddingLeft: `${Spacing.base}px`,
-                    paddingRight: `${Spacing.base}px`,
-                    fontSize: `${Typography.size.sm - 1}px`,
-                    transition: `background ${Animation.duration.fast} ${Animation.easing.default}, color ${Animation.duration.fast} ${Animation.easing.default}`,
-                  }}
-                  whileTap={{ opacity: 0.7 }}
-                  transition={{ duration: 0.1 }}
-                >
-                  <div style={{ fontSize: '1.25rem' }}>{s.emoji}</div>
-                  <div>{s.city}</div>
-                  <div
-                    style={{
-                      fontSize: `${Typography.size.xs - 1}px`,
-                      opacity: 0.65,
-                      marginTop: `${Spacing.xxs}px`,
-                    }}
-                  >
-                    {s.dates}
-                  </div>
-
-                  {/* Sliding active indicator — shared via layoutId */}
-                  {isActive && (
-                    <motion.div
-                      layoutId="tab-indicator"
-                      style={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: 3,
-                        background: s.accent,
-                        borderRadius: '2px 2px 0 0',
-                      }}
-                      transition={{
-                        type: 'spring',
-                        ...Animation.springs.snappy,
-                      }}
-                    />
-                  )}
-                </motion.button>
-              );
-            })}
-          </div>
-        </LayoutGroup>
-      </div>
+      {/* ── Stops bar ───────────────────────────────────────── */}
+      <StopsBar stops={stops} active={active} onTabChange={onTabChange} />
     </div>
   );
 }
