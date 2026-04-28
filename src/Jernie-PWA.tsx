@@ -516,7 +516,7 @@ export default function MaineGuide() {
       allDays={data.itinerary_days}
       stops={data.stops}
       onAddPlace={(place, toDayId)=>{
-        addCustomItem(toDayId, "", place.name + (place.note ? " — " + place.note : ""), place.id);
+        addCustomItem(toDayId, "", place.name + (place.note ? " — " + place.note : ""), place.id, place.category);
       }}
     />
 

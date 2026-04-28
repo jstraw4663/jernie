@@ -162,34 +162,27 @@ export function ItineraryItemDetailSheet({
       onRequestClose={onClose}
       title={sheetTitle}
       headerRight={
-        onConfirm && !isCustom ? (
-          <button
-            onClick={() => {
-              // Save time draft first so it appears immediately on confirm
-              const trimmedTime = timeDraft.trim();
-              if (trimmedTime) {
-                if (isCustom && customItem) onUpdateCustomItem(item.id, { time: trimmedTime });
-                onSetTimeOverride(item.id, trimmedTime);
-              }
-              onConfirm(item.id, !isConfirmed);
-              onClose();
-            }}
-            style={{
-              background: isConfirmed ? Colors.gold : 'transparent',
-              color: isConfirmed ? '#fff' : Colors.gold,
-              border: `1.5px solid ${Colors.gold}`,
-              borderRadius: Radius.full,
-              padding: `${Spacing.xs}px ${Spacing.md}px`,
-              fontSize: `${Typography.size.xs}px`,
-              fontFamily: Typography.family,
-              fontWeight: Typography.weight.semibold,
-              letterSpacing: '0.04em',
-              cursor: 'pointer',
-            }}
-          >
-            {isConfirmed ? '✓ Confirmed' : 'Confirm ✓'}
-          </button>
-        ) : undefined
+        <button
+          onClick={onClose}
+          aria-label="Done"
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: Radius.full,
+            background: '#0D2B3E',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            flexShrink: 0,
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden>
+            <path d="M2 6l3 3 5-5" stroke="#F7F4EF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
       }
     >
       <div style={{ padding: `${Spacing.base}px` }}>
@@ -366,6 +359,36 @@ export function ItineraryItemDetailSheet({
                 🔗 Website
               </a>
             )}
+          </div>
+        )}
+
+        {/* ── Confirm toggle ── */}
+        {onConfirm && (
+          <div style={{ marginBottom: Spacing.md }}>
+            <button
+              onClick={() => {
+                const trimmedTime = timeDraft.trim();
+                if (trimmedTime) {
+                  if (isCustom && customItem) onUpdateCustomItem(item.id, { time: trimmedTime });
+                  onSetTimeOverride(item.id, trimmedTime);
+                }
+                onConfirm(item.id, !isConfirmed);
+              }}
+              style={{
+                background: isConfirmed ? Colors.gold : 'transparent',
+                color: isConfirmed ? '#fff' : Colors.gold,
+                border: `1.5px solid ${Colors.gold}`,
+                borderRadius: Radius.full,
+                padding: `${Spacing.xs}px ${Spacing.md}px`,
+                fontSize: `${Typography.size.xs}px`,
+                fontFamily: Typography.family,
+                fontWeight: Typography.weight.semibold,
+                letterSpacing: '0.04em',
+                cursor: 'pointer',
+              }}
+            >
+              {isConfirmed ? '✓ Confirmed' : 'Confirm ✓'}
+            </button>
           </div>
         )}
 

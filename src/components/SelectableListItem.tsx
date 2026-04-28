@@ -78,9 +78,7 @@ export function SelectableListItem({
   const { title } = parseItemText(label);
 
   // Card left border — gold for confirmed, accent for open
-  const borderColor = isLocked
-    ? `${Colors.gold}90`
-    : accent ? `${accent}30` : Colors.border;
+  const borderColor = accent ? `${accent}30` : Colors.border;
 
   return (
     <div
@@ -102,9 +100,9 @@ export function SelectableListItem({
       {/* Selection bubble / confirmed indicator */}
       <div style={{ flexShrink: 0 }}>
         {isLocked ? (
-          // Gold checkmark — confirmed item
+          // Gold circle with white lock — curated item, cannot be selected/deleted/moved
           <div
-            aria-label="Confirmed"
+            aria-label="Curated item"
             style={{
               width: 22,
               height: 22,
@@ -115,9 +113,9 @@ export function SelectableListItem({
               justifyContent: 'center',
             }}
           >
-            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
-              <path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round" />
+            <svg width="10" height="11" viewBox="0 0 10 12" fill="none" aria-hidden>
+              <rect x="1" y="5" width="8" height="7" rx="1.5" stroke="#fff" strokeWidth="1.5" />
+              <path d="M3 5V3.5a2 2 0 0 1 4 0V5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </div>
         ) : (
@@ -172,7 +170,7 @@ export function SelectableListItem({
           <div style={{
             fontSize: `${Typography.size.xs}px`,
             fontWeight: Typography.weight.bold,
-            color: isLocked ? Colors.gold : Colors.textPrimary,
+            color: Colors.textPrimary,
             fontFamily: Typography.family,
             marginBottom: Spacing.xxs + 1,
             lineHeight: 1.2,
@@ -190,8 +188,8 @@ export function SelectableListItem({
             <span style={{
               fontFamily: Typography.family,
               fontSize: `${Typography.size.sm}px`,
-              fontWeight: isLocked ? Typography.weight.bold : Typography.weight.medium,
-              color: isLocked ? Colors.textPrimary : Colors.textSecondary,
+              fontWeight: Typography.weight.medium,
+              color: Colors.textSecondary,
               lineHeight: Typography.lineHeight.normal,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
