@@ -7,7 +7,8 @@
 // Display-only — writes nothing to Firebase.
 
 import { useState } from 'react';
-import { Colors, Spacing, Radius, Shadow, Typography } from '../../../design/tokens';
+import { Icons } from '../../../design/icons';
+import { Colors, Spacing, Radius, Shadow, Typography, IconColors } from '../../../design/tokens';
 import { haversineKm, toMiles } from '../../../domain/geo';
 
 export interface DestinationOption {
@@ -30,11 +31,11 @@ export interface DistanceModuleProps {
 
 type ModeId = 'walk' | 'drive' | 'transit' | 'bike';
 
-const MODES: Array<{ id: ModeId; icon: string; label: string; dirflg: string }> = [
-  { id: 'walk',    icon: '🚶', label: 'Walk',    dirflg: 'w' },
-  { id: 'drive',   icon: '🚗', label: 'Drive',   dirflg: 'd' },
-  { id: 'transit', icon: '🚌', label: 'Transit', dirflg: 'r' },
-  { id: 'bike',    icon: '🚲', label: 'Bike',    dirflg: 'b' },
+const MODES: Array<{ id: ModeId; Icon: React.ElementType; label: string; dirflg: string }> = [
+  { id: 'walk',    Icon: Icons.Walk,  label: 'Walk',    dirflg: 'w' },
+  { id: 'drive',   Icon: Icons.Car,   label: 'Drive',   dirflg: 'd' },
+  { id: 'transit', Icon: Icons.Bus,   label: 'Transit', dirflg: 'r' },
+  { id: 'bike',    Icon: Icons.Bike,  label: 'Bike',    dirflg: 'b' },
 ];
 
 // ── Distance calculation ────────────────────────────────────────────────────
@@ -177,7 +178,7 @@ export function DistanceModule({
                 outline: 'none',
               }}
             >
-              <span style={{ fontSize: `${Typography.size.sm}px` }}>{mode.icon}</span>
+              <mode.Icon size={Typography.size.sm} weight="duotone" color={isActive ? 'currentColor' : IconColors.travel} />
               {mode.label}
             </button>
           );
@@ -333,7 +334,7 @@ export function DistanceModule({
               textAlign: 'left' as const,
             }}
           >
-            <span style={{ fontSize: `${Typography.size.base}px` }}>{activeModeEntry.icon}</span>
+            <activeModeEntry.Icon size={Typography.size.base} weight="duotone" color={IconColors.travel} />
             <div style={{ flex: 1 }}>
               <div
                 style={{

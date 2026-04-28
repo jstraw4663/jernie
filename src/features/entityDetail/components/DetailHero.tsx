@@ -9,14 +9,14 @@
 // The hero area is intentionally NOT data-vaul-no-drag — vaul captures swipe-down
 // gestures here to dismiss the sheet.
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Colors, Typography, Spacing, Radius } from '../../../design/tokens';
 
 interface DetailHeroProps {
   gradient: string;
   photoUrl?: string;
   logoUrl?: string;
-  emoji?: string;
+  emoji?: ReactNode;
   title: string;
   subtitle?: string;
   categoryChip?: string;
@@ -114,7 +114,7 @@ export function DetailHero({ gradient, photoUrl, logoUrl, emoji, title, subtitle
       >
         {/* Top row: emoji + category chip */}
         <div style={{ display: 'flex', alignItems: 'center', gap: `${Spacing.sm}px` }}>
-          {emoji && <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{emoji}</span>}
+          {emoji && <span style={{ lineHeight: 1 }}>{emoji}</span>}
           {categoryChip && (
             <span
               style={{

@@ -85,6 +85,11 @@ exports.handler = async function (event) {
     return { statusCode: 403, body: 'Forbidden' };
   }
 
+  const appSecret = process.env.APP_SECRET;
+  if (appSecret && (event.headers['x-app-token'] || '') !== appSecret) {
+    return { statusCode: 403, body: 'Forbidden' };
+  }
+
   let body;
   try {
     body = JSON.parse(event.body ?? '{}');

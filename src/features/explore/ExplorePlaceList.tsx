@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type React from 'react';
 import type { Place, PlaceEnrichment, Stop } from '../../types';
 import { RestaurantCard } from '../../components/RestaurantCard';
 import { ActivityCard } from '../../components/ActivityCard';
@@ -34,6 +35,7 @@ interface ExplorePlaceListProps {
   onExpand?: (place: Place, rect: DOMRect) => void;
   onAddToItinerary?: (place: Place) => void;
   addedPlaceIds?: Set<string>;
+  scrollRoot?: React.RefObject<Element | null>;
 }
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
@@ -43,7 +45,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'name',       label: 'A – Z' },
 ];
 
-export function ExplorePlaceList({ places, stopMap, enrichmentMap, sort, onSortChange, onExpand, onAddToItinerary, addedPlaceIds }: ExplorePlaceListProps) {
+export function ExplorePlaceList({ places, stopMap, enrichmentMap, sort, onSortChange, onExpand, onAddToItinerary, addedPlaceIds, scrollRoot }: ExplorePlaceListProps) {
   const sorted = useMemo(() => sortPlaces(places, enrichmentMap, sort), [places, enrichmentMap, sort]);
 
   return (
@@ -97,7 +99,7 @@ export function ExplorePlaceList({ places, stopMap, enrichmentMap, sort, onSortC
           const accent = stop?.accent ?? Colors.navy;
           const enrichment = enrichmentMap[place.id];
           return (
-            <ScrollReveal key={place.id} index={i} margin="-40px">
+            <ScrollReveal key={place.id} index={i} root={scrollRoot} margin="80px">
               {place.category === 'restaurant'
                 ? <RestaurantCard place={place} accent={accent} enrichment={enrichment} isAdded={addedPlaceIds?.has(place.id)} onExpand={onExpand} onAddToItinerary={onAddToItinerary} />
                 : <ActivityCard   place={place} accent={accent} enrichment={enrichment} isAdded={addedPlaceIds?.has(place.id)} onExpand={onExpand} onAddToItinerary={onAddToItinerary} />

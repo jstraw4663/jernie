@@ -12,3 +12,5 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(self), payment=()"
+    Content-Security-Policy = "default-src 'self' *.googleapis.com *.gstatic.com *.firebaseio.com *.firebaseapp.com www.google.com www.alltrails.com; img-src 'self' data: blob: *.googleusercontent.com *.gstatic.com; frame-src www.google.com www.alltrails.com; object-src 'none'"

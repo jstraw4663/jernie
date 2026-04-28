@@ -1,4 +1,6 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { navigation } from '../../navigation';
+import type { FilterId } from '../../navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTripData } from '../../hooks/useTripData';
 import { usePlaceEnrichment } from '../../hooks/usePlaceEnrichment';
@@ -14,7 +16,8 @@ import { EntityDetailSheet } from '../entityDetail/EntityDetailSheet';
 import { buildPlaceDetailConfig } from '../entityDetail/builders/buildPlaceDetailConfig';
 import { buildHikeDetailConfig } from '../entityDetail/builders/buildHikeDetailConfig';
 import type { SelectedEntity } from '../entityDetail/detailTypes';
-import { Colors, Spacing, Typography, Radius, Animation } from '../../design/tokens';
+import { Icons } from '../../design/icons';
+import { Colors, Spacing, Typography, Radius, Animation, IconColors } from '../../design/tokens';
 
 // ---------------------------------------------------------------------------
 // Seeded shuffle — bucket changes every 4 hours so order is stable per session
@@ -53,31 +56,30 @@ interface CarouselRow {
 // Stacy's Finds is always pinned at the top; the remaining rows are shuffled.
 const STACYS_FINDS_ROW: CarouselRow = {
   id: 'stacys-finds',
-  label: "💜 Stacy's Finds",
+  label: "Stacy's Finds",
   filter: p => p.attribution_handle === 'stacy',
 };
 
 const SHUFFLEABLE_CAROUSEL_ROWS: CarouselRow[] = [
-  { id: 'must-do',   label: '⭐ Must Do',        filter: p => p.must },
-  { id: 'eats',      label: '🍽 Restaurants',    filter: p => p.category === 'restaurant' },
-  { id: 'hikes',     label: '🥾 Hikes',          filter: p => p.category === 'hike' },
-  { id: 'water',     label: '⛵ On the Water',   filter: p => p.subcategory === 'on-the-water' },
-  { id: 'bars',      label: '🍺 Bars & Drinks',  filter: p => p.category === 'bar' },
-  { id: 'sights',    label: '🏛 Sights & Culture', filter: p => (['attraction','sight','museum'] as PlaceCategory[]).includes(p.category) },
+  { id: 'must-do',   label: 'Must Do',          filter: p => p.must },
+  { id: 'eats',      label: 'Restaurants',      filter: p => p.category === 'restaurant' },
+  { id: 'hikes',     label: 'Hikes',            filter: p => p.category === 'hike' },
+  { id: 'water',     label: 'On the Water',     filter: p => p.subcategory === 'on-the-water' },
+  { id: 'bars',      label: 'Bars & Drinks',    filter: p => p.category === 'bar' },
+  { id: 'sights',    label: 'Sights & Culture', filter: p => (['attraction','sight','museum'] as PlaceCategory[]).includes(p.category) },
 ];
 
 // ---------------------------------------------------------------------------
 // Filter pill definitions
 // ---------------------------------------------------------------------------
-type FilterId = 'all' | 'restaurant' | 'hike' | 'bar' | 'sights' | 'activity';
 
-const FILTER_PILLS: { id: FilterId; label: string }[] = [
+const FILTER_PILLS: { id: FilterId; label: string; icon?: React.ReactNode }[] = [
   { id: 'all',        label: 'All' },
-  { id: 'restaurant', label: '🍽 Eats' },
-  { id: 'hike',       label: '🥾 Hikes' },
-  { id: 'bar',        label: '🍺 Bars' },
-  { id: 'sights',     label: '🏛 Sights' },
-  { id: 'activity',   label: '🎭 Activities' },
+  { id: 'restaurant', label: 'Eats',       icon: <Icons.Restaurant size={12} weight="duotone" color={IconColors.food} /> },
+  { id: 'hike',       label: 'Hikes',      icon: <Icons.Hike size={12} weight="duotone" color={IconColors.nature} /> },
+  { id: 'bar',        label: 'Bars',       icon: <Icons.Bar size={12} weight="duotone" color={IconColors.food} /> },
+  { id: 'sights',     label: 'Sights',     icon: <Icons.Hotel size={12} weight="duotone" color={IconColors.activity} /> },
+  { id: 'activity',   label: 'Activities', icon: <Icons.Theater size={12} weight="duotone" color={IconColors.activity} /> },
 ];
 
 const FILTER_CATEGORIES: Record<FilterId, PlaceCategory[]> = {
@@ -94,16 +96,48 @@ function matchesFilter(place: Place, filter: FilterId): boolean {
   return FILTER_CATEGORIES[filter].includes(place.category);
 }
 
+function pillStyle(active: boolean, accentColor: string): React.CSSProperties {
+  return {
+    flexShrink: 0,
+    padding: `${Spacing.xs}px ${Spacing.md}px`,
+    borderRadius: `${Radius.full}px`,
+    border: `1px solid ${active ? accentColor : Colors.border}`,
+    background: active ? accentColor : Colors.surface,
+    color: active ? '#fff' : Colors.textSecondary,
+    fontSize: `${Typography.size.xs + 1}px`,
+    fontFamily: Typography.family,
+    fontWeight: active ? Typography.weight.semibold : Typography.weight.regular,
+    cursor: 'pointer',
+    transition: `background 150ms ${Animation.easing.default}, color 150ms ${Animation.easing.default}, border-color 150ms ${Animation.easing.default}`,
+    whiteSpace: 'nowrap',
+    display: 'flex',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // ExploreScreen
 // ---------------------------------------------------------------------------
 export function ExploreScreen() {
   const { data } = useTripData();
   const { addCustomItem, customItems } = useSharedTripState(TRIP_ID);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterId>('all');
+  const [activeStopId, setActiveStopId] = useState<string | 'all'>('all');
   const [sort, setSort] = useState<SortKey>('rating');
+
+  // Consume any deep link scheduled by Overview before this tab mounted
+  useEffect(() => {
+    const link = navigation.consumeExplore();
+    if (!link) return;
+    if (FILTER_CATEGORIES[link.filter]) setActiveFilter(link.filter);
+    setActiveStopId(link.stopId ?? 'all');
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
   const [addPlaceContext, setAddPlaceContext] = useState<Place | null>(null);
 
@@ -137,7 +171,10 @@ export function ExploreScreen() {
 
   // Filtered places for the All Places list
   const filteredPlaces = useMemo(() => {
-    let list = allPlaces.filter(p => matchesFilter(p, activeFilter));
+    let list = allPlaces.filter(p =>
+      matchesFilter(p, activeFilter) &&
+      (activeStopId === 'all' || p.stop_id === activeStopId)
+    );
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(p =>
@@ -147,7 +184,7 @@ export function ExploreScreen() {
       );
     }
     return list;
-  }, [allPlaces, activeFilter, searchQuery]);
+  }, [allPlaces, activeFilter, activeStopId, searchQuery]);
 
   // Stacy's Finds always first; remaining rows shuffled by 4-hour seed.
   // Cards within each row are also shuffled (seed offset by row index).
@@ -157,13 +194,22 @@ export function ExploreScreen() {
     return allRows.map((row, i) => ({
       ...row,
       places: seededShuffle(
-        allPlaces.filter(p => row.filter(p) && matchesFilter(p, activeFilter)),
+        allPlaces.filter(p =>
+          row.filter(p) &&
+          matchesFilter(p, activeFilter) &&
+          (activeStopId === 'all' || p.stop_id === activeStopId)
+        ),
         shuffleSeed + i + 1
       ),
     }));
-  }, [allPlaces, activeFilter, shuffleSeed]);
+  }, [allPlaces, activeFilter, activeStopId, shuffleSeed]);
 
   const accent = data?.stops[0]?.accent ?? Colors.navy;
+
+  const stopPillItems = useMemo(() => [
+    { id: 'all', label: 'All Stops', emoji: '🗺️', accent },
+    ...(data?.stops ?? []).map(s => ({ id: s.id, label: s.city, emoji: s.emoji, accent: s.accent })),
+  ], [data?.stops, accent]);
 
   if (!data) {
     return (
@@ -253,33 +299,32 @@ export function ExploreScreen() {
           {FILTER_PILLS.map(pill => {
             const active = pill.id === activeFilter;
             return (
-              <button
-                key={pill.id}
-                onClick={() => setActiveFilter(pill.id)}
-                style={{
-                  flexShrink: 0,
-                  padding: `${Spacing.xs}px ${Spacing.md}px`,
-                  borderRadius: `${Radius.full}px`,
-                  border: `1px solid ${active ? accent : Colors.border}`,
-                  background: active ? accent : Colors.surface,
-                  color: active ? '#fff' : Colors.textSecondary,
-                  fontSize: `${Typography.size.xs + 1}px`,
-                  fontFamily: Typography.family,
-                  fontWeight: active ? Typography.weight.semibold : Typography.weight.regular,
-                  cursor: 'pointer',
-                  transition: `background 150ms ${Animation.easing.default}, color 150ms ${Animation.easing.default}, border-color 150ms ${Animation.easing.default}`,
-                  whiteSpace: 'nowrap',
-                }}
-              >
+              <button key={pill.id} onClick={() => setActiveFilter(pill.id)} style={pillStyle(active, accent)}>
+                {pill.icon && <span style={{ display: 'flex', alignItems: 'center', opacity: active ? 1 : 0.75 }}>{pill.icon}</span>}
                 {pill.label}
               </button>
             );
           })}
         </div>
+
+        {/* Stop filter pills — dynamic from trip data, shown when trip has multiple stops */}
+        {data.stops.length > 1 && (
+          <div style={{ display: 'flex', gap: Spacing.xs, overflowX: 'auto', padding: `0 ${Spacing.base}px ${Spacing.sm}px`, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {stopPillItems.map(stop => {
+              const active = activeStopId === stop.id;
+              return (
+                <button key={stop.id} onClick={() => setActiveStopId(stop.id)} style={pillStyle(active, stop.accent)}>
+                  <span>{stop.emoji}</span>
+                  {stop.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Scrollable content ── */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         <AnimatePresence mode="wait">
           {searchOpen ? (
             /* Search results — full filtered list */
@@ -299,6 +344,7 @@ export function ExploreScreen() {
                 onExpand={handlePlaceExpand}
                 onAddToItinerary={p => setAddPlaceContext(p)}
                 addedPlaceIds={addedPlaceIds}
+                scrollRoot={scrollRef}
               />
             </motion.div>
           ) : (
@@ -321,7 +367,9 @@ export function ExploreScreen() {
                       places={row.places}
                       stopMap={stopMap}
                       enrichmentMap={enrichmentMap}
+                      addedPlaceIds={addedPlaceIds}
                       onCardClick={handlePlaceExpand}
+                      onAddToItinerary={p => setAddPlaceContext(p)}
                     />
                   );
                 })}
@@ -337,6 +385,7 @@ export function ExploreScreen() {
                 onExpand={handlePlaceExpand}
                 onAddToItinerary={p => setAddPlaceContext(p)}
                 addedPlaceIds={addedPlaceIds}
+                scrollRoot={scrollRef}
               />
             </motion.div>
           )}

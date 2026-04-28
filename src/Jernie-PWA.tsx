@@ -6,11 +6,13 @@ import { EditableItinerary } from "./components/EditableItinerary";
 import { AddToItinerarySheet } from "./components/AddToItinerarySheet";
 import { StickyHeader } from "./components/StickyHeader";
 import { StopNavigator } from "./components/StopNavigator";
-import type { Booking, Place, Stop } from "./types";
+import type { Booking, Place } from "./types";
 import { motion } from 'framer-motion';
 import { Animation } from "./design/tokens";
+import { useNavigation } from "./contexts/NavigationContext";
+import { ACTIVITY_CATEGORIES } from "./features/overview/selectors";
 import { deriveFlightGroups, isWithinFlightWindow, isRentalCar } from "./domain/trip";
-import type { FlightGroupEntry, FlightStatus, WeatherDaily } from "./domain/trip";
+import type { FlightGroupEntry, FlightStatus } from "./domain/trip";
 import { CollapsibleSection } from "./components/CollapsibleSection";
 import { WeatherStrip } from "./components/WeatherStrip";
 import { PlaceList } from "./components/PlaceList";
@@ -22,6 +24,8 @@ import { buildPlaceDetailConfig } from "./features/entityDetail/builders/buildPl
 import { usePlaceEnrichment } from "./hooks/usePlaceEnrichment";
 import { useTrailEnrichment } from "./hooks/useTrailEnrichment";
 import { useBookingEnrichment } from "./hooks/useBookingEnrichment";
+import { useWeatherEnrichment } from "./hooks/useWeatherEnrichment";
+import { readCache, writeCache } from "./utils/cache";
 import { buildHikeDetailConfig } from "./features/entityDetail/builders/buildHikeDetailConfig";
 import { buildFlightDetailConfig } from "./features/entityDetail/builders/buildFlightDetailConfig";
 import { buildBookingDetailConfig } from "./features/entityDetail/builders/buildBookingDetailConfig";
@@ -52,58 +56,6 @@ function useCountdown(departure: Date | null) {
   return t;
 }
 
-// ── Cache Utilities ───────────────────────────────────────────
-
-interface CacheEntry<T> {
-  data: T;
-  cachedAt: number;
-}
-
-function readCache<T>(key: string): CacheEntry<T> | null {
-  try {
-    const r = localStorage.getItem(key);
-    return r ? JSON.parse(r) as CacheEntry<T> : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCache(key: string, data: unknown): void {
-  try { localStorage.setItem(key, JSON.stringify({ data, cachedAt: Date.now() })); }
-  catch {}
-}
-
-async function fetchWeatherForStop(
-  s: Stop,
-  signal?: AbortSignal,
-): Promise<{ data: WeatherDaily; fromCache: boolean } | null> {
-  const key = "jernie_weather_" + s.id;
-  const cached = readCache<WeatherDaily>(key);
-  if (cached && (Date.now() - cached.cachedAt) < 3 * 3_600_000) {
-    return { data: cached.data, fromCache: true };
-  }
-  const daysUntilTrip = Math.ceil((new Date(s.weather_start).getTime() - Date.now()) / 86_400_000);
-  if (daysUntilTrip > 16) return null;
-  if (!navigator.onLine) {
-    return cached ? { data: cached.data, fromCache: true } : null;
-  }
-  try {
-    const url =
-      "https://api.open-meteo.com/v1/forecast?latitude=" + s.lat +
-      "&longitude=" + s.lon +
-      "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode" +
-      "&temperature_unit=fahrenheit&timezone=America%2FNew_York" +
-      "&start_date=" + s.weather_start + "&end_date=" + s.weather_end;
-    const r = await fetch(url, { signal });
-    const d = await r.json() as { error?: boolean; daily?: WeatherDaily };
-    if (d.error || !d.daily?.time?.length) return cached ? { data: cached.data, fromCache: true } : null;
-    writeCache(key, d.daily);
-    return { data: d.daily, fromCache: false };
-  } catch {
-    return cached ? { data: cached.data, fromCache: true } : null;
-  }
-}
-
 type StatusSetter = (fn: (prev: Record<string, FlightStatus>) => Record<string, FlightStatus>) => void;
 type DateSetter   = (fn: (prev: Record<string, Date>) => Record<string, Date>) => void;
 
@@ -129,7 +81,10 @@ async function fetchFlightStatusGroupWithData(
   try {
     const resp = await fetch(FLIGHT_STATUS_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-App-Token": import.meta.env.VITE_APP_SECRET ?? "",
+      },
       body: JSON.stringify({ flights }),
     });
     if (!resp.ok) throw new Error("proxy error");
@@ -168,6 +123,23 @@ const contentSectionVariants = {
 
 // ── Countdown component ───────────────────────────────────────
 
+function ExploreMoreButton({ label, onClick, accent }: { label: string; onClick: () => void; accent: string }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'block', width: '100%', marginTop: '12px',
+        padding: '10px', border: `1px dashed ${accent}55`,
+        borderRadius: '8px', background: 'transparent',
+        color: accent, fontFamily: "Georgia,'Times New Roman',serif",
+        fontSize: '0.85rem', cursor: 'pointer', textAlign: 'center',
+      }}
+    >
+      Explore more {label} →
+    </button>
+  );
+}
+
 function Countdown({departure}: {departure:Date|null}) {
   const t = useCountdown(departure);
   if (!t) return (
@@ -204,6 +176,8 @@ export default function MaineGuide() {
           addCustomItem, deleteCustomItem, setTimeOverride, setTextOverride, updateCustomItem,
           setBookingField, bookingOverrides } = useSharedTripState(tripId);
   const addedPlaceIds = useAddedPlaceIds(data, customItems);
+  const { navigateToExplore } = useNavigation();
+  const onExploreMore = useCallback(() => navigateToExplore({ filter: 'all' }), [navigateToExplore]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const ACTIVE_STOP_KEY = "jernie_active_stop";
@@ -214,7 +188,7 @@ export default function MaineGuide() {
     try { localStorage.setItem(ACTIVE_STOP_KEY, id); } catch {}
     setActive(id);
   };
-  const [weatherData, setWeatherData] = useState<Record<string, WeatherDaily>>({});
+  const weatherData = useWeatherEnrichment(tripId, data?.stops ?? []);
   const [flightStatus, setFlightStatus] = useState<Record<string, FlightStatus>>({});
   const [flightLoading, setFlightLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Record<string, Date>>({});
@@ -313,32 +287,10 @@ export default function MaineGuide() {
     return buildBookingDetailConfig(mergedBooking, bookingStop);
   }, [selectedEntity, data, onBookingChange, onLegAircraftChange, bookingOverrides, hotelEnrichmentMap, flightStatus, enrichmentMap, trailEnrichmentMap]);
 
-  // Load caches and kick off fetches once data is available
+  // Seed flight status from cache then fetch if within window
   useEffect(() => {
     if (!data) return;
 
-    // Weather: seed from cache immediately, then fetch all stops in parallel.
-    // Promise.allSettled ensures a single setWeatherData call when all complete —
-    // prevents 3 separate re-renders (one per stop) that could cause scroll jitter on iOS.
-    const weatherInit: Record<string, WeatherDaily> = {};
-    data.stops.forEach(s => {
-      const c = readCache<WeatherDaily>("jernie_weather_" + s.id);
-      if (c) weatherInit[s.id] = c.data;
-    });
-    setWeatherData(weatherInit);
-
-    const weatherController = new AbortController();
-    Promise.allSettled(data.stops.map(s => fetchWeatherForStop(s, weatherController.signal)))
-      .then(results => {
-        if (weatherController.signal.aborted) return;
-        const updates: Record<string, WeatherDaily> = {};
-        results.forEach((r, i) => {
-          if (r.status === "fulfilled" && r.value) updates[data.stops[i].id] = r.value.data;
-        });
-        if (Object.keys(updates).length) setWeatherData(prev => ({ ...prev, ...updates }));
-      });
-
-    // Flights: load cache then fetch if within window
     const flightInit: Record<string, FlightStatus> = {};
     const lastUpdatedInit: Record<string, Date> = {};
     const groups = deriveFlightGroups(data.bookings);
@@ -356,8 +308,6 @@ export default function MaineGuide() {
         fetchFlightStatusGroupWithData(dateKey, group.flights, setFlightStatus, setFlightLoading, setLastUpdated);
       }
     });
-
-    return () => weatherController.abort();
   }, [data]);
 
   useEffect(() => {
@@ -398,8 +348,8 @@ export default function MaineGuide() {
   const stopBookings = data.bookings.filter(b => b.stop_id === active);
   const stopPlaces = data.places.filter(p => p.stop_id === active);
   const stopAlerts = data.alerts.filter(a => a.stop_id === active);
-  const restaurants = stopPlaces.filter(p => p.category === "restaurant");
-  const activities = stopPlaces.filter(p => p.category !== "restaurant");
+  const restaurants = stopPlaces.filter(p => p.category === "restaurant" && !addedPlaceIds.has(p.id)).slice(0, 5);
+  const activities = stopPlaces.filter(p => ACTIVITY_CATEGORIES.has(p.category) && !addedPlaceIds.has(p.id)).slice(0, 5);
   const hasFlights = stopBookings.some(b => b.type === "flight");
 
   // Plain functions — not hooks, so safe after early returns. stop.accent is stable per stop.
@@ -451,7 +401,7 @@ export default function MaineGuide() {
         <motion.div variants={contentSectionVariants}>
           <CollapsibleSection
             color={stop.accent}
-            label="✈️ Travel & Accommodations"
+            label="Travel & Accommodations"
             open={travelOpen}
             onToggle={()=>setTravelOpen(v=>!v)}
             rightSlot={hasFlights&&(
@@ -463,7 +413,7 @@ export default function MaineGuide() {
                 });
               }} disabled={flightLoading}
                 style={{background:"transparent",border:"1px solid "+stop.accent+"50",borderRadius:"6px",padding:"3px 10px",fontSize:"0.72rem",color:stop.accent,cursor:flightLoading?"default":"pointer",opacity:flightLoading?0.5:1,fontFamily:"Georgia,serif"}}>
-                {flightLoading?"⏳ Checking…":"↻ Refresh"}
+                {flightLoading?"Checking…":"↻ Refresh"}
               </button>
             )}
           >
@@ -485,7 +435,7 @@ export default function MaineGuide() {
           <motion.div variants={contentSectionVariants}>
             <div style={{marginBottom:"28px"}}>
               <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"12px"}}>
-                <div style={{fontWeight:"bold",color:stop.accent,fontSize:"0.78rem",letterSpacing:"0.12em",textTransform:"uppercase"}}>📌 Additional Details</div>
+                <div style={{fontWeight:"bold",color:stop.accent,fontSize:"0.78rem",letterSpacing:"0.12em",textTransform:"uppercase"}}>Additional Details</div>
                 <div style={{flex:1,height:"1px",background:stop.accent+"30"}}/>
               </div>
               {stopAlerts.map((a)=><AlertBox key={a.id} {...a}/>)}
@@ -514,13 +464,15 @@ export default function MaineGuide() {
         {/* Where to Eat */}
         <motion.div variants={contentSectionVariants}>
           {active==="barharbor" ? (
-            <CollapsibleSection color={stop.accent} label="🍽️ Where to Eat" open={eatOpen} onToggle={()=>setEatOpen(v=>!v)}>
+            <CollapsibleSection color={stop.accent} label="Where to Eat" open={eatOpen} onToggle={()=>setEatOpen(v=>!v)}>
               <PlaceList places={restaurants} accent={stop.accent} enrichmentMap={enrichmentMap} onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
+              <ExploreMoreButton label="restaurants" onClick={onExploreMore} accent={stop.accent}/>
             </CollapsibleSection>
           ) : (
             <div style={{marginBottom:"28px"}}>
-              <SecHead label="🍽️ Where to Eat"/>
+              <SecHead label="Where to Eat"/>
               <PlaceList places={restaurants} accent={stop.accent} enrichmentMap={enrichmentMap} onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
+              <ExploreMoreButton label="restaurants" onClick={onExploreMore} accent={stop.accent}/>
             </div>
           )}
         </motion.div>
@@ -529,13 +481,15 @@ export default function MaineGuide() {
         {activities.length > 0 && (
           <motion.div variants={contentSectionVariants}>
             {active==="barharbor" ? (
-              <CollapsibleSection color={stop.accent} label="📍 What to Do" open={doOpen} onToggle={()=>setDoOpen(v=>!v)}>
+              <CollapsibleSection color={stop.accent} label="What to Do" open={doOpen} onToggle={()=>setDoOpen(v=>!v)}>
                 <PlaceList places={activities} accent={stop.accent} enrichmentMap={enrichmentMap} trailEnrichmentMap={trailEnrichmentMap} isActivities onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
+                <ExploreMoreButton label="activities" onClick={onExploreMore} accent={stop.accent}/>
               </CollapsibleSection>
             ) : (
               <div style={{marginBottom:"28px"}}>
-                <SecHead label="📍 What to Do"/>
+                <SecHead label="What to Do"/>
                 <PlaceList places={activities} accent={stop.accent} enrichmentMap={enrichmentMap} trailEnrichmentMap={trailEnrichmentMap} isActivities onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
+                <ExploreMoreButton label="activities" onClick={onExploreMore} accent={stop.accent}/>
               </div>
             )}
           </motion.div>

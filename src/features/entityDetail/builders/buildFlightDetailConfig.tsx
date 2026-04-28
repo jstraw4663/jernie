@@ -13,6 +13,8 @@
 import { useState } from 'react';
 import type { Booking, Stop } from '../../../types';
 import type { DetailConfig, DetailRow, DetailSectionConfig } from '../detailTypes';
+import { Icons } from '../../../design/icons';
+import { IconColors } from '../../../design/tokens';
 import { Colors, Spacing, Typography, Radius } from '../../../design/tokens';
 import { iataFromFlightNum, airlineLogoUrl, brandColor } from '../brandAssets';
 import { getAirportName, getAirportUrl, parseIataFromRoute, IATA_AIRPORTS } from '../../../domain/airports';
@@ -29,7 +31,7 @@ const AIRCRAFT_PILL_OPTIONS: PillSelectOption[] = AIRCRAFT_OPTIONS.map(slug => (
   id:    slug,
   value: slug,
   label: AIRCRAFT_LABELS[slug] ?? slug,
-  icon:  '✈️',
+  icon:  <Icons.Flight size={14} weight="duotone" color={IconColors.travel} />,
 }));
 
 interface AircraftTypeFieldProps {
@@ -230,7 +232,7 @@ export function buildFlightDetailConfig(
     subtitle: firstFlight
       ? `${firstFlight.airline} · ${firstFlight.date}`
       : booking.label,
-    heroEmoji: '✈️',
+    heroEmoji: <Icons.Flight size={32} weight="duotone" color={IconColors.travel} />,
     heroGradient,
     heroLogoUrl: logoUrl ?? undefined,
     categoryChip: booking.flights && booking.flights.length > 1 ? 'Connecting Flight' : 'Flight',
