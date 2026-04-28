@@ -642,7 +642,7 @@ export function OverviewScreen() {
         allDays={data.itinerary_days}
         stops={data.stops}
         onAddPlace={(place, dayId) =>
-          addCustomItem(dayId, '', place.name + (place.note ? ' — ' + place.note : ''), place.id)
+          addCustomItem(dayId, '', place.name + (place.note ? ' — ' + place.note : ''), place.id, place.category)
         }
       />
 

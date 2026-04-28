@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import type { ItineraryDay, Place, Stop } from "../types";
 import { Colors, Spacing, Radius, Typography, Shadow } from "../design/tokens";
 import { useSheetRegistration } from "../hooks/useSheetRegistration";
@@ -58,7 +59,7 @@ export function DayPickerModal({
 
   const title = mode === "move" ? "Move to day" : `Add ${place?.name ?? "place"} to itinerary`;
 
-  return (
+  return createPortal(
     <>
       <div
         onClick={onClose}
@@ -141,6 +142,7 @@ export function DayPickerModal({
           ))}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

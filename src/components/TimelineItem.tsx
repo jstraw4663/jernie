@@ -17,9 +17,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Icons, CATEGORY_ICON_MAP } from '../design/icons';
 import { Colors, Typography, Spacing, Animation } from '../design/tokens';
 import { Badge } from './Badge';
-import { StarRating } from './StarRating';
 import type { ItineraryItem, CustomItem, Place, ItineraryCategory } from '../types';
 import { parseItemText } from '../utils/parseItemText';
+import { PlaceMetaRow } from './PlaceMetaRow';
 
 type ResolvedItem = (ItineraryItem & { _isCustom: false }) | (CustomItem & { _isCustom: true });
 
@@ -106,7 +106,7 @@ export function TimelineItem({
   const itItem = item as ItineraryItem;
 
   // Parse title + blurb from the · / — structured text format
-  const { title: parsedTitle, blurb } = isCustom ? { title: item.text, blurb: '' } : parseItemText(item.text);
+  const { title: parsedTitle, blurb } = parseItemText(item.text);
   // textOverride wins over stored text for display — lets users rename place-linked items
   const title = textOverride || parsedTitle;
 
@@ -286,22 +286,8 @@ export function TimelineItem({
             </div>
           )}
 
-          {/* Place enrichment row — rating + price when place is linked */}
-          {resolvedPlace && (resolvedPlace.rating != null || resolvedPlace.price) && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs, flexWrap: 'wrap' }}>
-              {resolvedPlace.rating != null && <StarRating rating={resolvedPlace.rating} compact />}
-              {resolvedPlace.price && (
-                <span style={{
-                  fontSize: `${Typography.size.xs - 1}px`,
-                  color: Colors.textMuted,
-                  fontFamily: Typography.family,
-                  letterSpacing: '0.02em',
-                }}>
-                  {resolvedPlace.price}
-                </span>
-              )}
-            </div>
-          )}
+          {/* Place metadata row — type-specific: hike chips or rating/price */}
+          {resolvedPlace && <PlaceMetaRow place={resolvedPlace} />}
 
           {/* Address */}
           {addr && (
@@ -403,66 +389,64 @@ export function TimelineItem({
             </div>
 
             {/* Right: confirm pill — both states open the edit sheet for time entry */}
-            {!isCustom && (
-              <AnimatePresence mode="wait">
-                {isConfirmed ? (
-                  <motion.button
-                    key="confirmed"
-                    initial={{ opacity: 0, scale: 0.85 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.85 }}
-                    transition={{ type: 'spring', ...Animation.springs.snappy }}
-                    onClick={(e) => { e.stopPropagation(); onOpenDetail?.(); }}
-                    whileTap={{ scale: 0.94 }}
-                    style={{
-                      background: Colors.gold,
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: 9999,
-                      padding: `${Spacing.xs}px ${Spacing.md}px`,
-                      fontSize: `${Typography.size.xs}px`,
-                      fontFamily: Typography.family,
-                      fontWeight: Typography.weight.semibold,
-                      letterSpacing: '0.04em',
-                      cursor: 'pointer',
-                      boxShadow: `0 2px 8px ${Colors.gold}55`,
-                      flexShrink: 0,
-                      userSelect: 'none',
-                      WebkitUserSelect: 'none',
-                    }}
-                  >
-                    ✓ Confirmed
-                  </motion.button>
-                ) : (
-                  <motion.button
-                    key="confirm"
-                    initial={{ opacity: 0, scale: 0.85 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.85 }}
-                    transition={{ type: 'spring', ...Animation.springs.snappy }}
-                    onClick={(e) => { e.stopPropagation(); onOpenDetail?.(); }}
-                    whileTap={{ scale: 0.94 }}
-                    style={{
-                      background: 'transparent',
-                      color: Colors.gold,
-                      border: `1.5px solid ${Colors.gold}`,
-                      borderRadius: 9999,
-                      padding: `${Spacing.xs}px ${Spacing.md}px`,
-                      fontSize: `${Typography.size.xs}px`,
-                      fontFamily: Typography.family,
-                      fontWeight: Typography.weight.semibold,
-                      letterSpacing: '0.04em',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                      userSelect: 'none',
-                      WebkitUserSelect: 'none',
-                    }}
-                  >
-                    Confirm ✓
-                  </motion.button>
-                )}
-              </AnimatePresence>
-            )}
+            <AnimatePresence mode="wait">
+              {isConfirmed ? (
+                <motion.button
+                  key="confirmed"
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.85 }}
+                  transition={{ type: 'spring', ...Animation.springs.snappy }}
+                  onClick={(e) => { e.stopPropagation(); onOpenDetail?.(); }}
+                  whileTap={{ scale: 0.94 }}
+                  style={{
+                    background: Colors.gold,
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 9999,
+                    padding: `${Spacing.xs}px ${Spacing.md}px`,
+                    fontSize: `${Typography.size.xs}px`,
+                    fontFamily: Typography.family,
+                    fontWeight: Typography.weight.semibold,
+                    letterSpacing: '0.04em',
+                    cursor: 'pointer',
+                    boxShadow: `0 2px 8px ${Colors.gold}55`,
+                    flexShrink: 0,
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                  }}
+                >
+                  ✓ Confirmed
+                </motion.button>
+              ) : (
+                <motion.button
+                  key="confirm"
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.85 }}
+                  transition={{ type: 'spring', ...Animation.springs.snappy }}
+                  onClick={(e) => { e.stopPropagation(); onOpenDetail?.(); }}
+                  whileTap={{ scale: 0.94 }}
+                  style={{
+                    background: 'transparent',
+                    color: Colors.gold,
+                    border: `1.5px solid ${Colors.gold}`,
+                    borderRadius: 9999,
+                    padding: `${Spacing.xs}px ${Spacing.md}px`,
+                    fontSize: `${Typography.size.xs}px`,
+                    fontFamily: Typography.family,
+                    fontWeight: Typography.weight.semibold,
+                    letterSpacing: '0.04em',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                  }}
+                >
+                  Confirm ✓
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
 
         </motion.div>
