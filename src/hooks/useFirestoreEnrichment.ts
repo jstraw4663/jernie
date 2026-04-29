@@ -21,8 +21,18 @@ interface EnrichmentOptions<E extends { id: string }> {
   label: string;
 }
 
-// Prevents duplicate API calls when a component remounts while a fetch is in progress.
+// Prevents duplicate API calls when a component remounts or multiple hook instances
+// (Jernie-PWA + OverviewScreen + ExploreScreen) run concurrently for the same place.
 const inFlight = new Set<string>();
+
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
+  return chunks;
+}
+
+// Netlify function accepts max 20 places per request.
+const BATCH_SIZE = 20;
 
 export function useFirestoreEnrichment<T extends { cached_at: number }, E extends { id: string }>(
   tripId: string,
@@ -78,32 +88,36 @@ export function useFirestoreEnrichment<T extends { cached_at: number }, E extend
         !inFlight.has(`${inflightPrefix}:${e.id}`)
       );
       if (dedupedNeedsRefresh.length === 0) return;
-      dedupedNeedsRefresh.forEach(e =>
-        inFlight.add(`${inflightPrefix}:${e.id}`)
+      dedupedNeedsRefresh.forEach(e => inFlight.add(`${inflightPrefix}:${e.id}`));
+
+      // Fetch in parallel batches of BATCH_SIZE — Netlify function caps at 20 per request.
+      const batches = chunkArray(dedupedNeedsRefresh, BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batches.map(batch =>
+          fetch(options.endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-App-Token': import.meta.env.VITE_APP_SECRET ?? '',
+            },
+            body: JSON.stringify({ tripId, places: batch.map(options.buildPayload) }),
+          })
+            .then(r => {
+              if (!r.ok) throw new Error(`HTTP ${r.status}`);
+              return r.json() as Promise<Record<string, T | null>>;
+            })
+            .catch(err => {
+              console.warn(`[${options.label}] Fetch failed:`, err);
+              return {} as Record<string, T | null>;
+            })
+        )
       );
 
-      let freshData: Record<string, T | null>;
-      try {
-        const res = await fetch(options.endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-App-Token': import.meta.env.VITE_APP_SECRET ?? '',
-          },
-          body: JSON.stringify({ tripId, places: dedupedNeedsRefresh.map(options.buildPayload) }),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        freshData = await res.json();
-      } catch (err) {
-        console.warn(`[${options.label}] Fetch failed:`, err);
-        return;
-      } finally {
-        dedupedNeedsRefresh.forEach(e =>
-          inFlight.delete(`${inflightPrefix}:${e.id}`)
-        );
-      }
+      dedupedNeedsRefresh.forEach(e => inFlight.delete(`${inflightPrefix}:${e.id}`));
+
       if (cancelled) return;
 
+      const freshData: Record<string, T | null> = Object.assign({}, ...batchResults);
       const updates: Record<string, T> = {};
       const writes: Promise<void>[] = [];
 
