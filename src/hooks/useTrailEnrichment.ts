@@ -7,7 +7,7 @@ export function useTrailEnrichment(
 ): Record<string, TrailEnrichment> {
   return useFirestoreEnrichment<TrailEnrichment, Place>(tripId, places, {
     rootCollection: 'trail_enrichment',
-    subcollection: ['trails'],
+    scoped: false,
     endpoint: '/.netlify/functions/trail-details',
     ttlMs: 30 * 24 * 60 * 60 * 1000,
     filterEntities: ps => ps.filter(p => p.category === 'hike'),

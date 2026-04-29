@@ -3,10 +3,17 @@ import { collection, getDocs, setDoc, doc } from 'firebase/firestore';
 import { authReady, firestore } from '../lib/firebase';
 
 interface EnrichmentOptions<E extends { id: string }> {
-  /** Firestore collection path segments after the tripId, e.g. ['places'] or ['trails'] */
-  subcollection: string[];
   /** Top-level Firestore collection name, e.g. 'place_enrichment' or 'trail_enrichment' */
   rootCollection: string;
+  /**
+   * When true (default), tripId is included in the Firestore path for per-trip isolation.
+   * When false, the collection is flat: rootCollection/{entityId} — shared across all trips
+   * and environments. Use false for place/trail enrichment (data is location-level, not
+   * trip-level). Use true for weather (forecasts are date-specific to a trip window).
+   */
+  scoped?: boolean;
+  /** Path segments appended after tripId when scoped=true. Unused when scoped=false. */
+  subcollection?: string[];
   endpoint: string;
   ttlMs: number;
   filterEntities: (entities: E[]) => E[];
@@ -34,7 +41,13 @@ export function useFirestoreEnrichment<T extends { cached_at: number }, E extend
 
     async function load() {
       await authReady;
-      const colRef = collection(firestore, options.rootCollection, tripId, ...options.subcollection);
+      const scoped = options.scoped !== false;
+      const sub = options.subcollection ?? [];
+      const colRef = scoped
+        ? collection(firestore, options.rootCollection, tripId, ...sub)
+        : collection(firestore, options.rootCollection);
+      const inflightPrefix = scoped ? `${tripId}:${options.rootCollection}` : options.rootCollection;
+
       let snapshot;
       try {
         snapshot = await getDocs(colRef);
@@ -62,11 +75,11 @@ export function useFirestoreEnrichment<T extends { cached_at: number }, E extend
       if (needsRefresh.length === 0) return;
 
       const dedupedNeedsRefresh = needsRefresh.filter(e =>
-        !inFlight.has(`${tripId}:${options.rootCollection}:${e.id}`)
+        !inFlight.has(`${inflightPrefix}:${e.id}`)
       );
       if (dedupedNeedsRefresh.length === 0) return;
       dedupedNeedsRefresh.forEach(e =>
-        inFlight.add(`${tripId}:${options.rootCollection}:${e.id}`)
+        inFlight.add(`${inflightPrefix}:${e.id}`)
       );
 
       let freshData: Record<string, T | null>;
@@ -86,7 +99,7 @@ export function useFirestoreEnrichment<T extends { cached_at: number }, E extend
         return;
       } finally {
         dedupedNeedsRefresh.forEach(e =>
-          inFlight.delete(`${tripId}:${options.rootCollection}:${e.id}`)
+          inFlight.delete(`${inflightPrefix}:${e.id}`)
         );
       }
       if (cancelled) return;
@@ -97,7 +110,9 @@ export function useFirestoreEnrichment<T extends { cached_at: number }, E extend
       for (const [entityId, enrichment] of Object.entries(freshData)) {
         if (!enrichment) continue;
         updates[entityId] = enrichment;
-        const docRef = doc(firestore, options.rootCollection, tripId, ...options.subcollection, entityId);
+        const docRef = scoped
+          ? doc(firestore, options.rootCollection, tripId, ...sub, entityId)
+          : doc(firestore, options.rootCollection, entityId);
         writes.push(setDoc(docRef, enrichment, { merge: true }));
       }
 

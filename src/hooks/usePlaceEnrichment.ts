@@ -13,7 +13,7 @@ export function usePlaceEnrichment(
 ): Record<string, PlaceEnrichment> {
   return useFirestoreEnrichment<PlaceEnrichment, Place>(tripId, places, {
     rootCollection: 'place_enrichment',
-    subcollection: ['places'],
+    scoped: false,
     endpoint: '/.netlify/functions/place-details',
     ttlMs: 24 * 60 * 60 * 1000,
     filterEntities: ps => ps.filter(p => ENRICHABLE_CATEGORIES.has(p.category)),
