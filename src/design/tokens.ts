@@ -46,9 +46,9 @@ export const Colors = {
   unselectedFill:  'transparent',
   unselectedBorder:'#CCCCCC',
 
-  // Stops bar band
-  tabBg:     '#EDE8DC',
-  tabBorder: '#D4C9B0',
+  // Stops bar band — matches card background so the bar blends seamlessly
+  tabBg:     '#F7F4EF',
+  tabBorder: 'transparent',
 
   // Overlay — BottomSheet backdrop
   overlay: 'rgba(0,0,0,0.45)',

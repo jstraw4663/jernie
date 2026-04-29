@@ -326,7 +326,7 @@ export function StopsBar({ stops, active, onTabChange }: StopsBarProps) {
             bottom: 0,
             width: 32,
             zIndex: 10,
-            background: `linear-gradient(to right, ${Colors.tabBg}, transparent)`,
+            background: `linear-gradient(to right, ${Colors.background}, transparent)`,
             pointerEvents: 'none',
           }}
         />
@@ -340,7 +340,7 @@ export function StopsBar({ stops, active, onTabChange }: StopsBarProps) {
             bottom: 0,
             width: 32,
             zIndex: 10,
-            background: `linear-gradient(to left, ${Colors.tabBg}, transparent)`,
+            background: `linear-gradient(to left, ${Colors.background}, transparent)`,
             pointerEvents: 'none',
           }}
         />
