@@ -52,6 +52,16 @@ export default defineConfig({
             handler: 'StaleWhileRevalidate',
             options: { cacheName: 'trip-data' },
           },
+          // Firebase streaming channels use chunked responses Workbox can't cache.
+          // Pass them straight through to avoid SW interception errors.
+          {
+            urlPattern: /^https:\/\/firestore\.googleapis\.com\//,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /^https:\/\/.*\.firebaseio\.com\//,
+            handler: 'NetworkOnly',
+          },
         ],
       },
     }),
