@@ -7,7 +7,7 @@ export function useBookingEnrichment(
 ): Record<string, PlaceEnrichment> {
   return useFirestoreEnrichment<PlaceEnrichment, Booking>(tripId, bookings, {
     rootCollection: 'place_enrichment',
-    subcollection: ['bookings'],
+    scoped: false,
     endpoint: '/.netlify/functions/place-details',
     ttlMs: 24 * 60 * 60 * 1000,
     filterEntities: bs => bs.filter(b => b.type === 'accommodation'),
