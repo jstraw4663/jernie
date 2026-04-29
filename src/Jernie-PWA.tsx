@@ -224,17 +224,14 @@ export default function MaineGuide() {
     [setBookingField, bookingOverrides],
   );
 
-  // Load Google Places enrichment for active stop — must be before early returns (Rules of Hooks).
-  // Safe to call with empty array when data isn't ready yet; effect won't fire.
-  const activeStopPlaces = data?.places.filter(p => p.stop_id === active) ?? [];
-  const enrichmentMap = usePlaceEnrichment(tripId, activeStopPlaces);
-  const trailEnrichmentMap = useTrailEnrichment(tripId, activeStopPlaces);
-
-  // Load enrichment for accommodation bookings at the active stop.
-  const activeStopAccommodations = data?.bookings.filter(
-    b => b.stop_id === active && b.type === 'accommodation'
-  ) ?? [];
-  const hotelEnrichmentMap = useBookingEnrichment(tripId, activeStopAccommodations);
+  // Eagerly enrich all places and accommodations on first load so detail cards
+  // are cache-warm regardless of which stop the user navigates to first.
+  // Must be before early returns (Rules of Hooks); safe to call with [].
+  const allPlaces = data?.places ?? [];
+  const allAccommodations = data?.bookings.filter(b => b.type === 'accommodation') ?? [];
+  const enrichmentMap = usePlaceEnrichment(tripId, allPlaces);
+  const trailEnrichmentMap = useTrailEnrichment(tripId, allPlaces);
+  const hotelEnrichmentMap = useBookingEnrichment(tripId, allAccommodations);
 
   // Derive DetailConfig for entity detail sheet. Must be before early returns (Rules of Hooks).
   const detailConfig = useMemo(() => {
