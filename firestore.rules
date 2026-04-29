@@ -5,16 +5,19 @@ service cloud.firestore {
     // Enrichment caches — require anonymous auth (auto-satisfied by the app on load).
     // Blocks raw script/curl abuse while keeping all app behavior unchanged.
     // cached_at type check prevents malformed writes from corrupting cache TTL logic.
-    match /place_enrichment/{tripId}/{document=**} {
+    // Flat, shared across all trips and environments — place data is location-level.
+    match /place_enrichment/{placeId} {
       allow read:  if request.auth != null;
       allow write: if request.auth != null
                    && request.resource.data.cached_at is number;
     }
-    match /trail_enrichment/{tripId}/{document=**} {
+    match /trail_enrichment/{trailId} {
       allow read:  if request.auth != null;
       allow write: if request.auth != null
                    && request.resource.data.cached_at is number;
     }
+
+    // Trip-scoped — weather forecasts are date-specific to a trip window.
     match /weather_enrichment/{tripId}/{document=**} {
       allow read:  if request.auth != null;
       allow write: if request.auth != null
