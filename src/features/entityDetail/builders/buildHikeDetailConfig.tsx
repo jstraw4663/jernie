@@ -228,7 +228,7 @@ export function buildHikeDetailConfig(
     heroEmoji: place.emoji,
     heroGradient,
     heroPhotoUrl: place.photo_url ?? undefined,
-    photos: placeEnrichment?.photos ?? place.photos ?? undefined,
+    photos: placeEnrichment?.photos ?? trailEnrichment?.photos ?? place.photos ?? undefined,
     categoryChip: 'Hike',
     mapLat: place.lat ?? stop.lat,
     mapLon: place.lon ?? stop.lon,
