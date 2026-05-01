@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { TripData } from '../types';
+import { Typography } from '../design/tokens';
 
 interface WhatToPackProps {
   accent: string;
@@ -17,7 +18,7 @@ export function WhatToPack({ accent, data, packing, onPack, onReset }: WhatToPac
 
   return (
     <div style={{marginBottom:"28px"}}>
-      <button onClick={() => setOpen(v => !v)} style={{width:"100%",display:"flex",alignItems:"center",gap:"12px",background:"none",border:"none",cursor:"pointer",padding:"0",marginBottom:open?"12px":"0",fontFamily:"Georgia,serif"}}>
+      <button onClick={() => setOpen(v => !v)} style={{width:"100%",display:"flex",alignItems:"center",gap:"12px",background:"none",border:"none",cursor:"pointer",padding:"0",marginBottom:open?"12px":"0",fontFamily:Typography.family.sans}}>
         <div style={{fontWeight:"bold",color:accent,fontSize:"0.78rem",letterSpacing:"0.12em",textTransform:"uppercase",whiteSpace:"nowrap"}}>🎒 What to Pack</div>
         <div style={{flex:1,height:"1px",background:accent+"30"}}/>
         <span style={{fontSize:"0.7rem",color:"#999",whiteSpace:"nowrap",marginRight:"6px"}}>{checkedCount}/{totalItems} packed</span>
@@ -35,7 +36,7 @@ export function WhatToPack({ accent, data, packing, onPack, onReset }: WhatToPac
                   const done = !!packing[item.id];
                   return (
                     <button key={item.id} onClick={() => onPack(item.id, !packing[item.id])}
-                      style={{width:"100%",display:"flex",alignItems:"center",gap:"12px",padding:"8px 16px",background:"transparent",border:"none",cursor:"pointer",textAlign:"left",fontFamily:"Georgia,serif",borderBottom:ii<section.items.length-1?"1px solid #f5f3ef":"none",transition:"background 0.1s"}}>
+                      style={{width:"100%",display:"flex",alignItems:"center",gap:"12px",padding:"8px 16px",background:"transparent",border:"none",cursor:"pointer",textAlign:"left",fontFamily:Typography.family.sans,borderBottom:ii<section.items.length-1?"1px solid #f5f3ef":"none",transition:"background 0.1s"}}>
                       <div style={{width:"18px",height:"18px",borderRadius:"4px",border:"2px solid "+(done?accent:"#ccc"),background:done?accent:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s"}}>
                         {done && <span style={{color:"#fff",fontSize:"0.65rem",fontWeight:"bold"}}>✓</span>}
                       </div>
@@ -47,7 +48,7 @@ export function WhatToPack({ accent, data, packing, onPack, onReset }: WhatToPac
             </div>
           ))}
           {checkedCount > 0 && (
-            <button onClick={onReset} style={{alignSelf:"flex-end",background:"transparent",border:"1px solid #e0ddd6",borderRadius:"6px",padding:"4px 12px",fontSize:"0.72rem",color:"#aaa",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+            <button onClick={onReset} style={{alignSelf:"flex-end",background:"transparent",border:"1px solid #e0ddd6",borderRadius:"6px",padding:"4px 12px",fontSize:"0.72rem",color:"#aaa",cursor:"pointer",fontFamily:Typography.family.sans}}>
               Reset list
             </button>
           )}

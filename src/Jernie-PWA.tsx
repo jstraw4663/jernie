@@ -8,10 +8,11 @@ import { StickyHeader } from "./components/StickyHeader";
 import { StopNavigator } from "./components/StopNavigator";
 import type { Booking, Place } from "./types";
 import { motion } from 'framer-motion';
-import { Animation } from "./design/tokens";
+import { Animation, Typography } from "./design/tokens";
 import { useNavigation } from "./contexts/NavigationContext";
+import { navigation } from "./navigation";
 import { ACTIVITY_CATEGORIES } from "./features/overview/selectors";
-import { deriveFlightGroups, isWithinFlightWindow, isRentalCar } from "./domain/trip";
+import { deriveFlightGroups, findEntityInItinerary, isWithinFlightWindow, isRentalCar } from "./domain/trip";
 import type { FlightGroupEntry, FlightStatus } from "./domain/trip";
 import { CollapsibleSection } from "./components/CollapsibleSection";
 import { WeatherStrip } from "./components/WeatherStrip";
@@ -131,7 +132,7 @@ function ExploreMoreButton({ label, onClick, accent }: { label: string; onClick:
         display: 'block', width: '100%', marginTop: '12px',
         padding: '10px', border: `1px dashed ${accent}55`,
         borderRadius: '8px', background: 'transparent',
-        color: accent, fontFamily: "Georgia,'Times New Roman',serif",
+        color: accent, fontFamily: Typography.family.sans,
         fontSize: '0.85rem', cursor: 'pointer', textAlign: 'center',
       }}
     >
@@ -197,9 +198,30 @@ export default function MaineGuide() {
   const [doOpen, setDoOpen] = useState(true);
   const [addPlaceContext, setAddPlaceContext] = useState<Place|null>(null);
   const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
+  const [requestOpenDayId, setRequestOpenDayId] = useState<string | null>(null);
+  const [requestScrollToItemId, setRequestScrollToItemId] = useState<string | null>(null);
   // Memoized so useCountdown's [departure] dependency stays stable — prevents interval churn
   // Must be at top level (before early returns) to satisfy Rules of Hooks
   const departure = useMemo(() => data ? new Date(data.trip.departure) : null, [data?.trip?.departure]);
+
+  // Consume any "View in Jernie" signal scheduled from another tab (e.g. Explore).
+  // Runs once on mount — by then the tab transition has started and we wait a beat
+  // for it to land before applying the stop switch + day open.
+  useEffect(() => {
+    const link = navigation.consumeJernie();
+    if (!link) return;
+    setTimeout(() => {
+      if (link.stopId) handleSetActive(link.stopId);
+      if (link.dayId) {
+        const needsSwitch = link.stopId && link.stopId !== active;
+        setTimeout(() => {
+          setRequestOpenDayId(link.dayId!);
+          if (link.itemId) setRequestScrollToItemId(link.itemId);
+        }, needsSwitch ? 600 : 210);
+      }
+    }, 420);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Stable callback for hotel/rental car field mutations.
   // For linked rental cars, resolves the primary booking ID so both the pickup and
@@ -315,7 +337,7 @@ export default function MaineGuide() {
 
   if (loading || !data) {
     return (
-      <div style={{fontFamily:"Georgia,'Times New Roman',serif",background:"#F5F0E8",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{fontFamily:Typography.family.serif,background:"#F5F0E8",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}>
         <div style={{textAlign:"center",color:"#888"}}>
           <div style={{fontSize:"2rem",marginBottom:"12px"}}>🦞</div>
           <div style={{fontSize:"0.9rem",fontStyle:"italic"}}>Loading your trip…</div>
@@ -326,7 +348,7 @@ export default function MaineGuide() {
 
   if (error) {
     return (
-      <div style={{fontFamily:"Georgia,'Times New Roman',serif",background:"#F5F0E8",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{fontFamily:Typography.family.sans,background:"#F5F0E8",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}>
         <div style={{textAlign:"center",color:"#888",padding:"32px"}}>
           <div style={{fontSize:"0.9rem",color:"#b91c1c",marginBottom:"8px"}}>Failed to load trip data.</div>
           <div style={{fontSize:"0.8rem",fontStyle:"italic"}}>{error.message}</div>
@@ -358,11 +380,45 @@ export default function MaineGuide() {
     setSelectedEntity({ kind: 'booking', id: booking.id, originRect: rect, accent: stop.accent });
   };
 
+  const handleView = (() => {
+    if (selectedEntity?.kind !== 'place') return undefined;
+    const place = data.places.find(p => p.id === selectedEntity.id);
+    if (!place || !addedPlaceIds.has(place.id)) return undefined;
+    return () => {
+      const loc = findEntityInItinerary(
+        place.id,
+        data.itinerary_items,
+        customItems,
+        itineraryOrder,
+        data.itinerary_days,
+      );
+      const targetStopId = loc?.stopId ?? place.stop_id;
+      const needsSwitch = targetStopId !== active;
+
+      setSelectedEntity(null);
+
+      if (loc?.dayId) {
+        if (needsSwitch) {
+          setTimeout(() => handleSetActive(targetStopId), 130);
+          setTimeout(() => {
+            setRequestOpenDayId(loc.dayId!);
+            if (loc.itemId) setRequestScrollToItemId(loc.itemId);
+          }, 680);
+        } else {
+          setTimeout(() => {
+            setRequestOpenDayId(loc.dayId!);
+            if (loc.itemId) setRequestScrollToItemId(loc.itemId);
+          }, 420);
+        }
+      }
+    };
+  })();
+
   return (
     <>
     <div
       ref={scrollRef}
-      style={{fontFamily:"Georgia,'Times New Roman',serif",background:"#F5F0E8",color:"#1a1a1a",position:"absolute",inset:0,overflowY:"auto",WebkitOverflowScrolling:"touch",overscrollBehavior:"contain"}}
+      style={{fontFamily:Typography.family.sans,background:"#F5F0E8",color:"#1a1a1a",position:"absolute",inset:0,overflowY:"auto",WebkitOverflowScrolling:"touch",overscrollBehavior:"contain"}}
     >
 
       <StickyHeader
@@ -409,7 +465,7 @@ export default function MaineGuide() {
                   fetchFlightStatusGroupWithData(dk, g.flights, setFlightStatus, setFlightLoading, setLastUpdated);
                 });
               }} disabled={flightLoading}
-                style={{background:"transparent",border:"1px solid "+stop.accent+"50",borderRadius:"6px",padding:"3px 10px",fontSize:"0.72rem",color:stop.accent,cursor:flightLoading?"default":"pointer",opacity:flightLoading?0.5:1,fontFamily:"Georgia,serif"}}>
+                style={{background:"transparent",border:"1px solid "+stop.accent+"50",borderRadius:"6px",padding:"3px 10px",fontSize:"0.72rem",color:stop.accent,cursor:flightLoading?"default":"pointer",opacity:flightLoading?0.5:1,fontFamily:Typography.family.sans}}>
                 {flightLoading?"Checking…":"↻ Refresh"}
               </button>
             )}
@@ -455,6 +511,10 @@ export default function MaineGuide() {
             scrollRef={scrollRef}
             onExpandPlace={handlePlaceExpand}
             onExpandBooking={handleBookingExpand}
+            requestOpenDayId={requestOpenDayId}
+            onRequestOpenDayConsumed={() => setRequestOpenDayId(null)}
+            requestScrollToItemId={requestScrollToItemId}
+            onRequestScrollToItemConsumed={() => setRequestScrollToItemId(null)}
           />
         </motion.div>
 
@@ -530,6 +590,7 @@ export default function MaineGuide() {
           return place ? () => setAddPlaceContext(place) : undefined;
         })()}
         isAdded={selectedEntity.kind === 'place' && addedPlaceIds.has(selectedEntity.id)}
+        onView={handleView}
       />
     )}
     </>

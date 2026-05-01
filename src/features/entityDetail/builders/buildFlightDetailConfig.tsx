@@ -55,7 +55,7 @@ function AircraftTypeField({ value, onChange }: AircraftTypeFieldProps) {
         borderBottom: `1px solid ${Colors.border}`,
       }}>
         <span style={{
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontSize: `${Typography.size.sm}px`,
           color: Colors.textMuted,
           flexShrink: 0,

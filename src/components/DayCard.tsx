@@ -66,7 +66,7 @@ export const DayCard = React.forwardRef<HTMLDivElement, DayCardProps>(
           border: 'none',
           cursor: 'pointer',
           textAlign: 'left',
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           transition: `background ${Animation.duration.fast} ${Animation.easing.default}`,
         }}
       >

@@ -57,9 +57,9 @@ export function AddToItinerarySheet({
         <div>
           <div
             style={{
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.serif,
               fontSize: Typography.size.md,
-              fontWeight: Typography.weight.bold,
+              fontWeight: Typography.weight.medium,
               fontStyle: 'italic',
               color: Colors.textPrimary,
               marginBottom: 2,
@@ -100,7 +100,7 @@ export function AddToItinerarySheet({
           {stop && (
             <div
               style={{
-                fontFamily: Typography.family,
+                fontFamily: Typography.family.sans,
                 fontSize: Typography.size.xs,
                 color: stop.accent,
                 textTransform: 'uppercase' as const,
@@ -132,7 +132,7 @@ export function AddToItinerarySheet({
               display: 'flex',
               alignItems: 'center',
               gap: Spacing.sm,
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.sans,
               WebkitTapHighlightColor: 'transparent',
             }}
             onPointerEnter={e => {
@@ -181,7 +181,7 @@ export function AddToItinerarySheet({
             style={{
               padding: `${Spacing.xxl}px ${Spacing.xl}px`,
               textAlign: 'center' as const,
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.sans,
               fontSize: Typography.size.sm,
               color: Colors.textMuted,
               fontStyle: 'italic',

@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { BottomSheet } from './BottomSheet';
+import { ConfirmDialog } from './ConfirmDialog';
 import { StarRating } from './StarRating';
 import { Colors, Spacing, Typography, Radius } from '../design/tokens';
 import { appleMapsUrl } from '../domain/trip';
@@ -43,7 +44,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
       color: Colors.textMuted,
       textTransform: 'uppercase',
       letterSpacing: '0.08em',
-      fontFamily: Typography.family,
+      fontFamily: Typography.family.sans,
       marginBottom: Spacing.xs,
     }}>
       {children}
@@ -93,6 +94,8 @@ export function ItineraryItemDetailSheet({
   const [addrDraft, setAddrDraft] = useState('');
   const [categoryDraft, setCategoryDraft] = useState<PlaceCategory | ''>('');
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   // Reset drafts when item changes
   useEffect(() => {
     if (!item) return;
@@ -103,6 +106,11 @@ export function ItineraryItemDetailSheet({
     setAddrDraft(customItem?.addr ?? '');
     setCategoryDraft((customItem?.category as PlaceCategory | undefined) ?? '');
   }, [item?.id, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset confirm dialog when sheet closes
+  useEffect(() => {
+    if (!isOpen) setShowDeleteConfirm(false);
+  }, [isOpen]);
 
   if (!item) return null;
 
@@ -145,7 +153,7 @@ export function ItineraryItemDetailSheet({
   const inputStyle = {
     width: '100%',
     fontSize: `${Typography.size.sm}px`,
-    fontFamily: Typography.family,
+    fontFamily: Typography.family.sans,
     color: Colors.textPrimary,
     background: Colors.surfaceRaised,
     border: `1px solid ${Colors.border}`,
@@ -156,11 +164,27 @@ export function ItineraryItemDetailSheet({
     lineHeight: Typography.lineHeight.normal,
   };
 
+  const deleteOverlay = isCustom && onDeleteCustomItem && customItem ? (
+    <ConfirmDialog
+      isVisible={showDeleteConfirm}
+      message="Delete this item?"
+      confirmLabel="Delete"
+      variant="danger"
+      onConfirm={() => {
+        onDeleteCustomItem(item.id, customItem.day_id);
+        setShowDeleteConfirm(false);
+        onClose();
+      }}
+      onCancel={() => setShowDeleteConfirm(false)}
+    />
+  ) : undefined;
+
   return (
     <BottomSheet
       isOpen={isOpen}
-      onRequestClose={onClose}
+      onRequestClose={showDeleteConfirm ? () => setShowDeleteConfirm(false) : onClose}
       title={sheetTitle}
+      overlay={deleteOverlay}
       headerRight={
         <button
           onClick={onClose}
@@ -283,7 +307,7 @@ export function ItineraryItemDetailSheet({
               <div style={{ display: 'flex', alignItems: 'center', gap: Spacing.md, flexWrap: 'wrap' }}>
                 {resolvedPlace!.rating != null && <StarRating rating={resolvedPlace!.rating} />}
                 {resolvedPlace!.price && (
-                  <span style={{ fontSize: `${Typography.size.xs}px`, color: Colors.textMuted, fontFamily: Typography.family }}>
+                  <span style={{ fontSize: `${Typography.size.xs}px`, color: Colors.textMuted, fontFamily: Typography.family.sans }}>
                     {resolvedPlace!.price}
                   </span>
                 )}
@@ -303,7 +327,7 @@ export function ItineraryItemDetailSheet({
                   fontSize: `${Typography.size.sm}px`,
                   color: accent,
                   textDecoration: 'none',
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                   lineHeight: Typography.lineHeight.normal,
                 }}
               >
@@ -323,7 +347,7 @@ export function ItineraryItemDetailSheet({
                   fontSize: `${Typography.size.sm}px`,
                   color: Colors.textMuted,
                   textDecoration: 'none',
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                 }}
               >
                 📞 {resolvedPlace!.phone}
@@ -336,7 +360,7 @@ export function ItineraryItemDetailSheet({
                 fontSize: `${Typography.size.xs + 1}px`,
                 color: Colors.textSecondary,
                 lineHeight: Typography.lineHeight.relaxed,
-                fontFamily: Typography.family,
+                fontFamily: Typography.family.sans,
                 fontStyle: 'italic',
               }}>
                 {resolvedPlace!.note}
@@ -353,7 +377,7 @@ export function ItineraryItemDetailSheet({
                   fontSize: `${Typography.size.xs + 1}px`,
                   color: accent,
                   textDecoration: 'none',
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                 }}
               >
                 🔗 Website
@@ -381,7 +405,7 @@ export function ItineraryItemDetailSheet({
                 borderRadius: Radius.full,
                 padding: `${Spacing.xs}px ${Spacing.md}px`,
                 fontSize: `${Typography.size.xs}px`,
-                fontFamily: Typography.family,
+                fontFamily: Typography.family.sans,
                 fontWeight: Typography.weight.semibold,
                 letterSpacing: '0.04em',
                 cursor: 'pointer',
@@ -395,10 +419,7 @@ export function ItineraryItemDetailSheet({
         {/* ── Delete button (custom items only) ── */}
         {isCustom && onDeleteCustomItem && customItem && (
           <button
-            onClick={() => {
-              onDeleteCustomItem(item.id, customItem.day_id);
-              onClose();
-            }}
+            onClick={() => setShowDeleteConfirm(true)}
             style={{
               width: '100%',
               padding: `${Spacing.sm}px`,
@@ -407,7 +428,7 @@ export function ItineraryItemDetailSheet({
               background: Colors.redLight,
               color: Colors.red,
               fontSize: `${Typography.size.sm}px`,
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.sans,
               fontWeight: Typography.weight.medium,
               cursor: 'pointer',
               display: 'flex',

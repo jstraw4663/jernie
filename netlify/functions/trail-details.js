@@ -4,7 +4,8 @@
 // Returns Record<placeId, TrailEnrichment> — one entry per input place.
 // Individual failures return null and don't abort the batch.
 //
-// Phase 1: statically curated data for the 6 Maine trails keyed by AllTrails slug.
+// Phase 1: statically curated metadata for the 6 Maine trails keyed by AllTrails slug.
+// Photos are fetched from the AllTrails page og:image on first enrichment (30-day cache).
 // Phase 2: swap lookupTrailData() for an OSM Overpass API call or AllTrails API
 //          if/when official access becomes available.
 //
@@ -19,7 +20,7 @@ function slugFromUrl(url) {
 }
 
 // Static trail data for Maine POC — Phase 1.
-// Keyed by AllTrails slug. Each entry matches the TrailEnrichment interface.
+// Keyed by AllTrails slug. Each entry matches the TrailEnrichment interface (minus photos + cached_at).
 const TRAIL_DATA = {
   'us/maine/the-beehive-loop-trail': {
     elevation_gain: '520 ft',
@@ -59,17 +60,44 @@ const TRAIL_DATA = {
   },
 };
 
-function lookupTrailData(place) {
+// Fetch the AllTrails trail page and extract the og:image URL.
+// AllTrails server-side renders og:image into the initial HTML for SEO.
+// Returns a single-element array (matching PlaceEnrichment.photos shape) or null.
+async function fetchTrailPhoto(url) {
+  if (!url) return null;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+      },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const match = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/);
+    if (!match) return null;
+    const imageUrl = match[1];
+    return imageUrl.startsWith('http') ? [imageUrl] : null;
+  } catch {
+    return null;
+  }
+}
+
+async function lookupTrailData(place) {
   const slug = slugFromUrl(place.url);
   if (!slug) return null;
   const data = TRAIL_DATA[slug];
   if (!data) return null;
+
+  const photos = await fetchTrailPhoto(place.url);
+
   return {
     trail_id: slug,
     elevation_gain: data.elevation_gain,
     route_type: data.route_type,
     dogs_allowed: data.dogs_allowed,
     features: data.features,
+    photos,
     cached_at: Date.now(),
   };
 }
@@ -102,14 +130,20 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'places array required' }) };
   }
 
+  const results = await Promise.all(
+    places.map(async place => {
+      try {
+        return { id: place.id, data: await lookupTrailData(place) };
+      } catch (err) {
+        console.error(`[trail-details] Failed for "${place.name}":`, err.message);
+        return { id: place.id, data: null };
+      }
+    })
+  );
+
   const enrichmentMap = {};
-  for (const place of places) {
-    try {
-      enrichmentMap[place.id] = lookupTrailData(place);
-    } catch (err) {
-      console.error(`[trail-details] Failed for "${place.name}":`, err.message);
-      enrichmentMap[place.id] = null;
-    }
+  for (const { id, data } of results) {
+    enrichmentMap[id] = data;
   }
 
   return {

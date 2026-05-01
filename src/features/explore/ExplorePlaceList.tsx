@@ -59,7 +59,7 @@ export function ExplorePlaceList({ places, stopMap, enrichmentMap, sort, onSortC
         borderTop: `1px solid ${Colors.border}`,
       }}>
         <span style={{
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontWeight: Typography.weight.bold,
           fontSize: `${Typography.size.base}px`,
           color: Colors.textPrimary,
@@ -82,7 +82,7 @@ export function ExplorePlaceList({ places, stopMap, enrichmentMap, sort, onSortC
             borderRadius: `${Radius.md}px`,
             padding: `${Spacing.xs}px ${Spacing.sm}px`,
             cursor: 'pointer',
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             outline: 'none',
           }}
         >
@@ -114,7 +114,7 @@ export function ExplorePlaceList({ places, stopMap, enrichmentMap, sort, onSortC
             color: Colors.textMuted,
             fontSize: `${Typography.size.sm}px`,
             padding: `${Spacing.xxl}px 0`,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
           }}>
             No places match this filter.
           </div>

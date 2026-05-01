@@ -61,7 +61,7 @@ export function PlaceCarousel({ label, places, stopMap, enrichmentMap, addedPlac
         marginBottom: Spacing.sm,
       }}>
         <span style={{
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontWeight: Typography.weight.bold,
           fontSize: `${Typography.size.base}px`,
           color: Colors.textPrimary,

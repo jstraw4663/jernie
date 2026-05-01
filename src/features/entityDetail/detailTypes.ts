@@ -38,6 +38,9 @@ export interface DetailConfig {
   trailEmbedUrl?: string;  // AllTrails widget embed URL — when present, DetailMap renders iframe instead of pin
   sections: DetailSectionConfig[];
   externalUrl?: string;    // primary CTA link (opens in new tab)
+  phone?: string;          // formatted phone number — drives Call quick action
+  stopAccent?: string;     // stop hex color — CTA button background + icon tint
+  stopLabel?: string;      // short stop name e.g. "Bar Harbor" — CTA copy
 }
 
 // SelectedEntity — state shape held in Jernie-PWA.tsx.

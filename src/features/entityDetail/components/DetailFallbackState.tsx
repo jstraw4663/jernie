@@ -27,7 +27,7 @@ export function DetailFallbackState({ message, emoji = '📭' }: DetailFallbackS
       <span style={{ lineHeight: 1 }}>{emoji}</span>
       <span
         style={{
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontSize: `${Typography.size.sm}px`,
           color: Colors.textMuted,
           textAlign: 'center',

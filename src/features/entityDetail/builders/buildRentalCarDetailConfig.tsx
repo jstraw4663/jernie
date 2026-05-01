@@ -53,7 +53,7 @@ function CarTypeField({ value, onChange }: CarTypeFieldProps) {
         borderBottom: `1px solid ${Colors.border}`,
       }}>
         <span style={{
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontSize: `${Typography.size.sm}px`,
           color: Colors.textMuted,
           flexShrink: 0,
@@ -120,7 +120,7 @@ function AirportToggle({ value, onChange }: AirportToggleProps) {
     >
       <span
         style={{
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontSize: `${Typography.size.sm}px`,
           color: Colors.textMuted,
           flexShrink: 0,
@@ -152,7 +152,7 @@ function AirportToggle({ value, onChange }: AirportToggleProps) {
                 border: 'none',
                 background: isActive ? Colors.navy : Colors.surface2,
                 color: isActive ? Colors.textInverse : Colors.textMuted,
-                fontFamily: Typography.family,
+                fontFamily: Typography.family.sans,
                 fontSize: `${Typography.size.xs}px`,
                 fontWeight: Typography.weight.medium,
                 cursor: 'pointer',

@@ -2,7 +2,7 @@
 // Pure, side-effect-free helpers for trip domain logic.
 // No React imports. All functions are unit-testable in isolation.
 
-import type { Booking, CustomItem, ItineraryItem, Place, Stop } from '../types';
+import type { Booking, CustomItem, ItineraryDay, ItineraryItem, Place, Stop } from '../types';
 
 // ── Weather types ─────────────────────────────────────────────
 
@@ -128,6 +128,44 @@ export function deriveFlightGroups(bookings: Booking[]): Record<string, FlightGr
       });
     });
   return groups;
+}
+
+// ── Itinerary lookup ──────────────────────────────────────────
+
+export interface ItineraryLocation {
+  itemId: string;
+  dayId: string;
+  stopId: string;
+}
+
+/**
+ * Find where a place has been added to the itinerary.
+ * Checks curated ItineraryItems (via place_id) first, then user-added CustomItems
+ * (via source_place_id + itineraryOrder canonical map).
+ * Returns null if the place is not in the itinerary.
+ */
+export function findEntityInItinerary(
+  placeId: string,
+  itineraryItems: ItineraryItem[],
+  customItems: Record<string, CustomItem>,
+  itineraryOrder: Record<string, string[]>,
+  itineraryDays: ItineraryDay[],
+): ItineraryLocation | null {
+  const curatedItem = itineraryItems.find(i => i.place_id === placeId);
+  if (curatedItem) {
+    const day = itineraryDays.find(d => d.id === curatedItem.day_id);
+    if (day) return { itemId: curatedItem.id, dayId: day.id, stopId: day.stop_id };
+  }
+
+  const ci = Object.values(customItems).find(c => c.source_place_id === placeId);
+  if (!ci) return null;
+  for (const [dayId, ids] of Object.entries(itineraryOrder)) {
+    if ((ids as string[]).includes(ci.id)) {
+      const day = itineraryDays.find(d => d.id === dayId);
+      if (day) return { itemId: ci.id, dayId, stopId: day.stop_id };
+    }
+  }
+  return null;
 }
 
 // ── Booking helpers ───────────────────────────────────────────
