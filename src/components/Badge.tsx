@@ -68,7 +68,7 @@ export function Badge({ variant, label, href, onClick, accentColor }: BadgeProps
     letterSpacing: '0.06em',
     textTransform: 'uppercase',
     border: cfg.border,
-    fontFamily: Typography.family,
+    fontFamily: Typography.family.sans,
     fontWeight: Typography.weight.semibold,
     lineHeight: 1.4,
     transition: `opacity ${Animation.duration.fast} ${Animation.easing.default}`,

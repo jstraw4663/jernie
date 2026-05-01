@@ -52,7 +52,7 @@ function EditableField({ label, value, placeholder, onChange }: EditableFieldPro
     >
       <span
         style={{
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontSize: `${Typography.size.sm}px`,
           color: Colors.textMuted,
           flexShrink: 0,
@@ -85,7 +85,7 @@ function EditableField({ label, value, placeholder, onChange }: EditableFieldPro
         }}
         style={{
           flex: 1,
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontSize: `${Typography.size.sm}px`,
           color: Colors.textPrimary,
           background: 'transparent',

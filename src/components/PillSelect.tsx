@@ -159,7 +159,7 @@ export function PillSelect({
               <motion.span
                 layoutId={selected ? `pso-label-${selected.id}-${instanceId}` : undefined}
                 style={{
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                   fontSize: `${Typography.size.xs}px`,
                   fontWeight: Typography.weight.semibold,
                   color: selected ? Colors.textInverse : Colors.textMuted,
@@ -212,7 +212,7 @@ export function PillSelect({
                 <motion.span
                   layout
                   style={{
-                    fontFamily: Typography.family,
+                    fontFamily: Typography.family.sans,
                     fontSize: `${Typography.size.sm}px`,
                     fontWeight: Typography.weight.bold,
                     color: Colors.textPrimary,
@@ -296,7 +296,7 @@ export function PillSelect({
                           layout
                           layoutId={`pso-label-${opt.id}-${instanceId}`}
                           style={{
-                            fontFamily: Typography.family,
+                            fontFamily: Typography.family.sans,
                             fontSize: `${Typography.size.sm}px`,
                             fontWeight: isSelected ? Typography.weight.bold : Typography.weight.medium,
                             color: isSelected ? Colors.navy : Colors.textPrimary,
@@ -306,7 +306,7 @@ export function PillSelect({
                         </motion.div>
                         {opt.description && (
                           <div style={{
-                            fontFamily: Typography.family,
+                            fontFamily: Typography.family.sans,
                             fontSize: `${Typography.size.xs}px`,
                             color: Colors.textMuted,
                             marginTop: 1,

@@ -18,6 +18,7 @@ html, body {
   padding: 0;
   min-height: 100%;
   width: 100%;
+  font-family: "Geist", -apple-system, system-ui, sans-serif;
 }
 
 html {

@@ -279,13 +279,13 @@ function ExpandedOverlay({ reviews, initialIndex, originRect, onClose, onIndexCh
                 <div style={{ marginBottom: `${Spacing.md}px`, paddingRight: `${Spacing.xl}px` }}>
                   <StarRow rating={review.rating} />
                   <div style={{ display: 'flex', alignItems: 'center', gap: `${Spacing.xs}px`, marginTop: `${Spacing.xs}px` }}>
-                    <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.sm}px`, color: Colors.textPrimary, fontFamily: Typography.family }}>
+                    <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.sm}px`, color: Colors.textPrimary, fontFamily: Typography.family.sans }}>
                       {review.author}
                     </span>
                     {review.time && (
                       <>
                         <span style={{ color: Colors.border, fontSize: `${Typography.size.xs}px` }}>·</span>
-                        <span style={{ fontSize: `${Typography.size.xs}px`, color: Colors.textMuted, fontFamily: Typography.family }}>
+                        <span style={{ fontSize: `${Typography.size.xs}px`, color: Colors.textMuted, fontFamily: Typography.family.sans }}>
                           {review.time}
                         </span>
                       </>
@@ -295,7 +295,7 @@ function ExpandedOverlay({ reviews, initialIndex, originRect, onClose, onIndexCh
 
                 <div style={{ height: 1, background: Colors.border, marginBottom: `${Spacing.md}px` }} />
 
-                <p style={{ margin: 0, fontSize: `${Typography.size.sm}px`, lineHeight: Typography.lineHeight.relaxed, color: Colors.textSecondary, fontFamily: Typography.family }}>
+                <p style={{ margin: 0, fontSize: `${Typography.size.sm}px`, lineHeight: Typography.lineHeight.relaxed, color: Colors.textSecondary, fontFamily: Typography.family.sans }}>
                   {review.text || 'No review text provided.'}
                 </p>
               </div>
@@ -310,7 +310,7 @@ function ExpandedOverlay({ reviews, initialIndex, originRect, onClose, onIndexCh
                   borderTop: `1px solid ${Colors.border}`,
                 }}>
                   <NavButton dir="left" disabled={index === 0} onClick={() => navigate(index - 1)} />
-                  <span style={{ fontSize: `${Typography.size.xs}px`, color: Colors.textMuted, fontFamily: Typography.family }}>
+                  <span style={{ fontSize: `${Typography.size.xs}px`, color: Colors.textMuted, fontFamily: Typography.family.sans }}>
                     {index + 1} of {reviews.length}
                   </span>
                   <NavButton dir="right" disabled={index === reviews.length - 1} onClick={() => navigate(index + 1)} />
@@ -394,13 +394,13 @@ export function ReviewCarousel({ reviews, googlePlaceId, placeName }: ReviewCaro
               <StarRow rating={review.rating} />
 
               <div style={{ display: 'flex', alignItems: 'center', gap: `${Spacing.xs}px`, flexWrap: 'wrap' as const }}>
-                <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.xs}px`, color: Colors.textPrimary, fontFamily: Typography.family }}>
+                <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.xs}px`, color: Colors.textPrimary, fontFamily: Typography.family.sans }}>
                   {review.author}
                 </span>
                 {review.time && (
                   <>
                     <span style={{ color: Colors.border, fontSize: `${Typography.size.xs}px` }}>·</span>
-                    <span style={{ fontSize: `${Typography.size.xs}px`, color: Colors.textMuted, fontFamily: Typography.family }}>
+                    <span style={{ fontSize: `${Typography.size.xs}px`, color: Colors.textMuted, fontFamily: Typography.family.sans }}>
                       {review.time}
                     </span>
                   </>
@@ -416,7 +416,7 @@ export function ReviewCarousel({ reviews, googlePlaceId, placeName }: ReviewCaro
                     fontSize: `${Typography.size.xs}px`,
                     lineHeight: Typography.lineHeight.normal,
                     color: Colors.textSecondary,
-                    fontFamily: Typography.family,
+                    fontFamily: Typography.family.sans,
                     display: '-webkit-box',
                     WebkitLineClamp: 3,
                     WebkitBoxOrient: 'vertical',
@@ -456,10 +456,10 @@ export function ReviewCarousel({ reviews, googlePlaceId, placeName }: ReviewCaro
               }}
             >
               <span style={{ fontSize: 28 }}>🗺️</span>
-              <span style={{ fontWeight: Typography.weight.semibold, fontSize: `${Typography.size.sm}px`, color: Colors.textPrimary, fontFamily: Typography.family, textAlign: 'center' as const }}>
+              <span style={{ fontWeight: Typography.weight.semibold, fontSize: `${Typography.size.sm}px`, color: Colors.textPrimary, fontFamily: Typography.family.sans, textAlign: 'center' as const }}>
                 See all reviews
               </span>
-              <span style={{ fontSize: `${Typography.size.xs}px`, color: Colors.textMuted, fontFamily: Typography.family, textAlign: 'center' as const }}>
+              <span style={{ fontSize: `${Typography.size.xs}px`, color: Colors.textMuted, fontFamily: Typography.family.sans, textAlign: 'center' as const }}>
                 on Google Maps →
               </span>
             </a>

@@ -16,6 +16,7 @@
 //   <PinGate onUnlock={handleUnlock} strategy={faceId} />
 
 import { useState } from 'react';
+import { Typography } from '../design/tokens';
 
 // --------------------------------------------------------------------------
 // Session key — exported so AppShell can check it on mount without importing
@@ -87,7 +88,7 @@ function BiometricPrompt({ strategy, onUnlock }: { strategy: AuthStrategy; onUnl
       position: 'fixed', inset: 0, zIndex: 9999,
       background: 'linear-gradient(170deg,#1a2a3a 0%,#0D2B3E 50%,#0a1f2e 100%)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      fontFamily: "Georgia,'Times New Roman',serif",
+      fontFamily: Typography.family.serif,
     }}>
       <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔒</div>
       <div style={{ color: '#FDFAF4', fontSize: '1.3rem', marginBottom: '32px', textAlign: 'center' }}>
@@ -153,7 +154,7 @@ function PinPad({ onUnlock }: { onUnlock: () => void }) {
       justifyContent: 'center',
       opacity: flash ? 0 : 1,
       transition: flash ? 'opacity 0.35s ease' : 'none',
-      fontFamily: "Georgia,'Times New Roman',serif",
+      fontFamily: Typography.family.serif,
     }}>
       <div style={{ fontSize: '2rem', marginBottom: '10px', opacity: 0.5 }}>🔒</div>
       <div style={{ color: '#FDFAF4', fontSize: '1.45rem', fontWeight: 'normal', letterSpacing: '0.01em', marginBottom: '6px', textAlign: 'center' }}>

@@ -111,7 +111,7 @@ export function BottomBar({ tabs, activeTab, onTabChange, notifications }: Botto
               {/* Label */}
               <span
                 style={{
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                   fontSize: Typography.size.xs,    // 11px
                   fontWeight: isActive
                     ? Typography.weight.semibold

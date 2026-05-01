@@ -188,7 +188,7 @@ export interface Place {
 // ── Trail enrichment — manually curated, served by trail-details Netlify function ─
 // Cached in Firestore at trail_enrichment/{tripId}/trails/{placeId}.
 // Populated by the trail-details Netlify function; read by useTrailEnrichment.
-// Photos are NOT stored here — they come from PlaceEnrichment (Google Places).
+// Photos are scraped from the AllTrails og:image on first enrichment (30-day cache).
 
 export interface TrailEnrichment {
   trail_id: string;              // AllTrails slug derived from place.url
@@ -196,6 +196,7 @@ export interface TrailEnrichment {
   route_type: 'loop' | 'out-and-back' | 'point-to-point' | null;
   dogs_allowed: boolean | null;
   features: string[] | null;     // ["ocean views", "scrambling", "iron rungs"]
+  photos: string[] | null;       // og:image from AllTrails page
   cached_at: number;             // Date.now() ms
 }
 

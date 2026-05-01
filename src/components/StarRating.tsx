@@ -25,7 +25,7 @@ export function StarRating({ rating, compact = false }: StarRatingProps) {
           ★
         </span>
       ))}
-      <span style={{ color: Colors.textMuted, marginLeft: compact ? 2 : 3, fontFamily: Typography.family, fontSize: numSize }}>
+      <span style={{ color: Colors.textMuted, marginLeft: compact ? 2 : 3, fontFamily: Typography.family.sans, fontSize: numSize }}>
         {rating}
       </span>
     </span>

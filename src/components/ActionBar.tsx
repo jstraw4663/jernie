@@ -56,7 +56,7 @@ export function ActionBar({ selectedCount, onDelete, onMove, moveDisabledReason 
     padding: `0 ${Spacing.md}px`,
     border: 'none',
     borderRadius: Radius.lg,
-    fontFamily: Typography.family,
+    fontFamily: Typography.family.sans,
     fontSize: Typography.size.sm,
     fontWeight: Typography.weight.medium,
     transition: [

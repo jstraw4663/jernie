@@ -72,6 +72,12 @@ interface EditableItineraryProps {
   /** Open entity detail (place card or booking card) — handled in Jernie-PWA */
   onExpandPlace: (place: Place, rect: DOMRect) => void;
   onExpandBooking: (booking: Booking, rect: DOMRect) => void;
+  /** When set, scroll to and expand that day accordion (consumed once then cleared) */
+  requestOpenDayId?: string | null;
+  onRequestOpenDayConsumed?: () => void;
+  /** When set, scroll to the specific item within the open accordion and pulse it */
+  requestScrollToItemId?: string | null;
+  onRequestScrollToItemConsumed?: () => void;
 }
 
 // ── Time inference helpers ─────────────────────────────────────
@@ -145,7 +151,7 @@ function DroppableDay({ dayId, children }: { dayId: string; children: React.Reac
 // Inline read-only view. Long press triggers Edit Mode BottomSheet.
 // Drag reorder now lives inside the sheet (Bundle 3).
 
-function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reservationTime, index, isLast, animate, resolvedPlace, textOverride, onOpenDetail, onTapCard }: {
+function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reservationTime, index, isLast, animate, resolvedPlace, textOverride, onOpenDetail, onTapCard, isPulsing, itemRef }: {
   item: ResolvedItem; accent: string;
   isLocked: boolean;
   onLongPress?: () => void;
@@ -158,6 +164,8 @@ function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reserv
   textOverride?: string;
   onOpenDetail: () => void;
   onTapCard?: (rect: DOMRect) => void;
+  isPulsing?: boolean;
+  itemRef?: (el: HTMLDivElement | null) => void;
 }) {
   const { setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -167,7 +175,7 @@ function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reserv
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(el) => { setNodeRef(el); itemRef?.(el); }}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
@@ -189,6 +197,7 @@ function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reserv
           textOverride={textOverride}
           onOpenDetail={onOpenDetail}
           onTapCard={onTapCard}
+          isPulsing={isPulsing}
         />
       </ItineraryItemRow>
     </div>
@@ -257,10 +266,18 @@ export function EditableItinerary({
   setDayOrder, moveItem, addCustomItem, deleteCustomItem, initializeOrder,
   setTimeOverride, setTextOverride, updateCustomItem,
   scrollRef, onExpandPlace, onExpandBooking: _onExpandBooking,
+  requestOpenDayId, onRequestOpenDayConsumed,
+  requestScrollToItemId, onRequestScrollToItemConsumed,
 }: EditableItineraryProps) {
   const [openDay, setOpenDay] = useState(0);
+  // Kept in a ref so the requestOpenDayId effect always sees the current value
+  // without needing to re-run whenever openDay changes.
+  const openDayRef = useRef(0);
   // Refs for each DayCard — used to scroll the header into view on expand.
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Refs for each timeline item — used to scroll to and pulse the target item.
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [pulsingItemId, setPulsingItemId] = useState<string | null>(null);
   // Tracks stop IDs that have already played their entrance stagger.
   // isFirstVisit is captured once at mount via useState so it never flips mid-lifecycle.
   // If it were recalculated from the ref on every render, the first post-mount re-render
@@ -291,6 +308,101 @@ export function EditableItinerary({
   } | null>(null);
 
   const days = data.itinerary_days.filter(d => d.stop_id === stop.id);
+
+  // Keep openDayRef in sync so the requestOpenDayId effect never has a stale read.
+  useEffect(() => { openDayRef.current = openDay; });
+
+  // When a "View" navigation arrives, scroll to and expand the target day accordion.
+  // `days` is in the dep array so the effect re-runs once the new stop's days have
+  // loaded — this fixes the case where the stop switch happens just before the
+  // requestOpenDayId fires and the day list is still the old stop's list.
+  useEffect(() => {
+    if (!requestOpenDayId || !days.length) return;
+
+    const di = days.findIndex(d => d.id === requestOpenDayId);
+    if (di === -1) return;
+
+    // Consume immediately so the parent clears the prop after we've read it.
+    onRequestOpenDayConsumed?.();
+
+    const scrollEl = scrollRef.current;
+    const card = cardRefs.current[requestOpenDayId];
+    const currentOpenDay = openDayRef.current;
+
+    pendingRafsRef.current.forEach(id => cancelAnimationFrame(id));
+    pendingRafsRef.current = [];
+    if (switchTimeoutRef.current) clearTimeout(switchTimeoutRef.current);
+
+    const doScrollAndOpen = () => {
+      // Re-read card here — may have re-rendered since the effect fired.
+      const liveCard = cardRefs.current[requestOpenDayId] ?? card;
+      if (scrollEl && liveCard) {
+        const navEl = document.querySelector('[data-sticky-nav]') as HTMLElement | null;
+        const navHeight = (navEl ? navEl.offsetHeight : 120) + 16;
+        const containerTop = scrollEl.getBoundingClientRect().top;
+        const cardTop = liveCard.getBoundingClientRect().top;
+        const targetTop = scrollEl.scrollTop + (cardTop - containerTop) - navHeight;
+        scrollEl.style.overflowAnchor = 'none';
+        scrollEl.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+        const wait = (n: number) => {
+          if (n <= 0) {
+            scrollEl.style.overflowAnchor = '';
+            setOpenDay(di);
+            return;
+          }
+          pendingRafsRef.current.push(requestAnimationFrame(() => wait(n - 1)));
+        };
+        wait(Animation.mountFrames);
+      } else {
+        setOpenDay(di);
+      }
+    };
+
+    if (di === currentOpenDay) {
+      // Already open — just smooth-scroll to it
+      const liveCard = cardRefs.current[requestOpenDayId] ?? card;
+      if (scrollEl && liveCard) {
+        const navEl = document.querySelector('[data-sticky-nav]') as HTMLElement | null;
+        const navHeight = (navEl ? navEl.offsetHeight : 120) + 16;
+        const containerTop = scrollEl.getBoundingClientRect().top;
+        const cardTop = liveCard.getBoundingClientRect().top;
+        const targetTop = scrollEl.scrollTop + (cardTop - containerTop) - navHeight;
+        scrollEl.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+      }
+    } else if (currentOpenDay !== -1) {
+      setOpenDay(-1);
+      switchTimeoutRef.current = setTimeout(doScrollAndOpen, 500);
+    } else {
+      doScrollAndOpen();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestOpenDayId, days]);
+
+  // After the day accordion opens, scroll to the specific item and pulse it.
+  // Waits 900ms to allow the DayCard spring to fully settle before measuring.
+  useEffect(() => {
+    if (!requestScrollToItemId) return;
+    onRequestScrollToItemConsumed?.();
+    const captured = requestScrollToItemId;
+
+    const timer = setTimeout(() => {
+      const scrollEl = scrollRef.current;
+      const itemEl = itemRefs.current[captured];
+      if (scrollEl && itemEl) {
+        const navEl = document.querySelector('[data-sticky-nav]') as HTMLElement | null;
+        const navHeight = (navEl ? navEl.offsetHeight : 120) + 32;
+        const containerTop = scrollEl.getBoundingClientRect().top;
+        const itemTop = itemEl.getBoundingClientRect().top;
+        const targetTop = scrollEl.scrollTop + (itemTop - containerTop) - navHeight;
+        scrollEl.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+      }
+      setPulsingItemId(captured);
+      setTimeout(() => setPulsingItemId(null), 1400);
+    }, 900);
+
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestScrollToItemId]);
 
   // Mark this stop as seen after first render (not during render) so isFirstVisit
   // is stable for the entire render pass and all DayCards get the same value.
@@ -575,7 +687,7 @@ export function EditableItinerary({
                           const cardTop = card.getBoundingClientRect().top;
                           const targetTop = scrollEl.scrollTop + (cardTop - containerTop) - navHeight;
                           scrollEl.style.overflowAnchor = 'none';
-                          scrollEl.scrollTop = Math.max(0, targetTop);
+                          scrollEl.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
                           const wait = (n: number) => {
                             if (n <= 0) {
                               scrollEl.style.overflowAnchor = '';
@@ -626,6 +738,8 @@ export function EditableItinerary({
                                 ? (rect) => onExpandPlace(itemPlace, rect)
                                 : (_rect) => setDetailState({ item, resolvedPlace: null })
                               }
+                              isPulsing={pulsingItemId === item.id}
+                              itemRef={el => { itemRefs.current[item.id] = el; }}
                             />
                         );
                       })}
@@ -640,12 +754,12 @@ export function EditableItinerary({
                             placeholder="Time (optional)"
                             value={addForm.time}
                             onChange={e => setAddForm(f => f ? { ...f, time: e.target.value } : f)}
-                            style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: `1px solid ${Colors.border}`, borderRadius: "6px", fontFamily: "Georgia,serif", minWidth: 0 }}
+                            style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: `1px solid ${Colors.border}`, borderRadius: "6px", fontFamily: Typography.family.sans, minWidth: 0 }}
                           />
                           <select
                             value={addForm.category}
                             onChange={e => setAddForm(f => f ? { ...f, category: e.target.value as PlaceCategory | '' } : f)}
-                            style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: `1px solid ${Colors.border}`, borderRadius: "6px", fontFamily: "Georgia,serif", background: "#fff", color: addForm.category ? Colors.textPrimary : Colors.textMuted, minWidth: 0, cursor: "pointer" }}
+                            style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: `1px solid ${Colors.border}`, borderRadius: "6px", fontFamily: Typography.family.sans, background: "#fff", color: addForm.category ? Colors.textPrimary : Colors.textMuted, minWidth: 0, cursor: "pointer" }}
                           >
                             {CATEGORY_OPTIONS.map(opt => (
                               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -666,18 +780,18 @@ export function EditableItinerary({
                               }
                               if (e.key === "Escape") setAddForm(null);
                             }}
-                            style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: `1px solid ${Colors.border}`, borderRadius: "6px", fontFamily: "Georgia,serif" }}
+                            style={{ flex: 1, fontSize: "0.8rem", padding: "6px 8px", border: `1px solid ${Colors.border}`, borderRadius: "6px", fontFamily: Typography.family.sans }}
                           />
                           <button
                             onClick={() => {
                               if (addForm.text.trim()) addCustomItem(day.id, addForm.time, addForm.text.trim(), null, addForm.category || undefined);
                               setAddForm(null);
                             }}
-                            style={{ background: stop.accent, color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif", flexShrink: 0 }}
+                            style={{ background: stop.accent, color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontFamily: Typography.family.sans, flexShrink: 0 }}
                           >Add</button>
                           <button
                             onClick={() => setAddForm(null)}
-                            style={{ background: "transparent", color: Colors.textMuted, border: `1px solid ${Colors.border}`, borderRadius: "6px", padding: "6px 10px", cursor: "pointer", fontSize: "0.8rem", fontFamily: "Georgia,serif", flexShrink: 0 }}
+                            style={{ background: "transparent", color: Colors.textMuted, border: `1px solid ${Colors.border}`, borderRadius: "6px", padding: "6px 10px", cursor: "pointer", fontSize: "0.8rem", fontFamily: Typography.family.sans, flexShrink: 0 }}
                           >✕</button>
                         </div>
                       </div>
@@ -687,7 +801,7 @@ export function EditableItinerary({
                         style={{
                           marginTop: "10px", background: "transparent", border: "1px dashed " + stop.accent + "50",
                           borderRadius: "6px", padding: "6px 14px", cursor: "pointer",
-                          fontSize: "0.75rem", color: stop.accent + "99", fontFamily: "Georgia,serif",
+                          fontSize: "0.75rem", color: stop.accent + "99", fontFamily: Typography.family.sans,
                           display: "flex", alignItems: "center", gap: "5px",
                         }}
                       >+ Add item</button>
@@ -738,7 +852,7 @@ export function EditableItinerary({
               fontSize: 18, lineHeight: 1,
               cursor: "pointer", display: "flex",
               alignItems: "center", justifyContent: "center",
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.sans,
             }}
           >
             ✓
@@ -806,7 +920,6 @@ export function EditableItinerary({
       <DayPickerModal
         isOpen={showMovePicker}
         onClose={() => setShowMovePicker(false)}
-        mode="move"
         fromDayId={editModeDay ?? undefined}
         allDays={data.itinerary_days}
         stops={data.stops}

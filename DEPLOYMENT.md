@@ -8,18 +8,58 @@
 ## Deployment Flow
 
 ```
-local build + test → user approval → push to dev → PR to main → tag + release → Netlify auto-deploys
+local build + test → user approval → push to dev → PR to main → Netlify auto-deploys → tag + GitHub release
 ```
+
+> **RULE: Every merge to `main` requires a matching annotated git tag AND a GitHub release. No exceptions. A deploy without a tag is incomplete.**
 
 1. Build and test locally: `npm run build` + `npm test`
 2. Verify locally at `localhost:5173` (`npm run dev`) or `npm run preview`
 3. **Get explicit approval from Jeremy before touching git push or GitHub**
 4. Push feature branch → PR to `dev` first
 5. After validation, PR `dev` → `main`
-6. **Create an annotated git tag and GitHub release** (see below — required for every main merge)
-7. Netlify detects the `main` push and auto-deploys — no manual trigger needed
+6. Netlify detects the `main` push and auto-deploys — no manual trigger needed
+7. **Immediately after Netlify confirms the build: create annotated git tag + GitHub release** (see Post-Merge Steps below — this step is mandatory, not optional)
 
 **Never auto-deploy. Never push to main without explicit go-ahead.**
+
+---
+
+## Post-Merge Steps — Required After Every Main Merge
+
+These steps must happen immediately after the PR to `main` is merged. Do not skip, do not defer.
+
+```bash
+# 1. Pull main locally so you're pointing at the merge commit
+git checkout main && git pull origin main
+
+# 2. Create an annotated tag on that merge commit
+git tag -a vX.Y.Z -m "vX.Y.Z — one-line summary"
+git push origin vX.Y.Z
+
+# 3. Create the GitHub release
+gh release create vX.Y.Z \
+  --title "vX.Y.Z — Short title" \
+  --latest \
+  --notes "$(cat <<'EOF'
+## What's new
+- Feature area 1: what changed and why it matters
+- Feature area 2: ...
+
+## Manual steps required
+- (Firebase deploy? Netlify env var? Google Cloud config?)
+- None, if a code-only release
+
+## Version
+Patch/minor/major — one sentence on the bump rationale.
+EOF
+)"
+```
+
+**Release notes must include:**
+- A section per feature area (what changed and why it matters to the user)
+- Any manual steps required (Firebase deploys, Netlify env vars, Google Cloud config)
+- Nothing that belongs in a commit message — focus on the product story, not the diff
 
 ---
 
@@ -69,6 +109,7 @@ Run through every item before creating a PR to `main`:
 6. **Review `trip.json` diff** — if `trip.json` changed, confirm it's a schema addition (OK) not a content/data change (requires explicit approval — see below)
 7. **Netlify env vars match** — confirm `VITE_TRIP_ID=maine-2026`, `ANTHROPIC_API_KEY`, `VITE_FIREBASE_APP_ID`, and `VITE_RECAPTCHA_SITE_KEY` are set in Netlify dashboard. Confirm `VITE_APPCHECK_DEBUG_TOKEN` is NOT in Netlify dashboard.
 8. **Never push directly to `main`** — always PR from feature branch or dev
+9. **After the PR merges:** immediately run Post-Merge Steps above — annotated tag + GitHub release before closing the deploy window
 
 ---
 

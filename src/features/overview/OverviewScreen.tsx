@@ -19,7 +19,7 @@ import { ScrollReveal } from '../../components/ScrollReveal';
 import { HotelCard, BookingCard } from '../../components/TravelSection';
 import type { SelectedEntity } from '../entityDetail/detailTypes';
 import type { Booking, Place, Stop } from '../../types';
-import { deriveFlightGroups, isRentalCar } from '../../domain/trip';
+import { deriveFlightGroups, findEntityInItinerary, isRentalCar } from '../../domain/trip';
 import type { FlightStatus } from '../../domain/trip';
 import { Icons } from '../../design/icons';
 import { Colors, Spacing, Typography, Radius, IconColors } from '../../design/tokens';
@@ -53,7 +53,7 @@ function TravelerGroupHeader({ groupName }: { groupName: string }) {
     }}>
       <Icons.User size={15} weight="duotone" color={Colors.textSecondary} />
       <span style={{
-        fontFamily: Typography.family,
+        fontFamily: Typography.family.sans,
         fontWeight: Typography.weight.semibold,
         fontSize: `${Typography.size.sm}px`,
         color: Colors.textSecondary,
@@ -77,7 +77,7 @@ function StopGroupHeader({ stop }: { stop: Stop }) {
     }}>
       <PlaceIcon emoji={stop.emoji} size={16} weight="regular" />
       <span style={{
-        fontFamily: Typography.family,
+        fontFamily: Typography.family.sans,
         fontWeight: Typography.weight.semibold,
         fontSize: `${Typography.size.sm}px`,
         color: stop.accent,
@@ -85,7 +85,7 @@ function StopGroupHeader({ stop }: { stop: Stop }) {
         {stop.city}
       </span>
       <span style={{
-        fontFamily: Typography.family,
+        fontFamily: Typography.family.sans,
         fontSize: `${Typography.size.xs}px`,
         color: Colors.textMuted,
       }}>
@@ -138,6 +138,7 @@ export function OverviewScreen() {
   const {
     customItems, addCustomItem,
     bookingOverrides, setBookingField,
+    itineraryOrder,
   } = useSharedTripState(TRIP_ID);
 
   // Enrichment — all places / accommodations (not stop-scoped like Jernie tab)
@@ -226,7 +227,7 @@ export function OverviewScreen() {
     sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  const { navigateToExplore } = useNavigation();
+  const { navigateToExplore, navigateToJernie } = useNavigation();
 
   // Entity detail sheet
   const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
@@ -317,7 +318,7 @@ export function OverviewScreen() {
   if (loading || !data) {
     return (
       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: Colors.background }}>
-        <span style={{ color: Colors.textMuted, fontFamily: Typography.family, fontSize: `${Typography.size.sm}px` }}>
+        <span style={{ color: Colors.textMuted, fontFamily: Typography.family.sans, fontSize: `${Typography.size.sm}px` }}>
           Loading…
         </span>
       </div>
@@ -349,7 +350,7 @@ export function OverviewScreen() {
         }}>
           <h1 style={{
             margin: 0,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             fontWeight: Typography.weight.bold,
             fontSize: `${Typography.size.xl}px`,
             color: Colors.textPrimary,
@@ -504,7 +505,7 @@ export function OverviewScreen() {
                       padding: `2px ${Spacing.xs}px`,
                       fontSize: `${Typography.size.xs - 1}px`,
                       fontWeight: Typography.weight.semibold,
-                      fontFamily: Typography.family,
+                      fontFamily: Typography.family.sans,
                       whiteSpace: 'nowrap' as const,
                     }}>
                       {coverage}
@@ -559,7 +560,7 @@ export function OverviewScreen() {
                   borderRadius: `${Radius.md}px`,
                   background: 'transparent',
                   color: Colors.textMuted,
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                   fontSize: `${Typography.size.xs}px`,
                   cursor: 'pointer',
                   display: 'flex',
@@ -617,7 +618,7 @@ export function OverviewScreen() {
                   borderRadius: `${Radius.md}px`,
                   background: 'transparent',
                   color: Colors.textMuted,
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                   fontSize: `${Typography.size.xs}px`,
                   cursor: 'pointer',
                   display: 'flex',
@@ -659,6 +660,27 @@ export function OverviewScreen() {
             return place ? () => setAddPlaceContext(place) : undefined;
           })()}
           isAdded={selectedEntity.kind === 'place' ? addedPlaceIds.has(selectedEntity.id) : false}
+          onView={(() => {
+            if (selectedEntity.kind !== 'place') return undefined;
+            if (!addedPlaceIds.has(selectedEntity.id)) return undefined;
+            const place = data.places.find(p => p.id === selectedEntity.id);
+            if (!place) return undefined;
+            return () => {
+              const loc = findEntityInItinerary(
+                place.id,
+                data.itinerary_items,
+                customItems,
+                itineraryOrder,
+                data.itinerary_days,
+              );
+              setSelectedEntity(null);
+              navigateToJernie({
+                stopId: loc?.stopId ?? place.stop_id,
+                dayId: loc?.dayId,
+                itemId: loc?.itemId,
+              });
+            };
+          })()}
         />
       )}
 

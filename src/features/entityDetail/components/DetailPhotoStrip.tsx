@@ -278,7 +278,7 @@ function Lightbox({ photos, initialIndex, originRect, onClose }: LightboxProps) 
               gap: `${Spacing.xs}px`,
               zIndex: 502,
             }}>
-              <span style={{ fontSize: `${Typography.size.xs}px`, color: 'rgba(255,255,255,0.7)', fontFamily: Typography.family }}>
+              <span style={{ fontSize: `${Typography.size.xs}px`, color: 'rgba(255,255,255,0.7)', fontFamily: Typography.family.sans }}>
                 {index + 1} / {photos.length}
               </span>
               <div style={{ display: 'flex', gap: `${Spacing.xs}px` }}>

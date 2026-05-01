@@ -53,7 +53,7 @@ export function ConfirmDialog({
       <p
         style={{
           margin: 0,
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontSize: Typography.size.base,
           color: Colors.textPrimary,
           lineHeight: Typography.lineHeight.normal,
@@ -72,7 +72,7 @@ export function ConfirmDialog({
             border: `1px solid ${Colors.border}`,
             borderRadius: Radius.md,
             background: Colors.surface,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             fontSize: Typography.size.base,
             color: Colors.textSecondary,
             cursor: 'pointer',
@@ -89,7 +89,7 @@ export function ConfirmDialog({
             border: 'none',
             borderRadius: Radius.md,
             background: confirmBg,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             fontSize: Typography.size.base,
             fontWeight: Typography.weight.semibold,
             color: Colors.textInverse,

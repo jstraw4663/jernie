@@ -52,7 +52,7 @@ export function PlaceMetaRow({ place }: PlaceMetaRowProps) {
         <span style={{
           fontSize: `${Typography.size.xs - 1}px`,
           color: Colors.textMuted,
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           letterSpacing: '0.02em',
         }}>
           {place.price}
