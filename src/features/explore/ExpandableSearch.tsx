@@ -138,7 +138,7 @@ export function ExpandableSearch({ onSearch, onOpen, placeholder = 'Search place
                 paddingRight: COLLAPSED + 4,
                 fontSize: `${Typography.size.sm}px`,
                 color: Colors.textPrimary,
-                fontFamily: Typography.family,
+                fontFamily: Typography.family.sans,
               }}
             />
           </motion.div>

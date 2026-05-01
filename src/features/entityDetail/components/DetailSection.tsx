@@ -24,7 +24,7 @@ function DetailRowItem({ row }: { row: DetailRow }) {
       {/* Label */}
       <span
         style={{
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontSize: `${Typography.size.sm}px`,
           color: Colors.textMuted,
           flexShrink: 0,
@@ -42,7 +42,7 @@ function DetailRowItem({ row }: { row: DetailRow }) {
           target="_blank"
           rel="noopener noreferrer"
           style={{
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             fontSize: `${Typography.size.sm}px`,
             color: Colors.info,
             textDecoration: 'none',
@@ -57,7 +57,7 @@ function DetailRowItem({ row }: { row: DetailRow }) {
       ) : (
         <span
           style={{
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             fontSize: `${Typography.size.sm}px`,
             color: Colors.textPrimary,
             textAlign: 'right',
@@ -93,7 +93,7 @@ export function DetailSection({ section }: DetailSectionProps) {
       {/* Section title */}
       <div
         style={{
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontSize: `${Typography.size.xs}px`,
           fontWeight: Typography.weight.bold,
           color: Colors.textMuted,

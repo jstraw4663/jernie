@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { navigation } from '../../navigation';
 import type { FilterId } from '../../navigation';
+import { useNavigation } from '../../contexts/NavigationContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTripData } from '../../hooks/useTripData';
 import { usePlaceEnrichment } from '../../hooks/usePlaceEnrichment';
@@ -16,6 +17,7 @@ import { EntityDetailSheet } from '../entityDetail/EntityDetailSheet';
 import { buildPlaceDetailConfig } from '../entityDetail/builders/buildPlaceDetailConfig';
 import { buildHikeDetailConfig } from '../entityDetail/builders/buildHikeDetailConfig';
 import type { SelectedEntity } from '../entityDetail/detailTypes';
+import { findEntityInItinerary } from '../../domain/trip';
 import { Icons } from '../../design/icons';
 import { Colors, Spacing, Typography, Radius, Animation, IconColors } from '../../design/tokens';
 
@@ -105,7 +107,7 @@ function pillStyle(active: boolean, accentColor: string): React.CSSProperties {
     background: active ? accentColor : Colors.surface,
     color: active ? '#fff' : Colors.textSecondary,
     fontSize: `${Typography.size.xs + 1}px`,
-    fontFamily: Typography.family,
+    fontFamily: Typography.family.sans,
     fontWeight: active ? Typography.weight.semibold : Typography.weight.regular,
     cursor: 'pointer',
     transition: `background 150ms ${Animation.easing.default}, color 150ms ${Animation.easing.default}, border-color 150ms ${Animation.easing.default}`,
@@ -121,7 +123,8 @@ function pillStyle(active: boolean, accentColor: string): React.CSSProperties {
 // ---------------------------------------------------------------------------
 export function ExploreScreen() {
   const { data } = useTripData();
-  const { addCustomItem, customItems } = useSharedTripState(TRIP_ID);
+  const { addCustomItem, customItems, itineraryOrder } = useSharedTripState(TRIP_ID);
+  const { navigateToJernie } = useNavigation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -214,7 +217,7 @@ export function ExploreScreen() {
   if (!data) {
     return (
       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: Colors.background }}>
-        <span style={{ color: Colors.textMuted, fontFamily: Typography.family, fontSize: `${Typography.size.sm}px` }}>
+        <span style={{ color: Colors.textMuted, fontFamily: Typography.family.sans, fontSize: `${Typography.size.sm}px` }}>
           Loading…
         </span>
       </div>
@@ -253,7 +256,7 @@ export function ExploreScreen() {
                 style={{
                   fontSize: `${Typography.size.xs + 1}px`,
                   color: Colors.textMuted,
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                 }}
               >
                 {filteredPlaces.length} result{filteredPlaces.length !== 1 ? 's' : ''}
@@ -266,7 +269,7 @@ export function ExploreScreen() {
                 exit={{ opacity: 0, x: -8 }}
                 transition={{ duration: 0.15 }}
                 style={{
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                   fontWeight: Typography.weight.bold,
                   fontSize: `${Typography.size.xl}px`,
                   color: Colors.textPrimary,
@@ -416,6 +419,26 @@ export function ExploreScreen() {
             return place ? () => setAddPlaceContext(place) : undefined;
           })()}
           isAdded={addedPlaceIds.has(selectedEntity.id)}
+          onView={(() => {
+            if (!addedPlaceIds.has(selectedEntity.id)) return undefined;
+            const place = data.places.find(p => p.id === selectedEntity.id);
+            if (!place) return undefined;
+            return () => {
+              const loc = findEntityInItinerary(
+                place.id,
+                data.itinerary_items,
+                customItems,
+                itineraryOrder,
+                data.itinerary_days,
+              );
+              setSelectedEntity(null);
+              navigateToJernie({
+                stopId: loc?.stopId ?? place.stop_id,
+                dayId: loc?.dayId,
+                itemId: loc?.itemId,
+              });
+            };
+          })()}
         />
       )}
     </div>

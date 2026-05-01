@@ -34,7 +34,7 @@ export function AlertBox({ type, text, link }: AlertBoxProps) {
         fontSize: `${Typography.size.sm}px`,
         lineHeight: Typography.lineHeight.normal,
         color: Colors.textPrimary,
-        fontFamily: Typography.family,
+        fontFamily: Typography.family.sans,
       }}>
         {text}
       </div>
@@ -44,7 +44,7 @@ export function AlertBox({ type, text, link }: AlertBoxProps) {
             color: s.bd,
             fontWeight: Typography.weight.bold,
             fontSize: `${Typography.size.xs}px`,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
           }}>
             {link.label}
           </a>
@@ -59,7 +59,7 @@ export function AlertBox({ type, text, link }: AlertBoxProps) {
 export function SecHead({ label }: { label: string }) {
   return (
     <div style={{display:"flex",alignItems:"center",gap:Spacing.md,marginBottom:Spacing.base}}>
-      <div style={{fontWeight:Typography.weight.bold,color:Colors.gold,fontSize:Typography.size.xs,letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:"Georgia,serif"}}>{label}</div>
+      <div style={{fontWeight:Typography.weight.bold,color:Colors.gold,fontSize:Typography.size.xs,letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:Typography.family.sans}}>{label}</div>
       <div style={{flex:1,height:"1px",background:Colors.gold+"30"}}/>
     </div>
   );
@@ -84,7 +84,7 @@ export function LegSummary({ stop }: { stop: Stop }) {
         color: stop.accent,
         letterSpacing: '0.12em',
         textTransform: 'uppercase' as const,
-        fontFamily: Typography.family,
+        fontFamily: Typography.family.sans,
         marginBottom: `${Spacing.xs}px`,
       }}>
         <span style={{display:'inline-flex',alignItems:'center',gap:5}}><PlaceIcon emoji={stop.emoji} size={13} weight="regular" /> {stop.city} · {stop.dates}</span>
@@ -94,7 +94,7 @@ export function LegSummary({ stop }: { stop: Stop }) {
         color: Colors.textSecondary,
         lineHeight: Typography.lineHeight.relaxed,
         fontStyle: 'italic',
-        fontFamily: Typography.family,
+        fontFamily: Typography.family.sans,
       }}>
         {stop.summary}
       </div>
@@ -132,7 +132,7 @@ export function HotelCard({ accent, label, booking, enrichment, hideNote, onExpa
           color: accent,
           letterSpacing: '0.12em',
           textTransform: 'uppercase' as const,
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           marginBottom: `${Spacing.sm}px`,
         }}>
           {label}
@@ -142,7 +142,7 @@ export function HotelCard({ accent, label, booking, enrichment, hideNote, onExpa
             fontSize: `${Typography.size.base}px`,
             color: Colors.textPrimary,
             marginBottom: `${Spacing.xs}px`,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
           }}>
             {booking.label}
           </div>
@@ -160,7 +160,7 @@ export function HotelCard({ accent, label, booking, enrichment, hideNote, onExpa
               fontWeight: Typography.weight.semibold,
               fontSize: `${Typography.size.sm}px`,
               color: Colors.textPrimary,
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.sans,
             }}>
               {enrichment.rating.toFixed(1)}
             </span>
@@ -168,7 +168,7 @@ export function HotelCard({ accent, label, booking, enrichment, hideNote, onExpa
               <span style={{
                 fontSize: `${Typography.size.xs}px`,
                 color: Colors.textMuted,
-                fontFamily: Typography.family,
+                fontFamily: Typography.family.sans,
               }}>
                 ({enrichment.user_ratings_total.toLocaleString()})
               </span>
@@ -186,7 +186,7 @@ export function HotelCard({ accent, label, booking, enrichment, hideNote, onExpa
             marginTop: `${Spacing.xs}px`,
             marginBottom: `${Spacing.xs}px`,
             opacity: 0.85,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
           }}>
             <Icons.Pin size={11} weight="duotone" color={accent} /> {booking.addr}
           </div>
@@ -194,7 +194,7 @@ export function HotelCard({ accent, label, booking, enrichment, hideNote, onExpa
 
         {/* Phone from enrichment */}
         {enrichment?.phone && (
-          <div style={{ marginTop: `${Spacing.xs}px`, marginBottom: `${Spacing.xs}px`, fontSize: `${Typography.size.xs}px`, color: accent, fontFamily: Typography.family, opacity: 0.85 }}>
+          <div style={{ marginTop: `${Spacing.xs}px`, marginBottom: `${Spacing.xs}px`, fontSize: `${Typography.size.xs}px`, color: accent, fontFamily: Typography.family.sans, opacity: 0.85 }}>
             <Icons.Phone size={11} weight="duotone" color={accent} /> {enrichment.phone}
           </div>
         )}
@@ -204,7 +204,7 @@ export function HotelCard({ accent, label, booking, enrichment, hideNote, onExpa
             fontSize: `${Typography.size.xs}px`,
             color: Colors.textMuted,
             marginBottom: `${Spacing.xs}px`,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
           }}>
             <span style={{display:'inline-flex',alignItems:'center',gap:4}}><Icons.Theater size={11} weight="duotone" color={Colors.textMuted} /> Confirmation: <span style={{ fontWeight: Typography.weight.bold, color: Colors.textSecondary }}>{booking.confirmation}</span></span>
           </div>
@@ -216,7 +216,7 @@ export function HotelCard({ accent, label, booking, enrichment, hideNote, onExpa
             lineHeight: Typography.lineHeight.relaxed,
             fontStyle: 'italic',
             marginTop: `${Spacing.xs}px`,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
           }}>
             {booking.note}
           </div>
@@ -269,7 +269,7 @@ function FlightRow({ f, sMap, loading }: FlightRowProps) {
       textTransform: 'uppercase' as const,
       letterSpacing: '0.08em',
       marginBottom: `${Spacing.xxs}px`,
-      fontFamily: Typography.family,
+      fontFamily: Typography.family.sans,
     }}>{l}</div>
   );
   const val = (children: ReactNode, color?: string) => (
@@ -280,7 +280,7 @@ function FlightRow({ f, sMap, loading }: FlightRowProps) {
       display: 'flex',
       alignItems: 'center',
       gap: `${Spacing.xs}px`,
-      fontFamily: Typography.family,
+      fontFamily: Typography.family.sans,
     }}>{children}</div>
   );
 
@@ -291,7 +291,7 @@ function FlightRow({ f, sMap, loading }: FlightRowProps) {
         flexWrap: 'wrap' as const, gap: `${Spacing.xs}px`, marginBottom: `${Spacing.sm}px`,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: `${Spacing.xs}px`, flexWrap: 'wrap' as const }}>
-          <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.base}px`, fontFamily: Typography.family }}>{f.num}</span>
+          <span style={{ fontWeight: Typography.weight.bold, fontSize: `${Typography.size.base}px`, fontFamily: Typography.family.sans }}>{f.num}</span>
           <span style={{ color: Colors.textMuted, fontSize: `${Typography.size.xs}px` }}>{f.airline}</span>
           <span style={{ color: Colors.border }}>·</span>
           <span style={{ color: Colors.textSecondary, fontSize: `${Typography.size.xs}px` }}>{f.route}</span>
@@ -367,7 +367,7 @@ export function BookingCard({ booking, accent, flightStatus, flightLoading, onEx
           letterSpacing: '0.1em',
           textTransform: 'uppercase' as const,
           marginBottom: `${Spacing.sm}px`,
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
         }}>
           {booking.label.includes("Avis") ? (() => {
             const parts = booking.label.split("Avis");
@@ -385,7 +385,7 @@ export function BookingCard({ booking, accent, flightStatus, flightLoading, onEx
               marginBottom: `${Spacing.xxs}px`,
               fontWeight: i === 0 ? Typography.weight.semibold : Typography.weight.regular,
               color: l.startsWith("⏰") || l.startsWith("📅") ? Colors.textSecondary : Colors.textPrimary,
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.sans,
             }}>
               {l}
             </div>

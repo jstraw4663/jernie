@@ -20,6 +20,8 @@ export interface BottomSheetProps {
   headerRight?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /** Rendered inside Drawer.Content but outside the scroll area — use for abs-positioned overlays like ConfirmDialog */
+  overlay?: React.ReactNode;
   maxHeight?: string;
   zIndex?: number;
 }
@@ -31,6 +33,7 @@ export function BottomSheet({
   headerRight,
   children,
   footer,
+  overlay,
   maxHeight = '85vh',
   zIndex = 201,
 }: BottomSheetProps) {
@@ -84,7 +87,7 @@ export function BottomSheet({
               <span
                 style={{
                   fontSize: `${Typography.size.md}px`,
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                   fontWeight: Typography.weight.semibold,
                   color: Colors.textPrimary,
                 }}
@@ -115,6 +118,7 @@ export function BottomSheet({
           ) : (
             <div style={{ height: 'env(safe-area-inset-bottom, 0px)', flexShrink: 0 }} />
           )}
+          {overlay}
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>

@@ -1,13 +1,12 @@
-// DetailHero — full-bleed hero area at the top of an entity detail sheet.
+// DetailHero — scroll-driven compressing hero for entity detail sheets.
 //
-// Render priority:
-//   1. heroPhotoUrl — full-bleed photo (place image, etc.)
-//   2. heroGradient — gradient from brand/stop accent (always present as fallback)
+// compress=0 (not scrolled): 200px tall, inset card with rounded corners,
+//   category chip visible, title in scroll body below.
+// compress=1 (scrolled ~120px): 64px strip, edge-to-edge, title overlay
+//   fades in so the user always knows what sheet they're in.
 //
-// The heroLogoUrl is shown as a branded badge in the bottom-left of the hero.
-// The X close button is overlaid in the top-right corner.
-// The hero area is intentionally NOT data-vaul-no-drag — vaul captures swipe-down
-// gestures here to dismiss the sheet.
+// The X close button fades slightly as the hero compresses; vaul's drag
+// handle remains the primary dismiss affordance once the hero is small.
 
 import { useState, type ReactNode } from 'react';
 import { Colors, Typography, Spacing, Radius } from '../../../design/tokens';
@@ -16,32 +15,49 @@ interface DetailHeroProps {
   gradient: string;
   photoUrl?: string;
   logoUrl?: string;
-  emoji?: ReactNode;
+  emoji?: ReactNode;   // kept for type compat; not rendered in new layout
   title: string;
   subtitle?: string;
   categoryChip?: string;
+  stopLabel?: string;
+  stopColor?: string;
   onClose?: () => void;
-  onAddToItinerary?: () => void;
-  isAdded?: boolean;
+  scrollY: number;
 }
 
-export function DetailHero({ gradient, photoUrl, logoUrl, emoji, title, subtitle, categoryChip, onClose, onAddToItinerary, isAdded }: DetailHeroProps) {
+const HERO_FULL = 200;
+const HERO_COMPACT = 64;
+const COMPRESS_RANGE = 120;
+
+export function DetailHero({
+  gradient, photoUrl, logoUrl, title, categoryChip, stopLabel, stopColor, onClose, scrollY,
+}: DetailHeroProps) {
   const [photoFailed, setPhotoFailed] = useState(false);
   const showPhoto = !!photoUrl && !photoFailed;
+
+  const compress = Math.min(1, Math.max(0, scrollY / COMPRESS_RANGE));
+  const heroH = HERO_FULL - (HERO_FULL - HERO_COMPACT) * compress;
+  const edgeToEdge = compress > 0.6;
+  const chipOpacity = Math.max(0, 1 - compress * 1.6);
+  const overlayOpacity = Math.max(0, Math.min(1, (compress - 0.3) * 2.5));
+  const scrimAlpha = 0.05 + compress * 0.35;
 
   return (
     <div
       style={{
-        position: 'relative',
-        background: showPhoto ? Colors.navy : gradient,
-        minHeight: 160,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-end',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        margin: edgeToEdge ? '4px 0 0' : `4px ${Spacing.base}px 0`,
+        height: heroH,
+        borderRadius: edgeToEdge ? 0 : Radius.xl,
+        overflow: 'hidden',
         flexShrink: 0,
+        background: showPhoto ? Colors.navy : gradient,
+        transition: 'margin 0.18s ease, border-radius 0.18s ease',
       }}
     >
-      {/* Full-bleed photo */}
+      {/* Photo */}
       {photoUrl && !photoFailed && (
         <img
           src={photoUrl}
@@ -58,19 +74,44 @@ export function DetailHero({ gradient, photoUrl, logoUrl, emoji, title, subtitle
         />
       )}
 
-      {/* Scrim */}
+      {/* Scrim — darkens as compressed */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          background: showPhoto
-            ? 'linear-gradient(to bottom, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.55) 100%)'
-            : 'none',
+          background: `linear-gradient(180deg, transparent 0%, rgba(0,0,0,${scrimAlpha}) 100%)`,
           pointerEvents: 'none',
         }}
       />
 
-      {/* X close button — top right overlay */}
+      {/* Category chip — fades + shrinks out as compressed */}
+      {categoryChip && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 14,
+            top: 14,
+            padding: '5px 10px',
+            borderRadius: Radius.full,
+            background: 'rgba(255,255,255,0.92)',
+            fontFamily: Typography.family.sans,
+            fontSize: `${Typography.size.xs}px`,
+            fontWeight: Typography.weight.bold,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: stopColor ?? Colors.navy,
+            opacity: chipOpacity,
+            transform: `scale(${1 - compress * 0.2})`,
+            transformOrigin: 'left top',
+            transition: 'opacity 0.15s',
+            pointerEvents: chipOpacity < 0.1 ? 'none' : 'auto',
+          }}
+        >
+          {categoryChip}
+        </div>
+      )}
+
+      {/* Close button — top right, fades gently as hero compresses */}
       {onClose && (
         <button
           onClick={onClose}
@@ -95,116 +136,85 @@ export function DetailHero({ gradient, photoUrl, logoUrl, emoji, title, subtitle
             WebkitTapHighlightColor: 'transparent',
             backdropFilter: 'blur(4px)',
             WebkitBackdropFilter: 'blur(4px)',
+            opacity: Math.max(0.3, 1 - compress * 1.2),
           }}
         >
           ✕
         </button>
       )}
 
-      {/* Content layer */}
+      {/* Brand logo (airline, hotel) — bottom right, fades with chip */}
+      {logoUrl && <BrandLogo url={logoUrl} alt={title} opacity={chipOpacity} />}
+
+      {/* Title overlay — slides up from below into the compressed hero strip */}
       <div
         style={{
-          position: 'relative',
-          zIndex: 1,
-          padding: `${Spacing.xxl}px ${Spacing.base}px ${Spacing.xl}px`,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: `${Spacing.xs}px`,
+          position: 'absolute',
+          left: 16,
+          right: 56,
+          top: '50%',
+          transform: `translateY(calc(-50% + ${(1 - compress) * 24}px))`,
+          opacity: overlayOpacity,
+          pointerEvents: 'none',
         }}
       >
-        {/* Top row: emoji + category chip */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: `${Spacing.sm}px` }}>
-          {emoji && <span style={{ lineHeight: 1 }}>{emoji}</span>}
-          {categoryChip && (
-            <span
-              style={{
-                fontFamily: Typography.family,
-                fontSize: `${Typography.size.xs}px`,
-                fontWeight: Typography.weight.bold,
-                color: showPhoto ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.75)',
-                letterSpacing: '0.14em',
-                textTransform: 'uppercase',
-                background: 'rgba(0,0,0,0.25)',
-                padding: `2px ${Spacing.sm}px`,
-                borderRadius: `${Radius.full}px`,
-              }}
-            >
-              {categoryChip}
-            </span>
-          )}
-        </div>
-
-        {/* Title + optional logo */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: `${Spacing.md}px`, justifyContent: 'space-between' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1
-              style={{
-                fontFamily: Typography.family,
-                fontSize: `${Typography.size.xl}px`,
-                fontWeight: Typography.weight.bold,
-                color: Colors.textInverse,
-                margin: 0,
-                lineHeight: Typography.lineHeight.tight,
-                textShadow: showPhoto ? '0 1px 4px rgba(0,0,0,0.4)' : 'none',
-              }}
-            >
-              {title}
-            </h1>
-            {subtitle && (
-              <p
-                style={{
-                  fontFamily: Typography.family,
-                  fontSize: `${Typography.size.sm}px`,
-                  color: showPhoto ? 'rgba(255,255,255,0.90)' : 'rgba(247,244,239,0.80)',
-                  margin: `${Spacing.xxs}px 0 0`,
-                  lineHeight: Typography.lineHeight.normal,
-                  textShadow: showPhoto ? '0 1px 3px rgba(0,0,0,0.4)' : 'none',
-                }}
-              >
-                {subtitle}
-              </p>
-            )}
-          </div>
-          {logoUrl && <BrandLogo url={logoUrl} alt={title} />}
-        </div>
-
-        {onAddToItinerary && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onAddToItinerary(); }}
+        <div
+          style={{
+            display: 'inline-block',
+            maxWidth: '100%',
+            background: 'rgba(0,0,0,0.42)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            borderRadius: 8,
+            padding: '5px 10px',
+          }}
+        >
+          <div
             style={{
-              alignSelf: 'flex-start',
-              marginTop: `${Spacing.xs}px`,
-              padding: `${Spacing.xs + 2}px ${Spacing.md}px`,
-              borderRadius: `${Radius.full}px`,
-              background: isAdded ? Colors.gold : 'rgba(255,255,255,0.18)',
-              backdropFilter: isAdded ? 'none' : 'blur(6px)',
-              WebkitBackdropFilter: isAdded ? 'none' : 'blur(6px)',
-              border: isAdded ? `1.5px solid ${Colors.gold}` : '1.5px solid rgba(255,255,255,0.45)',
+              fontFamily: Typography.family.sans,
+              fontSize: `${Typography.size.base}px`,
+              lineHeight: 1.2,
+              fontWeight: Typography.weight.medium,
               color: '#fff',
-              fontSize: `${Typography.size.xs}px`,
-              fontFamily: Typography.family,
-              fontWeight: Typography.weight.semibold,
-              letterSpacing: '0.04em',
-              cursor: 'pointer',
-              WebkitTapHighlightColor: 'transparent',
-              lineHeight: 1,
+              letterSpacing: '-0.015em',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
-            {isAdded ? '✓ Added to Itinerary' : '+ Add to Itinerary'}
-          </button>
-        )}
+            {title}
+          </div>
+          {(categoryChip || stopLabel) && (
+            <div
+              style={{
+                fontFamily: Typography.family.sans,
+                fontSize: `${Typography.size.xs}px`,
+                fontWeight: Typography.weight.medium,
+                color: 'rgba(255,255,255,0.8)',
+                marginTop: 1,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {[categoryChip, stopLabel].filter(Boolean).join(' · ')}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function BrandLogo({ url, alt }: { url: string; alt: string }) {
+function BrandLogo({ url, alt, opacity }: { url: string; alt: string; opacity: number }) {
   const [failed, setFailed] = useState(false);
   if (failed) return null;
   return (
     <div
       style={{
-        flexShrink: 0,
+        position: 'absolute',
+        bottom: Spacing.md,
+        right: Spacing.base,
         width: 52,
         height: 52,
         borderRadius: `${Radius.md}px`,
@@ -214,6 +224,8 @@ function BrandLogo({ url, alt }: { url: string; alt: string }) {
         justifyContent: 'center',
         padding: 6,
         boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+        opacity,
+        transition: 'opacity 0.15s',
       }}
     >
       <img

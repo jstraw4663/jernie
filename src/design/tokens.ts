@@ -89,7 +89,25 @@ export const Radius = {
 // ---------------------------------------------------------------------------
 
 export const Typography = {
-  family: 'Georgia, serif',
+  family: {
+    serif: '"Newsreader", "Iowan Old Style", Georgia, serif',
+    sans:  '"Geist", -apple-system, system-ui, sans-serif',
+  },
+  // Semantic roles — use these for all new and updated code.
+  // fontFamily 'serif'|'sans' resolves to Typography.family.sans[fontFamily].
+  roles: {
+    display:   { fontSize: 36, lineHeight: 40, fontWeight: '400' as const, fontFamily: 'serif' as const, letterSpacing: '-0.015em' },
+    h1:        { fontSize: 28, lineHeight: 34, fontWeight: '400' as const, fontFamily: 'serif' as const },
+    h2:        { fontSize: 22, lineHeight: 28, fontWeight: '400' as const, fontFamily: 'serif' as const },
+    h3:        { fontSize: 18, lineHeight: 24, fontWeight: '600' as const, fontFamily: 'sans'  as const },
+    body:      { fontSize: 16, lineHeight: 24, fontWeight: '400' as const, fontFamily: 'sans'  as const },
+    bodySoft:  { fontSize: 15, lineHeight: 23, fontWeight: '400' as const, fontFamily: 'serif' as const, fontStyle: 'italic' as const },
+    label:     { fontSize: 13, lineHeight: 18, fontWeight: '600' as const, fontFamily: 'sans'  as const },
+    labelCaps: { fontSize: 11, lineHeight: 16, fontWeight: '600' as const, fontFamily: 'sans'  as const, letterSpacing: '0.1em', textTransform: 'uppercase' as const },
+    meta:      { fontSize: 13, lineHeight: 18, fontWeight: '400' as const, fontFamily: 'sans'  as const },
+    button:    { fontSize: 15, lineHeight: 20, fontWeight: '600' as const, fontFamily: 'sans'  as const },
+  },
+  // Raw scale — kept for backwards compat during migration
   size: {
     xs:   11,
     sm:   13,
@@ -154,16 +172,16 @@ export const IconColors = {
 
 export const Animation = {
   duration: {
-    fast:   '150ms',
-    normal: '250ms',
-    slow:   '350ms',
-    sheet:  '380ms',  // BottomSheet enter/exit
+    fast:   '175ms',
+    normal: '300ms',
+    slow:   '420ms',
+    sheet:  '460ms',  // BottomSheet enter/exit
   },
   easing: {
     default: 'cubic-bezier(0.4, 0, 0.2, 1)',
     enter:   'cubic-bezier(0, 0, 0.2, 1)',
     exit:    'cubic-bezier(0.4, 0, 1, 1)',
-    spring:  'cubic-bezier(0.34, 1.56, 0.64, 1)',
+    spring:  'cubic-bezier(0.34, 1.72, 0.64, 1)',
   },
   // Number of requestAnimationFrame chains to wait before triggering a CSS
   // enter transition. Gives the browser time to commit the start-state paint
@@ -174,19 +192,19 @@ export const Animation = {
   // Framer Motion spring configs — identical semantics to Moti springs on Expo migration.
   // Usage: transition={{ type: 'spring', ...Animation.springs.gentle }}
   springs: {
-    gentle:    { stiffness: 280, damping: 32 },
-    snappy:    { stiffness: 400, damping: 36 },
-    bouncy:    { stiffness: 320, damping: 24 },
-    // Slow, deliberate spring — matches BottomSheet entrance (~380ms feel).
+    gentle:    { stiffness: 240, damping: 26 },
+    snappy:    { stiffness: 340, damping: 28 },
+    bouncy:    { stiffness: 260, damping: 20 },
+    // Slow, deliberate spring — matches BottomSheet entrance (~460ms feel).
     // Use for DayCard content expand and other layout shifts that need breathing room.
-    lazy:      { stiffness: 160, damping: 24 },
+    lazy:      { stiffness: 130, damping: 19 },
     // Card-to-fullscreen expand — used by EntityDetailSheet origin-rect animation.
-    // Snappy enough to feel responsive, damped enough not to overshoot on small rects.
-    cardExpand: { stiffness: 340, damping: 30 },
+    // Snappy enough to feel responsive, elastic enough to feel satisfying.
+    cardExpand: { stiffness: 280, damping: 22 },
     // Stops bar springs
-    settle: { stiffness: 170, damping: 24, mass: 1.05 }, // ~580ms — "train pulling in"
-    bloom:  { stiffness: 240, damping: 22 },              // emoji chip activation
-    trail:  { stiffness: 140, damping: 30 },              // trail fill lags pill by ~80ms
+    settle: { stiffness: 140, damping: 20, mass: 1.05 }, // ~650ms — "train pulling in"
+    bloom:  { stiffness: 200, damping: 18 },              // emoji chip activation
+    trail:  { stiffness: 140, damping: 30 },              // trail fill lags pill by ~80ms (unchanged)
   },
   // Framer Motion easing arrays — same curves as Animation.easing but as number tuples.
   // Required because FM's Easing type rejects CSS cubic-bezier() strings.

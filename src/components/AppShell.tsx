@@ -24,7 +24,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NavigationContext } from '../contexts/NavigationContext';
 import { navigation } from '../navigation';
-import type { ExploreDeepLink } from '../navigation';
+import type { ExploreDeepLink, JernieDeepLink } from '../navigation';
 import MaineGuide from '../Jernie-PWA';
 import { ExploreScreen } from '../features/explore/ExploreScreen';
 import { OverviewScreen } from '../features/overview/OverviewScreen';
@@ -71,7 +71,7 @@ function PlaceholderScreen({ label, Icon }: { label: string; Icon: React.Compone
     }}>
       <Icon size={48} strokeWidth={1.5} />
       <span style={{
-        fontFamily: Typography.family,
+        fontFamily: Typography.family.sans,
         fontSize: Typography.size.base,
         color: Colors.textSecondary,
       }}>
@@ -190,7 +190,12 @@ export function AppShell() {
     handleTabChange('explore');
   }, [handleTabChange]);
 
-  const navContextValue = useMemo(() => ({ navigateToExplore }), [navigateToExplore]);
+  const navigateToJernie = useCallback((link: JernieDeepLink) => {
+    navigation.scheduleJernie(link);
+    handleTabChange('jernie');
+  }, [handleTabChange]);
+
+  const navContextValue = useMemo(() => ({ navigateToExplore, navigateToJernie }), [navigateToExplore, navigateToJernie]);
 
   if (!unlocked) {
     return <PinGate onUnlock={() => { writeUnlocked(); setUnlocked(true); }} />;

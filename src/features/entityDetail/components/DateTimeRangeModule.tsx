@@ -101,7 +101,7 @@ function Pill({ value, placeholder, type, isoValue, onChange, readOnly, displayT
     borderRadius: Radius.full,
     background: filled ? Colors.navy : Colors.surface2,
     color: filled ? Colors.textInverse : Colors.textMuted,
-    fontFamily: Typography.family,
+    fontFamily: Typography.family.sans,
     fontSize: `${Typography.size.sm}px`,
     fontWeight: Typography.weight.medium,
     whiteSpace: 'nowrap',
@@ -166,7 +166,7 @@ function DateTimeRow({ icon, label, date, time, onDateChange, onTimeChange, read
       <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>{icon}</span>
       <span
         style={{
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontSize: `${Typography.size.sm}px`,
           color: Colors.textPrimary,
           flex: 1,
@@ -268,7 +268,7 @@ export function DateTimeRangeModule({
           display: 'flex',
           justifyContent: 'flex-end',
           marginTop: `${Spacing.xs}px`,
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontSize: `${Typography.size.sm}px`,
           color: Colors.textSecondary,
           fontWeight: Typography.weight.medium,

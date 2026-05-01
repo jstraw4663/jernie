@@ -26,9 +26,10 @@ interface EntityDetailSheetProps {
   onClose: () => void;
   onAddToItinerary?: () => void;
   isAdded?: boolean;
+  onView?: () => void;
 }
 
-export function EntityDetailSheet({ isOpen, config, onClose, onAddToItinerary, isAdded }: EntityDetailSheetProps) {
+export function EntityDetailSheet({ isOpen, config, onClose, onAddToItinerary, isAdded, onView }: EntityDetailSheetProps) {
   useSheetRegistration(isOpen);
 
   // useLayoutEffect fires before paint so top is correct on the first visible frame.
@@ -85,7 +86,7 @@ export function EntityDetailSheet({ isOpen, config, onClose, onAddToItinerary, i
 
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <ErrorBoundary>
-              <EntityDetail config={config} onClose={onClose} onAddToItinerary={onAddToItinerary} isAdded={isAdded} />
+              <EntityDetail config={config} onClose={onClose} onAddToItinerary={onAddToItinerary} isAdded={isAdded} onView={onView} />
             </ErrorBoundary>
           </div>
         </Drawer.Content>

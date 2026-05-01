@@ -48,7 +48,7 @@ function DifficultyBadge({ difficulty }: { difficulty: string }) {
     >
       <span
         style={{
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontSize: `${Typography.size.sm}px`,
           color: Colors.textMuted,
           flexShrink: 0,
@@ -79,7 +79,7 @@ function DifficultyBadge({ difficulty }: { difficulty: string }) {
         </span>
         <span
           style={{
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             fontSize: `${Typography.size.sm}px`,
             color: Colors.textPrimary,
             fontWeight: Typography.weight.medium,
@@ -106,7 +106,7 @@ function FeaturesRow({ features }: { features: string[] }) {
             color: Colors.textSecondary,
             padding: `2px ${Spacing.sm}px`,
             borderRadius: `${Radius.full}px`,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
           }}
         >
           {f}
@@ -236,5 +236,7 @@ export function buildHikeDetailConfig(
     trailEmbedUrl,
     sections,
     externalUrl: place.url ?? undefined,
+    stopAccent: stop.accent,
+    stopLabel: stop.city,
   };
 }

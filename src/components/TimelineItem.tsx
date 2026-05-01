@@ -49,7 +49,7 @@ function TimeDisplay({ displayTime }: { displayTime: string }) {
       fontSize: `${Typography.size.sm}px`,
       fontWeight: Typography.weight.bold,
       color: Colors.textPrimary,
-      fontFamily: Typography.family,
+      fontFamily: Typography.family.sans,
       lineHeight: 1.3,
       minHeight: '1em',
       display: 'inline-block',
@@ -86,6 +86,8 @@ export interface TimelineItemProps {
   onOpenDetail?: () => void;
   /** Tap anywhere on card body — opens entity detail (place/booking) or edit sheet fallback */
   onTapCard?: (rect: DOMRect) => void;
+  /** When true, plays a brief gold ring pulse to draw attention to this card */
+  isPulsing?: boolean;
 }
 
 export function TimelineItem({
@@ -102,6 +104,7 @@ export function TimelineItem({
   textOverride,
   onOpenDetail,
   onTapCard,
+  isPulsing,
 }: TimelineItemProps) {
   const itItem = item as ItineraryItem;
 
@@ -187,8 +190,23 @@ export function TimelineItem({
 
         {/* ── Item card ── */}
         <motion.div
-          animate={{ borderLeftColor: cardBorderColor }}
-          transition={{ duration: 0.3, ease: Animation.fm.ease }}
+          animate={{
+            borderLeftColor: cardBorderColor,
+            boxShadow: isPulsing
+              ? [
+                  '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+                  `0 0 0 3px ${Colors.gold}60, 0 4px 16px ${Colors.gold}30`,
+                  `0 0 0 1px ${Colors.gold}20, 0 1px 4px rgba(13,43,62,0.08)`,
+                  '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+                ]
+              : '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+          }}
+          transition={{
+            borderLeftColor: { duration: 0.3, ease: Animation.fm.ease },
+            boxShadow: isPulsing
+              ? { duration: 1.1, ease: 'easeOut', times: [0, 0.25, 0.65, 1] }
+              : { duration: 0 },
+          }}
           onClick={onTapCard ? (e) => {
             onTapCard((e.currentTarget as HTMLElement).getBoundingClientRect());
           } : undefined}
@@ -226,7 +244,7 @@ export function TimelineItem({
               fontWeight: isConfirmed ? Typography.weight.bold : Typography.weight.medium,
               color: isConfirmed ? Colors.textPrimary : Colors.textSecondary,
               lineHeight: Typography.lineHeight.normal,
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.sans,
               transition: `color ${Animation.duration.normal} ${Animation.easing.default}`,
               flex: 1,
             }}>
@@ -275,7 +293,7 @@ export function TimelineItem({
               fontSize: `${Typography.size.xs + 1}px`,
               color: Colors.textMuted,
               lineHeight: Typography.lineHeight.relaxed,
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.serif,
               fontStyle: 'italic',
               marginBottom: Spacing.xs,
               paddingLeft: (categoryEntry || (isCustom && (item as CustomItem).category))
@@ -291,21 +309,21 @@ export function TimelineItem({
 
           {/* Address */}
           {addr && (
-            <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: accent, fontFamily: Typography.family, lineHeight: Typography.lineHeight.normal }}>
+            <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: accent, fontFamily: Typography.family.sans, lineHeight: Typography.lineHeight.normal }}>
               <Icons.Pin size={12} weight="duotone" color={accent} /> {addrLabel || addr}
             </div>
           )}
 
           {/* Phone — shown when resolvedPlace has a phone number */}
           {resolvedPlace?.phone && (
-            <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: Colors.textMuted, fontFamily: Typography.family, lineHeight: Typography.lineHeight.normal }}>
+            <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: Colors.textMuted, fontFamily: Typography.family.sans, lineHeight: Typography.lineHeight.normal }}>
               <Icons.Phone size={12} weight="duotone" color={Colors.textMuted} /> {resolvedPlace.phone}
             </div>
           )}
 
           {/* Tide chart */}
           {!isCustom && itItem.tide_url && (
-            <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: Colors.navyLight, fontFamily: Typography.family }}>
+            <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: Colors.navyLight, fontFamily: Typography.family.sans }}>
               <Icons.Waves size={12} weight="duotone" color={Colors.navyLight} /> Bar Harbor Tide Chart
             </div>
           )}
@@ -362,7 +380,7 @@ export function TimelineItem({
                   borderRadius: `${Spacing.xs}px`,
                   letterSpacing: '0.05em',
                   textTransform: 'uppercase',
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                   fontWeight: Typography.weight.semibold,
                 }}>
                   {category}
@@ -381,7 +399,7 @@ export function TimelineItem({
                   borderRadius: `${Spacing.xs}px`,
                   border: `1px solid ${Colors.info}20`,
                   letterSpacing: '0.04em',
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                 }}>
                   {(() => { const e = CATEGORY_ICON_MAP[(item as CustomItem).category ?? '']; return e ? <e.Icon size={11} weight="duotone" color={e.color} /> : null; })()} {(item as CustomItem).category}
                 </div>
@@ -406,7 +424,7 @@ export function TimelineItem({
                     borderRadius: 9999,
                     padding: `${Spacing.xs}px ${Spacing.md}px`,
                     fontSize: `${Typography.size.xs}px`,
-                    fontFamily: Typography.family,
+                    fontFamily: Typography.family.sans,
                     fontWeight: Typography.weight.semibold,
                     letterSpacing: '0.04em',
                     cursor: 'pointer',
@@ -434,7 +452,7 @@ export function TimelineItem({
                     borderRadius: 9999,
                     padding: `${Spacing.xs}px ${Spacing.md}px`,
                     fontSize: `${Typography.size.xs}px`,
-                    fontFamily: Typography.family,
+                    fontFamily: Typography.family.sans,
                     fontWeight: Typography.weight.semibold,
                     letterSpacing: '0.04em',
                     cursor: 'pointer',

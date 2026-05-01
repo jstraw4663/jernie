@@ -123,7 +123,7 @@ export function StickyHeader({
               color: '#FDFAF4',
               lineHeight: Typography.lineHeight.tight,
               letterSpacing: titleLetterSpacing,
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.serif,
             }}
           >
             {tripTitle}
@@ -144,6 +144,7 @@ export function StickyHeader({
                 color: '#7A9FB5',
                 fontSize: `${Typography.size.xs + 1}px`,
                 fontStyle: 'italic',
+                fontFamily: Typography.family.serif,
               }}
             >
               {tagline}

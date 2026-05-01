@@ -45,7 +45,7 @@ export function OverviewAnchorNav({ sections, activeSection, onSectionTap, accen
               background: isActive ? activeColor : Colors.surface,
               color: isActive ? '#fff' : Colors.textSecondary,
               fontSize: `${Typography.size.xs + 1}px`,
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.sans,
               fontWeight: isActive ? Typography.weight.semibold : Typography.weight.regular,
               cursor: 'pointer',
               transition: `background 150ms ${Animation.easing.default}, color 150ms ${Animation.easing.default}, border-color 150ms ${Animation.easing.default}`,

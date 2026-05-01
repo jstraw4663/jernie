@@ -35,7 +35,7 @@ export function DetailHeader({ externalUrl }: DetailHeaderProps) {
           padding: `${Spacing.xs}px ${Spacing.md}px`,
           textDecoration: 'none',
           color: Colors.textInverse,
-          fontFamily: Typography.family,
+          fontFamily: Typography.family.sans,
           fontSize: `${Typography.size.sm}px`,
           fontWeight: Typography.weight.medium,
         }}

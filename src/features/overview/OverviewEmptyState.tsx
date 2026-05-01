@@ -20,7 +20,7 @@ export function OverviewEmptyState({ icon, text, ctaLabel, onCta }: OverviewEmpt
     }}>
       <span style={{ lineHeight: 1 }}>{icon}</span>
       <span style={{
-        fontFamily: Typography.family,
+        fontFamily: Typography.family.sans,
         fontSize: `${Typography.size.sm}px`,
         color: Colors.textMuted,
         lineHeight: Typography.lineHeight.relaxed,
@@ -37,7 +37,7 @@ export function OverviewEmptyState({ icon, text, ctaLabel, onCta }: OverviewEmpt
             border: `1px dashed ${Colors.border}`,
             background: 'transparent',
             color: Colors.textSecondary,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             fontSize: `${Typography.size.sm}px`,
             cursor: 'pointer',
           }}

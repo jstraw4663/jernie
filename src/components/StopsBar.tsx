@@ -144,7 +144,7 @@ function StopNode({ stop, mode, isPast }: StopNodeProps) {
               color: accent,
               fontWeight: Typography.weight.bold,
               fontSize: `${Typography.size.sm}px`,
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.sans,
               whiteSpace: 'nowrap',
             }}
           >
@@ -154,7 +154,7 @@ function StopNode({ stop, mode, isPast }: StopNodeProps) {
             style={{
               color: Colors.textSecondary,
               fontSize: `${Typography.size.xs}px`,
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.sans,
               whiteSpace: 'nowrap',
             }}
           >
@@ -199,7 +199,7 @@ function StopNode({ stop, mode, isPast }: StopNodeProps) {
           style={{
             color: dotColor,
             fontSize: `${Typography.size.xs}px`,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             whiteSpace: 'nowrap',
           }}
         >

@@ -171,7 +171,7 @@ export function DistanceModule({
                 border: 'none',
                 background: isActive ? Colors.navy : Colors.surface2,
                 color: isActive ? Colors.textInverse : Colors.textMuted,
-                fontFamily: Typography.family,
+                fontFamily: Typography.family.sans,
                 fontSize: `${Typography.size.xs}px`,
                 fontWeight: Typography.weight.semibold,
                 cursor: 'pointer',
@@ -196,7 +196,7 @@ export function DistanceModule({
       >
         <span
           style={{
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             fontSize: `${Typography.size.xs}px`,
             color: Colors.textSecondary,
             textTransform: 'uppercase' as const,
@@ -210,7 +210,7 @@ export function DistanceModule({
         </span>
         <span
           style={{
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             fontSize: `${Typography.size.sm}px`,
             color: originAddr ? Colors.textPrimary : Colors.textSecondary,
             overflow: 'hidden',
@@ -234,7 +234,7 @@ export function DistanceModule({
       >
         <span
           style={{
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             fontSize: `${Typography.size.xs}px`,
             color: Colors.textSecondary,
             textTransform: 'uppercase' as const,
@@ -256,7 +256,7 @@ export function DistanceModule({
           }}
           style={{
             flex: 1,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             fontSize: `${Typography.size.sm}px`,
             color: Colors.textPrimary,
             background: 'transparent',
@@ -298,7 +298,7 @@ export function DistanceModule({
                   border: 'none',
                   background: isActive ? Colors.navy : Colors.surface2,
                   color: isActive ? Colors.textInverse : Colors.textMuted,
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                   fontSize: `${Typography.size.xs}px`,
                   fontWeight: Typography.weight.medium,
                   cursor: 'pointer',
@@ -338,7 +338,7 @@ export function DistanceModule({
             <div style={{ flex: 1 }}>
               <div
                 style={{
-                  fontFamily: Typography.family,
+                  fontFamily: Typography.family.sans,
                   fontSize: `${Typography.size.sm}px`,
                   color: Colors.textPrimary,
                   fontWeight: Typography.weight.medium,
@@ -349,7 +349,7 @@ export function DistanceModule({
               {result.note && (
                 <div
                   style={{
-                    fontFamily: Typography.family,
+                    fontFamily: Typography.family.sans,
                     fontSize: `${Typography.size.xs}px`,
                     color: Colors.textSecondary,
                     marginTop: 2,

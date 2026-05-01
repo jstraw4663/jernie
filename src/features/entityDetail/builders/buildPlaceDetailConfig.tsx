@@ -180,5 +180,8 @@ export function buildPlaceDetailConfig(place: Place, stop: Stop, stops: Stop[] =
     mapAddr: addr ?? undefined,
     sections,
     externalUrl: website ?? undefined,
+    phone: phone ?? undefined,
+    stopAccent: stop.accent,
+    stopLabel: stop.city,
   };
 }

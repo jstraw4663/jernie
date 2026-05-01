@@ -87,7 +87,7 @@ export function ActionButton({
         boxShadow: cfg.shadow,
         padding: `${Spacing.sm}px ${Spacing.base}px`,
         fontSize: `${Typography.size.sm}px`,
-        fontFamily: Typography.family,
+        fontFamily: Typography.family.sans,
         fontWeight: Typography.weight.semibold,
         cursor: disabled ? 'not-allowed' : 'pointer',
         width: fullWidth ? '100%' : undefined,

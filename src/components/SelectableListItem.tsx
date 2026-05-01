@@ -171,7 +171,7 @@ export function SelectableListItem({
             fontSize: `${Typography.size.xs}px`,
             fontWeight: Typography.weight.bold,
             color: Colors.textPrimary,
-            fontFamily: Typography.family,
+            fontFamily: Typography.family.sans,
             marginBottom: Spacing.xxs + 1,
             lineHeight: 1.2,
           }}>
@@ -186,7 +186,7 @@ export function SelectableListItem({
               </span>
             )}
             <span style={{
-              fontFamily: Typography.family,
+              fontFamily: Typography.family.sans,
               fontSize: `${Typography.size.sm}px`,
               fontWeight: Typography.weight.medium,
               color: Colors.textSecondary,
