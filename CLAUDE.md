@@ -1,7 +1,7 @@
 # Jernie — Dev Context
 
 > Operational hub. Detailed context lives in supporting docs — load them only when the task requires.
-> Last updated: April 27, 2026 — v0.6.0
+> Last updated: May 1, 2026 — v0.7.0
 
 ---
 
@@ -52,6 +52,8 @@ APIs: Open-Meteo (weather, 3hr cache) · Anthropic + web_search (flight status, 
 | `src/features/entityDetail/` | Full-height detail sheets — place, hike, hotel, flight, booking, rental car |
 | `src/features/entityDetail/EntityDetailSheet.tsx` | Vaul sheet wrapper — z-index 300, anchors below sticky nav |
 | `src/features/entityDetail/builders/` | One builder per entity type (buildPlaceDetailConfig, buildHikeDetailConfig, etc.) |
+| `src/features/entityDetail/components/FloatingAddCTA.tsx` | Add-to-itinerary CTA anchored at the bottom of EntityDetail sheets — always visible above keyboard |
+| `src/features/entityDetail/components/QuickActions.tsx` | Contextual quick-action row in EntityDetail (directions, call, website, etc.) |
 | `src/features/explore/ExploreScreen.tsx` | Explore tab — carousels, search, filter, sort across all places |
 | `src/features/overview/OverviewScreen.tsx` | Overview tab — trip-wide management grouped by type (flights, stays, rental car, restaurants, activities) |
 | `src/features/overview/selectors.ts` | Pure grouping helpers — selectFlightBookings, groupAccommodationsByStop, selectRentalCars, etc. |
@@ -119,6 +121,7 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 
 ## Current Status & Known Issues
 
+- **v0.7.0 shipped:** StopsBar/Trailhead (trail line, carved pill, scaling nodes); trail photos from AllTrails og:image (scraped on first enrichment, 30-day cache); FloatingAddCTA + QuickActions in EntityDetail; design system refresh across all components; flat shared Firestore enrichment; eager batch enrichment
 - **v0.6.0 shipped:** Overview itinerary-only restaurant/activity filter; Overview → Explore deep-link navigation; Explore stop-filter pill row + carousel badge; Jernie tab 5-item cap + Explore More buttons; ItineraryBadge shared component; NavigationContext
 - **v0.5.0 shipped:** Explore screen, EntityDetail system, enrichment pipeline, security hardening, PIN persistence fix
 - **V1-Maine target:** May 15, 2026
