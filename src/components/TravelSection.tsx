@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Icons } from '../design/icons';
 import type { Booking, Group, PlaceEnrichment, Stop } from '../types';
-import { Colors, Typography, Spacing, Radius } from '../design/tokens';
+import { Colors, Semantic, Brand, Core, Typography, Spacing, Radius } from '../design/tokens';
 import { ScrollReveal } from './ScrollReveal';
 import { PlaceIcon } from './PlaceIcon';
 import type { FlightStatus } from '../domain/trip';
@@ -16,10 +16,10 @@ interface AlertBoxProps {
 
 export function AlertBox({ type, text, link }: AlertBoxProps) {
   const s = ({
-    warning: { bd: Colors.gold },
-    tip:     { bd: Colors.success },
-    info:    { bd: '#2D6A8F' },
-  } as Record<string, { bd: string }>)[type] || { bd: '#2D6A8F' };
+    warning: { bd: Semantic.warning },
+    tip:     { bd: Semantic.success },
+    info:    { bd: Brand.navySoft },
+  } as Record<string, { bd: string }>)[type] || { bd: Brand.navySoft };
 
   return (
     <div style={{
@@ -229,7 +229,7 @@ export function HotelCard({ accent, label, booking, enrichment, hideNote, onExpa
 // ── StatusBadge ───────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = ({"On Time":{bg:"#EDFAF1",color:"#1B7A4A",dot:"#1B7A4A"},"Delayed":{bg:"#FFF8E7",color:"#b07010",dot:"#E8A020"},"Cancelled":{bg:"#FEF2F2",color:"#b91c1c",dot:"#ef4444"},"Scheduled":{bg:"#EBF4F8",color:"#2D6A8F",dot:"#2D6A8F"}} as Record<string,{bg:string;color:string;dot:string}>)[status] || {bg:"#f5f5f5",color:"#888",dot:"#aaa"};
+  const cfg = ({"On Time":{bg:Semantic.successTint,color:Semantic.success,dot:Semantic.success},"Delayed":{bg:Semantic.warningTint,color:Semantic.warning,dot:Semantic.warning},"Cancelled":{bg:Semantic.errorTint,color:Semantic.error,dot:Semantic.error},"Scheduled":{bg:Semantic.selectedTint,color:Brand.navySoft,dot:Brand.navySoft}} as Record<string,{bg:string;color:string;dot:string}>)[status] || {bg:Core.surfaceMuted,color:Core.textFaint,dot:Core.textFaint};
   return (
     <span style={{display:"inline-flex",alignItems:"center",gap:"5px",background:cfg.bg,color:cfg.color,fontSize:"0.7rem",fontWeight:"bold",padding:"2px 9px",borderRadius:"20px",letterSpacing:"0.05em",whiteSpace:"nowrap"}}>
       <span style={{width:"6px",height:"6px",borderRadius:"50%",background:cfg.dot,flexShrink:0}}/>{status}
@@ -435,12 +435,12 @@ export function TravelSection({ stop, stopBookings, groups, flightStatus, flight
   return (
     <>
       {hasFlights && mostRecent && (
-        <div style={{fontSize:"0.7rem",color:"#bbb",textAlign:"right",marginBottom:"10px"}}>
+        <div style={{fontSize:"0.7rem",color:Core.textFaint,textAlign:"right",marginBottom:"10px"}}>
           {!navigator.onLine?"Offline · ":""}Last checked: {mostRecent.toLocaleTimeString()}
         </div>
       )}
       {hasFlights && !mostRecent && (
-        <div style={{fontSize:"0.7rem",color:"#bbb",textAlign:"right",marginBottom:"10px"}}>Live status begins 48hrs before departure</div>
+        <div style={{fontSize:"0.7rem",color:Core.textFaint,textAlign:"right",marginBottom:"10px"}}>Live status begins 48hrs before departure</div>
       )}
       <div style={{display:"flex",flexDirection:"column",gap:`${Spacing.sm}px`}}>
         {sorted.map((b, i) => (

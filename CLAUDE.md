@@ -21,7 +21,7 @@ Firebase Realtime DB for shared state. Firestore for enrichment cache. `public/t
 
 ## Stack
 
-Vite 5 + React 19 + TypeScript · Framer Motion · @dnd-kit · Firebase (RTDB + Firestore) · vite-plugin-pwa (Workbox)
+Vite 7 + React 19 + TypeScript · Framer Motion · @dnd-kit · Firebase (RTDB + Firestore) · vite-plugin-pwa (Workbox)
 APIs: Open-Meteo (weather, 3hr cache) · Anthropic + web_search (flight status, 48hr guard) · Google Places (enrichment, 24hr Firestore cache)
 
 ---
@@ -48,6 +48,8 @@ APIs: Open-Meteo (weather, 3hr cache) · Anthropic + web_search (flight status, 
 | `src/navigation.ts` | Module-level one-shot Explore deep-link signal + `FilterId` / `ExploreDeepLink` types |
 | `src/contexts/NavigationContext.tsx` | `navigateToExplore(link)` context — AppShell provides, any screen consumes via `useNavigation()` |
 | `src/contexts/SheetContext.tsx` | Tracks open sheet count; StopNavigator consults before drag |
+| `src/contexts/TripThemeContext.tsx` | `TripThemeProvider` + `useTripTheme()` hook — delivers stop/trip color theme to Jernie tab components; `getStopTheme()` standalone helper for Overview |
+| `src/design/tripPacks.ts` | Trip/stop color data (`TRIP_PACKS`) — source of truth for per-stop accent colors; add new trips here, not in trip.json |
 | `src/components/ItineraryBadge.tsx` | Shared gold-checkmark / blue-plus badge — used by RestaurantCard, ActivityCard, PlaceCarouselCard |
 | `src/features/entityDetail/` | Full-height detail sheets — place, hike, hotel, flight, booking, rental car |
 | `src/features/entityDetail/EntityDetailSheet.tsx` | Vaul sheet wrapper — z-index 300, anchors below sticky nav |
@@ -114,6 +116,8 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 - **NavigationContext:** cross-tab navigation (e.g., Overview → Explore with filter) uses `useNavigation()` from `NavigationContext.tsx`; the one-shot payload travels via `navigation.ts` module state (safe because Explore remounts on tab switch via AnimatePresence key).
 - **ItineraryBadge:** use `<ItineraryBadge>` from `components/ItineraryBadge.tsx` for all add-to-itinerary / view-detail badges; never inline badge button logic in card components.
 - **ACTIVITY_CATEGORIES:** use the exported Set from `features/overview/selectors.ts` when filtering activities — never use `category !== 'restaurant'` (includes hotels).
+- **useTripTheme():** components inside the Jernie tab must consume stop/trip accent colors via `useTripTheme()` from `TripThemeContext.tsx` — never read `stop.accent` directly. Overview is the exception: it renders multiple stops simultaneously, so it uses the `getStopTheme(tripId, stopId)` standalone helper instead. Stop colors live in `src/design/tripPacks.ts` (not trip.json).
+- **Token layers:** `Brand` (global identity) → `Core` (neutral foundation) → `Semantic` (universal UI states, never overridden) → `TypeColors` (category taxonomy) → trip/stop (dynamic, via `TripThemeContext`). Gold (`Semantic.confirmed`) is completion language only — never used as a stop/trip accent.
 - **No tech debt:** name shortcuts before taking them; present tradeoffs on ambiguous decisions
 - **Build for Phase 2:** every decision assumes Expo migration; avoid PWA-only patterns
 
@@ -121,6 +125,7 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 
 ## Current Status & Known Issues
 
+- **v0.7.1 (in progress):** 5-layer color token refactor — `Brand/Core/Semantic/TypeColors` in `tokens.ts`; Maine trip pack in `tripPacks.ts`; `TripThemeContext` + `useTripTheme()`; stop accent colors (Portland terracotta, Bar Harbor forest, SWH gray-blue) wired through StopsBar, TimelineItem, FloatingAddCTA, OverviewScreen; `Colors`/`IconColors` backwards-compat aliases kept; build ✅ tests ✅
 - **v0.7.0 shipped:** StopsBar/Trailhead (trail line, carved pill, scaling nodes); trail photos from AllTrails og:image (scraped on first enrichment, 30-day cache); FloatingAddCTA + QuickActions in EntityDetail; design system refresh across all components; flat shared Firestore enrichment; eager batch enrichment
 - **v0.6.0 shipped:** Overview itinerary-only restaurant/activity filter; Overview → Explore deep-link navigation; Explore stop-filter pill row + carousel badge; Jernie tab 5-item cap + Explore More buttons; ItineraryBadge shared component; NavigationContext
 - **v0.5.0 shipped:** Explore screen, EntityDetail system, enrichment pipeline, security hardening, PIN persistence fix

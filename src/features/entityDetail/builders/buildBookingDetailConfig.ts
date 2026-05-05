@@ -16,7 +16,7 @@
 
 import type { Booking, Stop } from '../../../types';
 import type { DetailConfig, DetailRow, DetailSectionConfig } from '../detailTypes';
-import { Colors } from '../../../design/tokens';
+import { Colors, TypeColors, Brand } from '../../../design/tokens';
 import { domainFromUrl, brandLogoUrl, brandColor, labelToBrandDomain } from '../brandAssets';
 import { appleMapsUrl } from '../../../domain/trip';
 import { section } from './utils';
@@ -30,10 +30,10 @@ const TYPE_LABELS: Record<string, string> = {
 
 // Default accent colors by booking type when no brand color is available
 const TYPE_ACCENTS: Record<string, string> = {
-  accommodation:  '#2D6A8F',
-  transportation: '#5B3FA6',
+  accommodation:  TypeColors.stay,
+  transportation: TypeColors.flight,
   reservation:    Colors.success,
-  other:          Colors.navyLight,
+  other:          Brand.navySoft,
 };
 
 export function buildBookingDetailConfig(booking: Booking, stop: Stop): DetailConfig {
@@ -54,7 +54,7 @@ export function buildBookingDetailConfig(booking: Booking, stop: Stop): DetailCo
   // ── Details section — structured lines[] ───────────────────────
   if (booking.lines && booking.lines.length > 0) {
     const lineRows: DetailRow[] = booking.lines
-      .map(line => line.replace(/^[📍⏰📅✈️🚗🏠]\s*/, '').trim())
+      .map(line => line.replace(/^(?:📍|⏰|📅|✈️|🚗|🏠)\s*/u, '').trim())
       .filter(v => v !== '')
       .map((value, i) => ({ label: i === 0 ? 'Details' : '↳', value }));
 

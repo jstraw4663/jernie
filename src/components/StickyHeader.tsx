@@ -19,7 +19,7 @@ import {
   useSpring,
 } from 'framer-motion';
 import type { Stop } from '../types';
-import { Spacing, Typography } from '../design/tokens';
+import { Spacing, Typography, Brand, Core } from '../design/tokens';
 import { StopsBar } from './StopsBar';
 
 export interface StickyHeaderProps {
@@ -74,7 +74,7 @@ export function StickyHeader({
       {/* ── Gradient header ─────────────────────────────────── */}
       <motion.div
         style={{
-          background: 'linear-gradient(135deg,#0D2B3E 0%,#1B4D6B 60%,#0D2B3E 100%)',
+          background: `linear-gradient(135deg,${Brand.navy} 0%,${Brand.navySoft} 60%,${Brand.navy} 100%)`,
           paddingTop: headerPaddingTop,
           paddingBottom: headerPaddingBottom,
           paddingLeft: `${Spacing.xl}px`,
@@ -106,7 +106,7 @@ export function StickyHeader({
             style={{
               fontSize: `${Typography.size.xs}px`,
               letterSpacing: '0.3em',
-              color: '#A8C4D4',
+              color: 'rgba(168,196,212,0.9)',
               textTransform: 'uppercase',
               marginBottom: dateMarginBottom,
             }}
@@ -120,7 +120,7 @@ export function StickyHeader({
               margin: 0,
               fontSize: titleFontSize,
               fontWeight: Typography.weight.regular,
-              color: '#FDFAF4',
+              color: Core.textInverse,
               lineHeight: Typography.lineHeight.tight,
               letterSpacing: titleLetterSpacing,
               fontFamily: Typography.family.serif,
@@ -141,7 +141,7 @@ export function StickyHeader({
               style={{
                 margin: `${Spacing.sm}px auto 0`,
                 maxWidth: '500px',
-                color: '#7A9FB5',
+                color: 'rgba(122,159,181,0.9)',
                 fontSize: `${Typography.size.xs + 1}px`,
                 fontStyle: 'italic',
                 fontFamily: Typography.family.serif,
@@ -161,7 +161,7 @@ export function StickyHeader({
               {pills.map(([e, l]) => (
                   <div
                     key={l}
-                    style={{ color: '#C8DDE8', fontSize: `${Typography.size.xs}px`, letterSpacing: '0.04em' }}
+                    style={{ color: 'rgba(200,221,232,0.9)', fontSize: `${Typography.size.xs}px`, letterSpacing: '0.04em' }}
                   >
                     {e} {l}
                   </div>

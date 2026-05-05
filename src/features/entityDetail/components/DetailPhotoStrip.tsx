@@ -8,7 +8,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { AnimatePresence, motion, useMotionValue, useVelocity, animate } from 'framer-motion';
-import { Colors, Radius, Shadow, Spacing, Typography, Animation } from '../../../design/tokens';
+import { Colors, Core, Radius, Shadow, Spacing, Typography, Animation } from '../../../design/tokens';
 import { ChevronLeft, ChevronRight } from './ChevronIcons';
 import { CarouselArrowButton } from './CarouselArrowButton';
 import { useMountVisible } from '../../../hooks/useMountVisible';
@@ -196,7 +196,7 @@ function Lightbox({ photos, initialIndex, originRect, onClose }: LightboxProps) 
               borderRadius: `${Radius.full}px`,
               background: 'rgba(255,255,255,0.15)',
               border: '1px solid rgba(255,255,255,0.3)',
-              color: '#fff',
+              color: Core.white,
               fontSize: 20,
               display: 'flex',
               alignItems: 'center',

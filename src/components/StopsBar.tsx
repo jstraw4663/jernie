@@ -16,8 +16,14 @@ import {
   useSpring,
 } from 'framer-motion';
 import type { Stop } from '../types';
-import { Colors, Spacing, Typography, Animation } from '../design/tokens';
+import { Colors, Semantic, Spacing, Typography, Animation } from '../design/tokens';
+import { getStopPack } from '../design/tripPacks';
 import { useSheetContext } from '../contexts/SheetContext';
+
+// Look up the Maine Pack color for a stop; fall back to trip.json accent.
+function resolveStopAccent(stop: Stop): string {
+  return getStopPack('maine', stop.id)?.primary ?? stop.accent;
+}
 
 // ---------------------------------------------------------------------------
 // Types / helpers
@@ -90,7 +96,7 @@ interface StopNodeProps {
 }
 
 function StopNode({ stop, mode, isPast }: StopNodeProps) {
-  const accent = stop.accent;
+  const accent = resolveStopAccent(stop);
 
   if (mode === 'active') {
     return (
@@ -166,7 +172,7 @@ function StopNode({ stop, mode, isPast }: StopNodeProps) {
   }
 
   if (mode === 'labeled') {
-    const dotColor = isPast ? Colors.gold : Colors.textMuted;
+    const dotColor = isPast ? Semantic.confirmed : Colors.textMuted;
     return (
       <div
         style={{
@@ -185,7 +191,7 @@ function StopNode({ stop, mode, isPast }: StopNodeProps) {
             width: 30,
             height: 30,
             borderRadius: '50%',
-            background: isPast ? `${Colors.gold}22` : `${Colors.textMuted}22`,
+            background: isPast ? `${Semantic.confirmed}22` : `${Colors.textMuted}22`,
             border: `1.5px solid ${dotColor}44`,
             display: 'flex',
             alignItems: 'center',
@@ -210,7 +216,7 @@ function StopNode({ stop, mode, isPast }: StopNodeProps) {
   }
 
   if (mode === 'iconDot') {
-    const dotColor = isPast ? Colors.gold : Colors.textMuted;
+    const dotColor = isPast ? Semantic.confirmed : Colors.textMuted;
     return (
       <div
         style={{
@@ -241,7 +247,7 @@ function StopNode({ stop, mode, isPast }: StopNodeProps) {
         width: 8,
         height: 8,
         borderRadius: '50%',
-        background: isPast ? Colors.gold : `${Colors.textMuted}55`,
+        background: isPast ? Semantic.confirmed : `${Colors.textMuted}55`,
         cursor: 'pointer',
         userSelect: 'none',
         zIndex: 1,
@@ -391,7 +397,7 @@ export function StopsBar({ stops, active, onTabChange }: StopsBarProps) {
             <TrailLine
               centers={centers}
               fillWidth={springFillPx}
-              accent={activeStop?.accent ?? Colors.textMuted}
+              accent={activeStop ? resolveStopAccent(activeStop) : Colors.textMuted}
               offsetLeft={trailOffsetLeft}
             />
 

@@ -22,7 +22,8 @@ import type { Booking, Place, Stop } from '../../types';
 import { deriveFlightGroups, findEntityInItinerary, isRentalCar } from '../../domain/trip';
 import type { FlightStatus } from '../../domain/trip';
 import { Icons } from '../../design/icons';
-import { Colors, Spacing, Typography, Radius, IconColors } from '../../design/tokens';
+import { Colors, Spacing, Typography, Radius, TypeColors } from '../../design/tokens';
+import { getStopTheme } from '../../contexts/TripThemeContext';
 import { PlaceIcon } from '../../components/PlaceIcon';
 import { OverviewAnchorNav } from './OverviewAnchorNav';
 import type { NavSection } from './OverviewAnchorNav';
@@ -68,6 +69,7 @@ function TravelerGroupHeader({ groupName }: { groupName: string }) {
 // Sub-header for stop groups (restaurants + activities)
 // ---------------------------------------------------------------------------
 function StopGroupHeader({ stop }: { stop: Stop }) {
+  const stopTheme = getStopTheme('maine', stop.id);
   return (
     <div style={{
       display: 'flex',
@@ -80,7 +82,7 @@ function StopGroupHeader({ stop }: { stop: Stop }) {
         fontFamily: Typography.family.sans,
         fontWeight: Typography.weight.semibold,
         fontSize: `${Typography.size.sm}px`,
-        color: stop.accent,
+        color: stopTheme.cardHeading,
       }}>
         {stop.city}
       </span>
@@ -164,7 +166,7 @@ export function OverviewScreen() {
           const cached = JSON.parse(raw) as { data: Record<string, FlightStatus> };
           if (cached.data) Object.assign(result, cached.data);
         }
-      } catch {}
+      } catch { /* corrupted or missing cache entry — skip */ }
     });
     return result;
   }, [data]);
@@ -248,7 +250,6 @@ export function OverviewScreen() {
       const current = (bookingOverrides[bookingId]?.aircraft_types ?? {}) as Record<string, string | null>;
       setBookingField(bookingId, 'aircraft_types', { ...current, [legKey]: value });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [setBookingField, bookingOverrides],
   );
 
@@ -378,11 +379,11 @@ export function OverviewScreen() {
         <OverviewSection
           id="flights"
           sectionRef={el => { sectionRefs.current.flights = el; }}
-          icon={<Icons.Flight size={14} weight="duotone" color={IconColors.travel} />}
+          icon={<Icons.Flight size={14} weight="duotone" color={TypeColors.flight} />}
           title="Flights"
           count={totalFlights}
           isEmpty={totalFlights === 0}
-          emptyIcon={<Icons.Flight size={36} weight="duotone" color={IconColors.travel} />}
+          emptyIcon={<Icons.Flight size={36} weight="duotone" color={TypeColors.flight} />}
           emptyText="No flights added yet"
         >
           {flightTravelerGroups.map((group, gi) => (
@@ -423,11 +424,11 @@ export function OverviewScreen() {
         <OverviewSection
           id="accommodations"
           sectionRef={el => { sectionRefs.current.accommodations = el; }}
-          icon={<Icons.Hotel size={14} weight="duotone" color={IconColors.accommodation} />}
+          icon={<Icons.Hotel size={14} weight="duotone" color={TypeColors.stay} />}
           title="Stays"
           count={accomTravelerGroups.reduce((n, g) => n + g.bookings.length, 0)}
           isEmpty={accomTravelerGroups.length === 0}
-          emptyIcon={<Icons.Hotel size={36} weight="duotone" color={IconColors.accommodation} />}
+          emptyIcon={<Icons.Hotel size={36} weight="duotone" color={TypeColors.stay} />}
           emptyText="No accommodations added yet"
         >
           {accomTravelerGroups.map((group, gi) => (
@@ -469,11 +470,11 @@ export function OverviewScreen() {
         <OverviewSection
           id="rental-car"
           sectionRef={el => { sectionRefs.current['rental-car'] = el; }}
-          icon={<Icons.Car size={14} weight="duotone" color={IconColors.travel} />}
+          icon={<Icons.Car size={14} weight="duotone" color={TypeColors.flight} />}
           title="Rental Car"
           count={rentalCars.length}
           isEmpty={rentalCars.length === 0}
-          emptyIcon={<Icons.Car size={36} weight="duotone" color={IconColors.travel} />}
+          emptyIcon={<Icons.Car size={36} weight="duotone" color={TypeColors.flight} />}
           emptyText="No rental car added yet"
         >
           {rentalCars.map(({ booking, coverage }, i) => {
@@ -521,11 +522,11 @@ export function OverviewScreen() {
         <OverviewSection
           id="restaurants"
           sectionRef={el => { sectionRefs.current.restaurants = el; }}
-          icon={<Icons.Restaurant size={14} weight="duotone" color={IconColors.food} />}
+          icon={<Icons.Restaurant size={14} weight="duotone" color={TypeColors.food} />}
           title="Restaurants"
           count={restaurantGroups.reduce((n, g) => n + g.places.length, 0)}
           isEmpty={restaurantGroups.length === 0}
-          emptyIcon={<Icons.Restaurant size={36} weight="duotone" color={IconColors.food} />}
+          emptyIcon={<Icons.Restaurant size={36} weight="duotone" color={TypeColors.food} />}
           emptyText="No restaurants yet"
           addLabel="Add restaurant"
           onAddNew={() => navigateToExplore({ filter: 'restaurant' })}
@@ -579,11 +580,11 @@ export function OverviewScreen() {
         <OverviewSection
           id="activities"
           sectionRef={el => { sectionRefs.current.activities = el; }}
-          icon={<Icons.Hike size={14} weight="duotone" color={IconColors.nature} />}
+          icon={<Icons.Hike size={14} weight="duotone" color={TypeColors.hike} />}
           title="Activities"
           count={activityGroups.reduce((n, g) => n + g.places.length, 0)}
           isEmpty={activityGroups.length === 0}
-          emptyIcon={<Icons.Hike size={36} weight="duotone" color={IconColors.nature} />}
+          emptyIcon={<Icons.Hike size={36} weight="duotone" color={TypeColors.hike} />}
           emptyText="No activities yet"
           addLabel="Add activity"
           onAddNew={() => navigateToExplore({ filter: 'activity' })}

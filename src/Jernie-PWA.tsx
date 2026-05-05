@@ -9,6 +9,8 @@ import { StopNavigator } from "./components/StopNavigator";
 import type { Booking, Place } from "./types";
 import { motion } from 'framer-motion';
 import { Animation, Typography } from "./design/tokens";
+import { TripThemeProvider } from "./contexts/TripThemeContext";
+import { getStopPack } from "./design/tripPacks";
 import { useNavigation } from "./contexts/NavigationContext";
 import { navigation } from "./navigation";
 import { ACTIVITY_CATEGORIES } from "./features/overview/selectors";
@@ -186,7 +188,7 @@ export default function MaineGuide() {
     try { return localStorage.getItem(ACTIVE_STOP_KEY) || "portland"; } catch { return "portland"; }
   });
   const handleSetActive = (id: string) => {
-    try { localStorage.setItem(ACTIVE_STOP_KEY, id); } catch {}
+    try { localStorage.setItem(ACTIVE_STOP_KEY, id); } catch { /* storage unavailable */ }
     setActive(id);
   };
   const weatherData = useWeatherEnrichment(tripId, data?.stops ?? []);
@@ -242,7 +244,6 @@ export default function MaineGuide() {
       const current = (bookingOverrides[bookingId]?.aircraft_types ?? {}) as Record<string, string | null>;
       setBookingField(bookingId, 'aircraft_types', { ...current, [legKey]: value });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [setBookingField, bookingOverrides],
   );
 
@@ -364,6 +365,10 @@ export default function MaineGuide() {
   };
 
   const stop = data.stops.find(s => s.id === active)!;
+  // Derive accent from the Maine Pack theme (overrides legacy trip.json accent values).
+  // Components migrated to useTripTheme() read stop.primary directly from context;
+  // prop-drilled components still receive stopAccent so they also get the new colors.
+  const stopAccent = getStopPack('maine', active)?.primary ?? stop.accent;
   const stopBookings = data.bookings.filter(b => b.stop_id === active);
   const stopPlaces = data.places.filter(p => p.stop_id === active);
   const stopAlerts = data.alerts.filter(a => a.stop_id === active);
@@ -371,13 +376,13 @@ export default function MaineGuide() {
   const activities = stopPlaces.filter(p => ACTIVITY_CATEGORIES.has(p.category) && !addedPlaceIds.has(p.id)).slice(0, 5);
   const hasFlights = stopBookings.some(b => b.type === "flight");
 
-  // Plain functions — not hooks, so safe after early returns. stop.accent is stable per stop.
+  // Plain functions — not hooks, so safe after early returns. stopAccent is stable per stop.
   const handlePlaceExpand = (place: Place, rect: DOMRect) => {
-    setSelectedEntity({ kind: 'place', id: place.id, originRect: rect, accent: stop.accent });
+    setSelectedEntity({ kind: 'place', id: place.id, originRect: rect, accent: stopAccent });
   };
 
   const handleBookingExpand = (booking: Booking, rect: DOMRect) => {
-    setSelectedEntity({ kind: 'booking', id: booking.id, originRect: rect, accent: stop.accent });
+    setSelectedEntity({ kind: 'booking', id: booking.id, originRect: rect, accent: stopAccent });
   };
 
   const handleView = (() => {
@@ -415,6 +420,7 @@ export default function MaineGuide() {
   })();
 
   return (
+    <TripThemeProvider tripId="maine" stopId={active}>
     <>
     <div
       ref={scrollRef}
@@ -453,7 +459,7 @@ export default function MaineGuide() {
         {/* Travel & Accommodations */}
         <motion.div variants={contentSectionVariants}>
           <CollapsibleSection
-            color={stop.accent}
+            color={stopAccent}
             label="Travel & Accommodations"
             open={travelOpen}
             onToggle={()=>setTravelOpen(v=>!v)}
@@ -465,7 +471,7 @@ export default function MaineGuide() {
                   fetchFlightStatusGroupWithData(dk, g.flights, setFlightStatus, setFlightLoading, setLastUpdated);
                 });
               }} disabled={flightLoading}
-                style={{background:"transparent",border:"1px solid "+stop.accent+"50",borderRadius:"6px",padding:"3px 10px",fontSize:"0.72rem",color:stop.accent,cursor:flightLoading?"default":"pointer",opacity:flightLoading?0.5:1,fontFamily:Typography.family.sans}}>
+                style={{background:"transparent",border:"1px solid "+stopAccent+"50",borderRadius:"6px",padding:"3px 10px",fontSize:"0.72rem",color:stopAccent,cursor:flightLoading?"default":"pointer",opacity:flightLoading?0.5:1,fontFamily:Typography.family.sans}}>
                 {flightLoading?"Checking…":"↻ Refresh"}
               </button>
             )}
@@ -488,8 +494,8 @@ export default function MaineGuide() {
           <motion.div variants={contentSectionVariants}>
             <div style={{marginBottom:"28px"}}>
               <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"12px"}}>
-                <div style={{fontWeight:"bold",color:stop.accent,fontSize:"0.78rem",letterSpacing:"0.12em",textTransform:"uppercase"}}>Additional Details</div>
-                <div style={{flex:1,height:"1px",background:stop.accent+"30"}}/>
+                <div style={{fontWeight:"bold",color:stopAccent,fontSize:"0.78rem",letterSpacing:"0.12em",textTransform:"uppercase"}}>Additional Details</div>
+                <div style={{flex:1,height:"1px",background:stopAccent+"30"}}/>
               </div>
               {stopAlerts.map((a)=><AlertBox key={a.id} {...a}/>)}
             </div>
@@ -521,15 +527,15 @@ export default function MaineGuide() {
         {/* Where to Eat */}
         <motion.div variants={contentSectionVariants}>
           {active==="barharbor" ? (
-            <CollapsibleSection color={stop.accent} label="Where to Eat" open={eatOpen} onToggle={()=>setEatOpen(v=>!v)}>
-              <PlaceList places={restaurants} accent={stop.accent} enrichmentMap={enrichmentMap} onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
-              <ExploreMoreButton label="restaurants" onClick={onExploreMore} accent={stop.accent}/>
+            <CollapsibleSection color={stopAccent} label="Where to Eat" open={eatOpen} onToggle={()=>setEatOpen(v=>!v)}>
+              <PlaceList places={restaurants} accent={stopAccent} enrichmentMap={enrichmentMap} onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
+              <ExploreMoreButton label="restaurants" onClick={onExploreMore} accent={stopAccent}/>
             </CollapsibleSection>
           ) : (
             <div style={{marginBottom:"28px"}}>
               <SecHead label="Where to Eat"/>
-              <PlaceList places={restaurants} accent={stop.accent} enrichmentMap={enrichmentMap} onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
-              <ExploreMoreButton label="restaurants" onClick={onExploreMore} accent={stop.accent}/>
+              <PlaceList places={restaurants} accent={stopAccent} enrichmentMap={enrichmentMap} onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
+              <ExploreMoreButton label="restaurants" onClick={onExploreMore} accent={stopAccent}/>
             </div>
           )}
         </motion.div>
@@ -538,15 +544,15 @@ export default function MaineGuide() {
         {activities.length > 0 && (
           <motion.div variants={contentSectionVariants}>
             {active==="barharbor" ? (
-              <CollapsibleSection color={stop.accent} label="What to Do" open={doOpen} onToggle={()=>setDoOpen(v=>!v)}>
-                <PlaceList places={activities} accent={stop.accent} enrichmentMap={enrichmentMap} trailEnrichmentMap={trailEnrichmentMap} isActivities onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
-                <ExploreMoreButton label="activities" onClick={onExploreMore} accent={stop.accent}/>
+              <CollapsibleSection color={stopAccent} label="What to Do" open={doOpen} onToggle={()=>setDoOpen(v=>!v)}>
+                <PlaceList places={activities} accent={stopAccent} enrichmentMap={enrichmentMap} trailEnrichmentMap={trailEnrichmentMap} isActivities onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
+                <ExploreMoreButton label="activities" onClick={onExploreMore} accent={stopAccent}/>
               </CollapsibleSection>
             ) : (
               <div style={{marginBottom:"28px"}}>
                 <SecHead label="What to Do"/>
-                <PlaceList places={activities} accent={stop.accent} enrichmentMap={enrichmentMap} trailEnrichmentMap={trailEnrichmentMap} isActivities onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
-                <ExploreMoreButton label="activities" onClick={onExploreMore} accent={stop.accent}/>
+                <PlaceList places={activities} accent={stopAccent} enrichmentMap={enrichmentMap} trailEnrichmentMap={trailEnrichmentMap} isActivities onAddToItinerary={p=>setAddPlaceContext(p)} onExpand={handlePlaceExpand} addedPlaceIds={addedPlaceIds}/>
+                <ExploreMoreButton label="activities" onClick={onExploreMore} accent={stopAccent}/>
               </div>
             )}
           </motion.div>
@@ -554,7 +560,7 @@ export default function MaineGuide() {
 
         {/* What to Pack */}
         <motion.div variants={contentSectionVariants}>
-          <WhatToPack accent={stop.accent} data={data} packing={packing} onPack={setPacking} onReset={resetPacking}/>
+          <WhatToPack accent={stopAccent} data={data} packing={packing} onPack={setPacking} onReset={resetPacking}/>
         </motion.div>
 
       </motion.div>
@@ -594,5 +600,6 @@ export default function MaineGuide() {
       />
     )}
     </>
+    </TripThemeProvider>
   );
 }

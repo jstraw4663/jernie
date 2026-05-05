@@ -5,7 +5,7 @@
 //   All values are from design tokens — no hardcoded colors.
 //   React Native migration: <View> + <Text> with StyleSheet from the same tokens.
 
-import { Colors, Typography, Spacing, Radius, Animation } from '../design/tokens';
+import { Semantic, Brand, Core, Typography, Spacing, Radius, Animation } from '../design/tokens';
 
 export type BadgeVariant = 'confirmed' | 'bookNow' | 'alert' | 'note' | 'custom';
 
@@ -17,29 +17,29 @@ interface BadgeConfig {
 
 const VARIANTS: Record<BadgeVariant, BadgeConfig> = {
   confirmed: {
-    bg:     Colors.gold,
-    color:  '#fff',
+    bg:     Semantic.confirmed,
+    color:  Core.white,
     border: 'none',
   },
   bookNow: {
-    bg:     Colors.navy,
-    color:  Colors.textInverse,
+    bg:     Brand.navy,
+    color:  Core.white,
     border: 'none',
   },
   alert: {
-    bg:     Colors.goldLight,
-    color:  '#7a5800',
-    border: `1px solid ${Colors.gold}55`,
+    bg:     Semantic.confirmedTint,
+    color:  Semantic.confirmedDark,
+    border: `1px solid ${Semantic.confirmed}55`,
   },
   note: {
-    bg:     '#FFF8E7',
-    color:  '#b07010',
-    border: '1px solid #E8A02050',
+    bg:     Semantic.confirmedTint,
+    color:  Semantic.confirmedDark,
+    border: `1px solid ${Semantic.confirmed}50`,
   },
   custom: {
-    bg:     '#F0F4FF',
-    color:  '#3557A0',
-    border: '1px solid #3557A020',
+    bg:     Semantic.selectedTint,
+    color:  Brand.navySoft,
+    border: `1px solid ${Brand.navySoft}20`,
   },
 };
 

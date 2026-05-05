@@ -1,6 +1,6 @@
 import type { Place, Stop, TrailEnrichment, PlaceEnrichment } from '../../../types';
 import type { DetailConfig, DetailRow, DetailSectionConfig } from '../detailTypes';
-import { Colors, Spacing, Radius, Typography } from '../../../design/tokens';
+import { Colors, Semantic, Core, Spacing, Radius, Typography } from '../../../design/tokens';
 import { appleMapsUrl } from '../../../domain/trip';
 import { ROUTE_TYPE_LABELS } from '../../../domain/hike';
 import { section } from './utils';
@@ -25,10 +25,10 @@ interface DifficultyLevel {
 }
 
 const DIFFICULTY_LEVELS: Record<string, DifficultyLevel> = {
-  easy:      { symbol: '●', label: 'Easy',   color: '#4CAF50' },
-  moderate:  { symbol: '■', label: 'Medium', color: '#2196F3' },
-  strenuous: { symbol: '◆', label: 'Hard',   color: '#1A1A1A' },
-  expert:    { symbol: '◆◆', label: 'Expert', color: '#1A1A1A' },
+  easy:      { symbol: '●', label: 'Easy',   color: Semantic.success },
+  moderate:  { symbol: '■', label: 'Medium', color: Semantic.warning },
+  strenuous: { symbol: '◆', label: 'Hard',   color: Semantic.error },
+  expert:    { symbol: '◆◆', label: 'Expert', color: Core.text },
 };
 
 function DifficultyBadge({ difficulty }: { difficulty: string }) {

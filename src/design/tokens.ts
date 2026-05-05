@@ -1,63 +1,126 @@
 // DESIGN TOKENS — Single source of truth for all visual constants.
-// All components must reference these values. No hardcoded colors, spacing,
-// font sizes, or animation values anywhere in new or migrated code.
 //
-// PLATFORM NOTE: Numeric spacing/radius values are unitless so they translate
-// directly to React Native StyleSheet values in Phase 2 (Expo migration).
-// CSS consumers append "px". Native consumers use the number directly.
+// ── TOKEN LAYERS ────────────────────────────────────────────────────────────
+//
+//  1. Brand    — Global identity. Stable across all trips, marketing, app icon.
+//               Never overridden by trip or stop themes.
+//
+//  2. Core     — Neutral app foundation. Surfaces, borders, text, spacing.
+//               Stable across all trips. Most of the app lives here.
+//
+//  3. Semantic — Universal UI states (confirmed, error, success, etc.).
+//               Gold = confirmed/completion ONLY. Never let trip colors
+//               replace semantic states.
+//
+//  4. TypeColors — Category taxonomy. Used in Explore chips, category icons,
+//               and filter labels. Stable across all trips.
+//
+//  5. Trip/Stop — Dynamic, per-trip. Delivered via TripThemeContext.
+//               Never imported directly here — lives in tripPacks.ts +
+//               contexts/TripThemeContext.tsx.
+//
+// ── BACKWARDS COMPAT ────────────────────────────────────────────────────────
+//  Colors and IconColors are re-exported as aliases so existing imports
+//  continue to work unchanged. Migrate to named layer exports over time.
+//
+// ── PLATFORM NOTE ───────────────────────────────────────────────────────────
+//  Numeric spacing/radius values are unitless for React Native compatibility.
+//  CSS consumers append "px". Native consumers use the number directly.
 
 // ---------------------------------------------------------------------------
-// Colors
+// Layer 1 — Brand
 // ---------------------------------------------------------------------------
 
-export const Colors = {
-  // Primary
-  navy:          '#0D2B3E',
-  navyLight:     '#1A3F58',
-  navyTint10:    'rgba(13,43,62,0.10)',
-  navyTint20:    'rgba(13,43,62,0.20)',
-
-  // Surface
-  background:    '#F7F4EF',   // warm off-white — app background
-  surface:       '#F7F4EF',   // card surfaces
-  surface2:      '#EDEAE4',   // nested elements inside cards
-  surfaceRaised: '#FAFAF8',
-  border:        '#E5E0D8',
-
-  // Text hierarchy
-  textPrimary:   '#1A1A1A',
-  textSecondary: '#6B7280',
-  textMuted:     '#999999',
-  textInverse:   '#F7F4EF',
-
-  // Status
-  red:           '#8B3A3A',
-  redLight:      '#F5E8E8',
-  success:       '#1B7A4A',
-  successLight:  '#D1FAE5',
-  gold:          '#C9963A',
-  goldLight:     '#FDF0DC',
-  info:          '#3557A0',   // blue text for info/category chips
-  infoBg:        '#F0F4FF',   // light blue background for info/category chips
-
-  // Selection — used by SelectableListItem bubble
-  selectedFill:    '#0D2B3E',
-  selectedBorder:  '#0D2B3E',
-  unselectedFill:  'transparent',
-  unselectedBorder:'#CCCCCC',
-
-  // Stops bar band — matches card background so the bar blends seamlessly
-  tabBg:     '#F7F4EF',
-  tabBorder: 'transparent',
-
-  // Overlay — BottomSheet backdrop
-  overlay: 'rgba(0,0,0,0.45)',
+export const Brand = {
+  navy:     '#0D2B3E',  // hero, PinGate, AppShell gradient — intentionally deep
+  navySoft: '#2C5880',  // selected states, secondary brand moments
+  gold:     '#C89A2B',  // brand attention color — drives Semantic.confirmed
 } as const;
 
 // ---------------------------------------------------------------------------
-// Spacing — 4px base unit scale
-// Numeric values (unitless) for React Native compatibility.
-// CSS: append "px". Native: use directly in StyleSheet.
+// Layer 2 — Core
+// ---------------------------------------------------------------------------
+
+export const Core = {
+  bg:           '#F7F4EF',  // app background — warm off-white
+  surface:      '#FCFAF7',  // card surfaces
+  surfaceMuted: '#F1ECE4',  // nested elements inside cards / grouped sections
+  surfaceRaised:'#FAFAF8',  // slightly elevated surface (modals, popovers)
+  border:       '#DDD5CA',  // dividers, card borders
+  text:         '#28231E',  // primary text
+  textMuted:    '#6E665E',  // secondary text
+  textFaint:    '#999591',  // placeholder, disabled, metadata
+  textInverse:  '#FFFFFF',  // text on dark/colored backgrounds
+  white:        '#FFFFFF',  // explicit white — use instead of hardcoded #fff
+  // tint helpers (use when you need an opacity approximation as a solid color)
+  navyTint10:   'rgba(13,43,62,0.10)',
+  navyTint20:   'rgba(13,43,62,0.20)',
+  overlay:      'rgba(0,0,0,0.45)',   // BottomSheet backdrop
+  // action teal — DEFINED, NOT YET APPLIED to any component (reserved for future)
+  action:       '#2F6F73',
+} as const;
+
+// ---------------------------------------------------------------------------
+// Layer 3 — Semantic
+// ---------------------------------------------------------------------------
+//
+// RULES:
+//   - Gold (confirmed) is the ONLY completion language in the app.
+//     Do not let stop or trip colors replace the confirmed state.
+//   - Semantic tokens must not be overridden by trip packs.
+
+export const Semantic = {
+  confirmed:      '#C89A2B',  // gold — itinerary add, completion badges
+  confirmedTint:  '#FDF0DC',  // gold badge background
+  confirmedDark:  '#7A5810',  // gold badge text / dark mode
+  selected:       '#2C5880',  // selected list items, active filter
+  selectedTint:   '#EAF0F8',  // selected chip background
+  saved:          '#2F6F73',  // saved / wishlisted (future)
+  success:        '#3E7B52',  // positive status
+  successTint:    '#D1F0DF',
+  warning:        '#B56B00',  // flight delays, attention
+  warningTint:    '#F5E8D0',
+  error:          '#A3485F',  // destructive actions, errors
+  errorTint:      '#F5E8EB',
+} as const;
+
+// ---------------------------------------------------------------------------
+// Layer 4 — TypeColors
+// ---------------------------------------------------------------------------
+//
+// Where to use: Explore category chips, category icons, filter labels.
+// Where NOT to use: stop rail, add-to-itinerary buttons, card accents
+//   (those use stop theme from TripThemeContext).
+
+export const TypeColors = {
+  flight:   '#2C5880',  // deep denim — was blue-500 (#3B82F6)
+  car:      '#5A7082',  // granite — was grouped with travel
+  stay:     '#465E7A',  // harbor slate — was violet-500 (#8B5CF6)
+  food:     '#B44F1E',  // lobster terracotta — was amber-500 (#F59E0B)
+  bars:     '#8E4E2F',  // same warm family as food, distinct hue
+  hike:     '#2F6B47',  // spruce forest — was green-500 (#22C55E)
+  activity: '#7A4F82',  // heather purple — was pink-500 (#EC4899)
+  sight:    '#8A5A2B',  // coastal amber
+  shopping: '#6B4A3A',  // cognac bark — was orange-500 (#F97316)
+} as const;
+
+// ---------------------------------------------------------------------------
+// Weather colors (part of type taxonomy — not trip-themed)
+// ---------------------------------------------------------------------------
+
+export const WeatherColors = {
+  clear:       '#E8A020',  // warm amber — sun
+  mostlyClear: '#E8A020',
+  partlyCloudy:'#94A3B8',  // slate-400
+  cloudy:      '#94A3B8',
+  fog:         '#94A3B8',
+  rain:        '#60A5FA',  // blue-400
+  snow:        '#BAE6FD',  // sky-200
+  storm:       '#7C3AED',  // violet-600
+} as const;
+
+// ---------------------------------------------------------------------------
+// Spacing — 4px base unit scale (unitless for RN compat)
 // ---------------------------------------------------------------------------
 
 export const Spacing = {
@@ -93,8 +156,6 @@ export const Typography = {
     serif: '"Newsreader", "Iowan Old Style", Georgia, serif',
     sans:  '"Geist", -apple-system, system-ui, sans-serif',
   },
-  // Semantic roles — use these for all new and updated code.
-  // fontFamily 'serif'|'sans' resolves to Typography.family.sans[fontFamily].
   roles: {
     display:   { fontSize: 36, lineHeight: 40, fontWeight: '400' as const, fontFamily: 'serif' as const, letterSpacing: '-0.015em' },
     h1:        { fontSize: 28, lineHeight: 34, fontWeight: '400' as const, fontFamily: 'serif' as const },
@@ -107,7 +168,6 @@ export const Typography = {
     meta:      { fontSize: 13, lineHeight: 18, fontWeight: '400' as const, fontFamily: 'sans'  as const },
     button:    { fontSize: 15, lineHeight: 20, fontWeight: '600' as const, fontFamily: 'sans'  as const },
   },
-  // Raw scale — kept for backwards compat during migration
   size: {
     xs:   11,
     sm:   13,
@@ -140,30 +200,10 @@ export const Shadow = {
   md:          '0 4px 12px rgba(0,0,0,0.10)',
   lg:          '0 8px 24px rgba(0,0,0,0.14)',
   xl:          '0 16px 40px rgba(0,0,0,0.18)',
-  // Named aliases for semantic usage
   cardResting: '0 2px 8px rgba(13,43,62,0.08)',
   cardHover:   '0 4px 16px rgba(13,43,62,0.12)',
   cardLifted:  '0 8px 32px rgba(13,43,62,0.18)',
   sheet:       '0 -4px 24px rgba(13,43,62,0.14)',
-} as const;
-
-// ---------------------------------------------------------------------------
-// Icon colors — categorical palette for Phosphor icons
-// ---------------------------------------------------------------------------
-
-export const IconColors = {
-  travel:        '#3B82F6',  // blue-500
-  food:          '#F59E0B',  // amber-500
-  nature:        '#22C55E',  // green-500
-  accommodation: '#8B5CF6',  // violet-500
-  activity:      '#EC4899',  // pink-500
-  shopping:      '#F97316',  // orange-500
-  weatherClear:  '#F59E0B',  // amber — warm sun
-  weatherCloud:  '#94A3B8',  // slate-400
-  weatherRain:   '#60A5FA',  // blue-400
-  weatherStorm:  '#7C3AED',  // violet-600
-  weatherSnow:   '#BAE6FD',  // sky-200
-  weatherFog:    '#94A3B8',  // slate-400
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -175,7 +215,7 @@ export const Animation = {
     fast:   '175ms',
     normal: '300ms',
     slow:   '420ms',
-    sheet:  '460ms',  // BottomSheet enter/exit
+    sheet:  '460ms',
   },
   easing: {
     default: 'cubic-bezier(0.4, 0, 0.2, 1)',
@@ -183,35 +223,83 @@ export const Animation = {
     exit:    'cubic-bezier(0.4, 0, 1, 1)',
     spring:  'cubic-bezier(0.34, 1.72, 0.64, 1)',
   },
-  // Number of requestAnimationFrame chains to wait before triggering a CSS
-  // enter transition. Gives the browser time to commit the start-state paint
-  // so the transition has a real starting frame to animate from.
-  // ~67ms at 60fps / ~33ms at 120Hz.
-  // Apply this to any component that mounts-then-animates-in (sheets, toasts, drawers).
   mountFrames: 4,
-  // Framer Motion spring configs — identical semantics to Moti springs on Expo migration.
-  // Usage: transition={{ type: 'spring', ...Animation.springs.gentle }}
   springs: {
     gentle:    { stiffness: 240, damping: 26 },
     snappy:    { stiffness: 340, damping: 28 },
     bouncy:    { stiffness: 260, damping: 20 },
-    // Slow, deliberate spring — matches BottomSheet entrance (~460ms feel).
-    // Use for DayCard content expand and other layout shifts that need breathing room.
     lazy:      { stiffness: 130, damping: 19 },
-    // Card-to-fullscreen expand — used by EntityDetailSheet origin-rect animation.
-    // Snappy enough to feel responsive, elastic enough to feel satisfying.
     cardExpand: { stiffness: 280, damping: 22 },
-    // Stops bar springs
-    settle: { stiffness: 140, damping: 20, mass: 1.05 }, // ~650ms — "train pulling in"
-    bloom:  { stiffness: 200, damping: 18 },              // emoji chip activation
-    trail:  { stiffness: 140, damping: 30 },              // trail fill lags pill by ~80ms (unchanged)
+    settle: { stiffness: 140, damping: 20, mass: 1.05 },
+    bloom:  { stiffness: 200, damping: 18 },
+    trail:  { stiffness: 140, damping: 30 },
   },
-  // Framer Motion easing arrays — same curves as Animation.easing but as number tuples.
-  // Required because FM's Easing type rejects CSS cubic-bezier() strings.
-  // Usage: transition={{ ease: Animation.fm.ease }}
   fm: {
     ease:    [0.4, 0, 0.2, 1] as [number, number, number, number],
     easeIn:  [0.4, 0, 1,   1] as [number, number, number, number],
     easeOut: [0,   0, 0.2, 1] as [number, number, number, number],
   },
+} as const;
+
+// ---------------------------------------------------------------------------
+// BACKWARDS COMPAT — Colors
+// ---------------------------------------------------------------------------
+// Re-export as the original Colors shape so existing imports keep working.
+// Migrate call sites to the named layer exports (Brand, Core, Semantic) over time.
+
+export const Colors = {
+  // Primary brand
+  navy:          Brand.navy,
+  navyLight:     Brand.navySoft,
+  navyTint10:    Core.navyTint10,
+  navyTint20:    Core.navyTint20,
+  // Surface
+  background:    Core.bg,
+  surface:       Core.surface,
+  surface2:      Core.surfaceMuted,
+  surfaceRaised: Core.surfaceRaised,
+  border:        Core.border,
+  // Text
+  textPrimary:   Core.text,
+  textSecondary: Core.textMuted,
+  textMuted:     Core.textFaint,
+  textInverse:   Core.white,
+  // Status
+  red:           Semantic.error,
+  redLight:      Semantic.errorTint,
+  success:       Semantic.success,
+  successLight:  Semantic.successTint,
+  gold:          Semantic.confirmed,
+  goldLight:     Semantic.confirmedTint,
+  info:          Brand.navySoft,
+  infoBg:        Semantic.selectedTint,
+  // Selection
+  selectedFill:   Semantic.selected,
+  selectedBorder: Semantic.selected,
+  unselectedFill:   'transparent',
+  unselectedBorder: '#CCCCCC',
+  // Misc
+  tabBg:     Core.bg,
+  tabBorder: 'transparent',
+  overlay:   Core.overlay,
+} as const;
+
+// ---------------------------------------------------------------------------
+// BACKWARDS COMPAT — IconColors
+// ---------------------------------------------------------------------------
+// Mapped to TypeColors. Migrate call sites to TypeColors over time.
+
+export const IconColors = {
+  travel:        TypeColors.flight,
+  food:          TypeColors.food,
+  nature:        TypeColors.hike,
+  accommodation: TypeColors.stay,
+  activity:      TypeColors.activity,
+  shopping:      TypeColors.shopping,
+  weatherClear:  WeatherColors.clear,
+  weatherCloud:  WeatherColors.cloudy,
+  weatherRain:   WeatherColors.rain,
+  weatherStorm:  WeatherColors.storm,
+  weatherSnow:   WeatherColors.snow,
+  weatherFog:    WeatherColors.fog,
 } as const;

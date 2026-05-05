@@ -1,5 +1,5 @@
 import type { Place } from '../types';
-import { Colors, Spacing, Radius } from '../design/tokens';
+import { Semantic, Core, Spacing, Radius } from '../design/tokens';
 
 interface ItineraryBadgeProps {
   place: Place;
@@ -23,8 +23,8 @@ export function ItineraryBadge({ place, isAdded, accent, onAdd, top = Spacing.sm
         width: 24,
         height: 24,
         borderRadius: `${Radius.full}px`,
-        background: isAdded ? Colors.gold : accent,
-        color: '#fff',
+        background: isAdded ? Semantic.confirmed : accent,
+        color: Core.white,
         border: 'none',
         cursor: 'pointer',
         fontSize: isAdded ? '0.75rem' : '1rem',
