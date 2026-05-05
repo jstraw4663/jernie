@@ -16,7 +16,7 @@
 //   <PinGate onUnlock={handleUnlock} strategy={faceId} />
 
 import { useState } from 'react';
-import { Typography } from '../design/tokens';
+import { Typography, Brand, Semantic, Core } from '../design/tokens';
 
 // --------------------------------------------------------------------------
 // Session key — exported so AppShell can check it on mount without importing
@@ -74,7 +74,7 @@ function BiometricPrompt({ strategy, onUnlock }: { strategy: AuthStrategy; onUnl
     setPending(true);
     try {
       await strategy.authenticate();
-      try { sessionStorage.setItem(SESSION_KEY, '1'); } catch {}
+      try { sessionStorage.setItem(SESSION_KEY, '1'); } catch { /* storage unavailable */ }
       onUnlock();
     } catch {
       setError('Authentication failed. Try again.');
@@ -86,23 +86,23 @@ function BiometricPrompt({ strategy, onUnlock }: { strategy: AuthStrategy; onUnl
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'linear-gradient(170deg,#1a2a3a 0%,#0D2B3E 50%,#0a1f2e 100%)',
+      background: `linear-gradient(170deg,${Brand.navySoft}88 0%,${Brand.navy} 50%,${Brand.navy}cc 100%)`,
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       fontFamily: Typography.family.serif,
     }}>
       <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔒</div>
-      <div style={{ color: '#FDFAF4', fontSize: '1.3rem', marginBottom: '32px', textAlign: 'center' }}>
+      <div style={{ color: Core.textInverse, fontSize: '1.3rem', marginBottom: '32px', textAlign: 'center' }}>
         {strategy.label ?? 'Authenticate to Continue'}
       </div>
       {error && (
-        <div style={{ color: '#F87171', fontSize: '0.85rem', marginBottom: '16px' }}>{error}</div>
+        <div style={{ color: Semantic.error, fontSize: '0.85rem', marginBottom: '16px' }}>{error}</div>
       )}
       <button
         onClick={handleAuth}
         disabled={pending}
         style={{
           background: 'rgba(255,255,255,0.14)', border: 'none', borderRadius: '12px',
-          color: '#FDFAF4', fontSize: '1rem', padding: '14px 32px',
+          color: Core.textInverse, fontSize: '1rem', padding: '14px 32px',
           cursor: pending ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
           opacity: pending ? 0.6 : 1,
         }}
@@ -128,7 +128,7 @@ function PinPad({ onUnlock }: { onUnlock: () => void }) {
     if (next.length === 4) {
       if (next.join('') === PIN) {
         setFlash(true);
-        try { sessionStorage.setItem(SESSION_KEY, '1'); } catch {}
+        try { sessionStorage.setItem(SESSION_KEY, '1'); } catch { /* storage unavailable */ }
         setTimeout(onUnlock, 380);
       } else {
         setShake(true);
@@ -149,7 +149,7 @@ function PinPad({ onUnlock }: { onUnlock: () => void }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'linear-gradient(170deg,#1a2a3a 0%,#0D2B3E 50%,#0a1f2e 100%)',
+      background: `linear-gradient(170deg,${Brand.navySoft}88 0%,${Brand.navy} 50%,${Brand.navy}cc 100%)`,
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center',
       opacity: flash ? 0 : 1,
@@ -157,7 +157,7 @@ function PinPad({ onUnlock }: { onUnlock: () => void }) {
       fontFamily: Typography.family.serif,
     }}>
       <div style={{ fontSize: '2rem', marginBottom: '10px', opacity: 0.5 }}>🔒</div>
-      <div style={{ color: '#FDFAF4', fontSize: '1.45rem', fontWeight: 'normal', letterSpacing: '0.01em', marginBottom: '6px', textAlign: 'center' }}>
+      <div style={{ color: Core.textInverse, fontSize: '1.45rem', fontWeight: 'normal', letterSpacing: '0.01em', marginBottom: '6px', textAlign: 'center' }}>
         Enter Passcode to View
       </div>
       <div style={{ color: '#7A9FB5', fontSize: '0.9rem', letterSpacing: '0.04em', marginBottom: '36px', fontStyle: 'italic' }}>
@@ -196,7 +196,7 @@ function PinPad({ onUnlock }: { onUnlock: () => void }) {
                 backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
                 display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center',
-                color: '#FDFAF4',
+                color: Core.textInverse,
                 transition: 'background 0.12s, transform 0.08s',
                 fontFamily: 'inherit',
               }}

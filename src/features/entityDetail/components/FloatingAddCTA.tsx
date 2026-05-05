@@ -6,11 +6,7 @@
 //
 // Positioned absolute so it floats above the scroll content with a gradient fade.
 
-import { Colors, Typography, Spacing, Radius } from '../../../design/tokens';
-
-const GOLD_BG   = '#C8941F';
-const GOLD_TINT = '#FBF1D8';
-const GOLD_DARK = '#7A5810';
+import { Semantic, Core, Colors, Typography, Spacing, Radius } from '../../../design/tokens';
 
 interface FloatingAddCTAProps {
   onAddToItinerary: () => void;
@@ -48,8 +44,8 @@ export function FloatingAddCTA({
             display: 'flex',
             alignItems: 'center',
             gap: Spacing.md,
-            background: GOLD_TINT,
-            border: `0.5px solid ${GOLD_BG}66`,
+            background: Semantic.confirmedTint,
+            border: `0.5px solid ${Semantic.confirmed}66`,
             borderRadius: Radius.lg,
             padding: `${Spacing.md}px 14px ${Spacing.md}px ${Spacing.md}px`,
             boxShadow: '0 6px 18px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.04)',
@@ -60,13 +56,13 @@ export function FloatingAddCTA({
               width: 36,
               height: 36,
               borderRadius: Radius.full,
-              background: GOLD_BG,
+              background: Semantic.confirmed,
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 16,
-              color: '#fff',
+              color: Core.white,
             }}
           >
             ✓
@@ -77,7 +73,7 @@ export function FloatingAddCTA({
                 fontFamily: Typography.family.sans,
                 fontSize: `${Typography.size.sm}px`,
                 fontWeight: Typography.weight.bold,
-                color: GOLD_DARK,
+                color: Semantic.confirmedDark,
                 lineHeight: 1.2,
               }}
             >
@@ -89,7 +85,7 @@ export function FloatingAddCTA({
                   fontFamily: Typography.family.sans,
                   fontStyle: 'italic',
                   fontSize: `${Typography.size.sm}px`,
-                  color: GOLD_DARK,
+                  color: Semantic.confirmedDark,
                   opacity: 0.9,
                   marginTop: 2,
                   whiteSpace: 'nowrap',
@@ -105,8 +101,8 @@ export function FloatingAddCTA({
             onClick={onView}
             style={{
               background: 'transparent',
-              border: `0.5px solid ${GOLD_BG}88`,
-              color: GOLD_DARK,
+              border: `0.5px solid ${Semantic.confirmed}88`,
+              color: Semantic.confirmedDark,
               borderRadius: Radius.full,
               padding: `${Spacing.xs + 2}px ${Spacing.md}px`,
               fontFamily: Typography.family.sans,
@@ -127,7 +123,7 @@ export function FloatingAddCTA({
             pointerEvents: 'auto',
             width: '100%',
             background: accent,
-            color: '#fff',
+            color: Core.white,
             border: 'none',
             borderRadius: Radius.lg,
             padding: `${Spacing.base}px`,

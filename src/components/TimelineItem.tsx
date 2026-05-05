@@ -1,12 +1,12 @@
 // TimelineItem — Timeline-style itinerary item for the inline read view.
 //
-// Open state:      hollow dot (stop accent), regular-weight muted title, "+ Confirm" CTA
-// Confirmed state: filled gold dot, bold textPrimary title, Confirmed badge + reservation time
+// Open state:      category-colored circle node, muted title, "Confirm" CTA
+// Confirmed state: gold circle node, bold title, "✓ Confirmed" pill
 //
 // Animations:
 //   • Staggered entrance — y:8→0, opacity:0→1, delay = index × 50ms, springs.gentle
-//   • Dot state change   — backgroundColor + borderColor spring on confirm/un-confirm
-//   • Badge pop-in       — scale:0→1 via AnimatePresence, springs.snappy
+//   • Node color spring on confirm/un-confirm
+//   • Badge pop-in — scale:0→1 via AnimatePresence, springs.snappy
 //
 // PLATFORM NOTE:
 //   div → View, span/a → Text/Pressable on Expo migration
@@ -15,7 +15,8 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icons, CATEGORY_ICON_MAP } from '../design/icons';
-import { Colors, Typography, Spacing, Animation } from '../design/tokens';
+import type { IconEntry } from '../design/icons';
+import { Colors, Semantic, Core, Typography, Spacing, Animation } from '../design/tokens';
 import { Badge } from './Badge';
 import type { ItineraryItem, CustomItem, Place, ItineraryCategory } from '../types';
 import { parseItemText } from '../utils/parseItemText';
@@ -23,25 +24,12 @@ import { PlaceMetaRow } from './PlaceMetaRow';
 
 type ResolvedItem = (ItineraryItem & { _isCustom: false }) | (CustomItem & { _isCustom: true });
 
-
-// Subtle muted color tint per category — used on the category label chip only
-const ITINERARY_CATEGORY_COLOR: Record<ItineraryCategory, { bg: string; text: string }> = {
-  restaurant: { bg: '#FFF3E8', text: '#A0522D' },
-  hike:       { bg: '#EDFAF2', text: '#2D6A3F' },
-  sight:      { bg: '#E8F2FA', text: '#2D5C8F' },
-  activity:   { bg: '#E8F6FA', text: '#1B5C6E' },
-  travel:     { bg: '#F0F0F5', text: '#5C5C80' },
-  lodging:    { bg: '#F3EEFA', text: '#6A3FA0' },
-  leisure:    { bg: '#FDF8E8', text: '#8F6A1B' },
-  other:      { bg: '#F0F0F0', text: '#666666' },
-};
-
-
-const DOT_SIZE = 10;
+const NODE_SIZE = 36;
+const TRACK_W   = 64;
+const SPINE_X   = 32;
+const NODE_TOP  = 6;
 
 // ── TimeDisplay ──────────────────────────────────────────────────
-// Read-only time label above the card. Editing time is now done
-// exclusively through the pencil / detail sheet.
 
 function TimeDisplay({ displayTime }: { displayTime: string }) {
   return (
@@ -61,6 +49,44 @@ function TimeDisplay({ displayTime }: { displayTime: string }) {
       )}
     </div>
   );
+}
+
+// ── NodeIcon — renders a white icon inside the circular spine node ──
+
+function NodeIcon({ entry, size = 16 }: { entry: IconEntry; size?: number }) {
+  if (entry.kind === 'component') {
+    return <entry.Icon size={size} weight="duotone" color={Core.white} />;
+  }
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: 'inline-block',
+        width: size,
+        height: size,
+        flexShrink: 0,
+        backgroundColor: Core.white,
+        WebkitMaskImage: `url(${entry.src})`,
+        WebkitMaskSize: 'contain',
+        WebkitMaskRepeat: 'no-repeat',
+        WebkitMaskPosition: 'center',
+        maskImage: `url(${entry.src})`,
+        maskSize: 'contain',
+        maskRepeat: 'no-repeat',
+        maskPosition: 'center',
+      }}
+    />
+  );
+}
+
+function resolveNodeEntry(
+  category: ItineraryCategory | null,
+  isCustom: boolean,
+  item: ResolvedItem,
+): IconEntry | null {
+  if (category) return CATEGORY_ICON_MAP[category] ?? null;
+  if (isCustom) return CATEGORY_ICON_MAP[(item as CustomItem).category ?? ''] ?? null;
+  return null;
 }
 
 // ── TimelineItem ─────────────────────────────────────────────────
@@ -108,24 +134,16 @@ export function TimelineItem({
 }: TimelineItemProps) {
   const itItem = item as ItineraryItem;
 
-  // Parse title + blurb from the · / — structured text format
   const { title: parsedTitle, blurb } = parseItemText(item.text);
-  // textOverride wins over stored text for display — lets users rename place-linked items
   const title = textOverride || parsedTitle;
 
-  // Category — only on non-custom items
   const category = !isCustom ? (itItem.category ?? null) : null;
-  const categoryEntry = category ? CATEGORY_ICON_MAP[category] : null;
-  const categoryColor = category ? ITINERARY_CATEGORY_COLOR[category] : null;
+  const nodeEntry = resolveNodeEntry(category, isCustom, item);
+  const nodeColor = isConfirmed ? Semantic.confirmed : (nodeEntry?.color ?? accent);
+  const lineColor = isConfirmed ? `${Semantic.confirmed}4D` : `${accent}33`;
+  const lineWeight = isConfirmed ? 2 : 1.5;
 
-  // Dot + connector colors — animate between open and confirmed states
-  const dotBg      = isConfirmed ? Colors.gold        : 'rgba(0,0,0,0)';
-  const dotBorder  = isConfirmed ? Colors.gold        : accent;
-  const lineColor  = isConfirmed ? `${Colors.gold}4D` : `${accent}33`;
-  const lineWeight = isConfirmed ? 2 : 1; // px — bold gold when confirmed, thin when open
-
-  // Card left border — accent ties the card to its stop; shifts to gold on confirm
-  const cardBorderColor = isConfirmed ? `${Colors.gold}90` : `${accent}30`;
+  const cardBorderColor = isConfirmed ? `${Semantic.confirmed}90` : `${accent}30`;
 
   const addr = resolvedPlace?.addr ?? (!isCustom ? itItem.addr : null) ?? (isCustom ? (item as CustomItem).addr : null);
   const addrLabel = !isCustom ? (itItem.addr_label ?? null) : null;
@@ -140,37 +158,44 @@ export function TimelineItem({
         ...Animation.springs.gentle,
         delay: animate ? 0.08 + index * 0.025 : 0,
       }}
-      // Row: left track (dot + connector) | right (time label + card)
       style={{ display: 'flex', paddingBottom: isLast ? 0 : Spacing.base }}
     >
-      {/* ── Left track: dot + vertical connector ── */}
+      {/* ── Left track: circular node + vertical connector ── */}
       <div style={{
-        width: DOT_SIZE,
+        width: TRACK_W,
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        paddingTop: Spacing.xxs,
+        alignItems: 'flex-start',
+        paddingTop: NODE_TOP,
       }}>
-        {/* Dot — hollow/accent when open, filled gold when confirmed */}
+        {/* Node — filled category color, gold when confirmed */}
         <motion.div
-          animate={{ backgroundColor: dotBg, borderColor: dotBorder }}
+          animate={{ backgroundColor: nodeColor }}
           transition={{ type: 'spring', ...Animation.springs.snappy }}
           style={{
-            width: DOT_SIZE,
-            height: DOT_SIZE,
+            marginLeft: SPINE_X - NODE_SIZE / 2,
+            width: NODE_SIZE,
+            height: NODE_SIZE,
             borderRadius: '50%',
-            border: '2px solid',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: `2px solid ${Colors.background}`,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
             flexShrink: 0,
           }}
-        />
-        {/* Connector — runs from dot to the bottom of this item's space */}
+        >
+          {nodeEntry && <NodeIcon entry={nodeEntry} size={16} />}
+        </motion.div>
+
+        {/* Connector — runs from node bottom to end of row gap */}
         {!isLast && (
           <motion.div
             animate={{ backgroundColor: lineColor, width: lineWeight }}
             transition={{ type: 'spring', ...Animation.springs.snappy }}
             style={{
-              width: 1,          // explicit initial width — prevents flex from expanding it
+              marginLeft: SPINE_X - 1,
               flex: 1,
               marginTop: Spacing.xs,
             }}
@@ -179,9 +204,9 @@ export function TimelineItem({
       </div>
 
       {/* ── Right side: time label + card ── */}
-      <div style={{ flex: 1, paddingLeft: Spacing.md }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
 
-        {/* Time label — sits above the card, read-only (edit via pencil sheet) */}
+        {/* Time label — read-only (edit via pencil sheet) */}
         <div style={{ marginBottom: Spacing.xxs + 2 }}>
           <TimeDisplay
             displayTime={isConfirmed && reservationTime ? reservationTime : displayTime}
@@ -220,25 +245,13 @@ export function TimelineItem({
             cursor: onTapCard ? 'pointer' : 'default',
           }}
         >
-          {/* Category icon + title + detail chevron */}
+          {/* Title + edit pencil */}
           <div style={{
             display: 'flex',
             alignItems: 'flex-start',
             gap: Spacing.xs,
-            marginBottom: blurb ? Spacing.xxs : (Spacing.xs),
+            marginBottom: blurb ? Spacing.xxs : Spacing.xs,
           }}>
-            {/* Icon — category for curated items, category for custom */}
-            {(() => {
-              const entry = categoryEntry ?? CATEGORY_ICON_MAP[(item as CustomItem).category ?? ''];
-              if (!entry) return null;
-              const { Icon: CatIcon, color: catColor } = entry;
-              return (
-                <span style={{ lineHeight: 1, flexShrink: 0, marginTop: 2 }}>
-                  <CatIcon size={Typography.size.base} weight="duotone" color={catColor} />
-                </span>
-              );
-            })()}
-            {/* Title */}
             <div style={{
               fontSize: `${Typography.size.base}px`,
               fontWeight: isConfirmed ? Typography.weight.bold : Typography.weight.medium,
@@ -250,7 +263,6 @@ export function TimelineItem({
             }}>
               {title}
             </div>
-            {/* Pencil — opens edit sheet (label, time, confirm) */}
             {onOpenDetail && (
               <button
                 onClick={(e) => { e.stopPropagation(); onOpenDetail(); }}
@@ -296,15 +308,12 @@ export function TimelineItem({
               fontFamily: Typography.family.serif,
               fontStyle: 'italic',
               marginBottom: Spacing.xs,
-              paddingLeft: (categoryEntry || (isCustom && (item as CustomItem).category))
-                ? `${Typography.size.base + Spacing.xs}px`
-                : 0,
             }}>
               {blurb}
             </div>
           )}
 
-          {/* Place metadata row — type-specific: hike chips or rating/price */}
+          {/* Place metadata row — hike chips or rating/price */}
           {resolvedPlace && <PlaceMetaRow place={resolvedPlace} />}
 
           {/* Address */}
@@ -314,7 +323,7 @@ export function TimelineItem({
             </div>
           )}
 
-          {/* Phone — shown when resolvedPlace has a phone number */}
+          {/* Phone */}
           {resolvedPlace?.phone && (
             <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: Colors.textMuted, fontFamily: Typography.family.sans, lineHeight: Typography.lineHeight.normal }}>
               <Icons.Phone size={12} weight="duotone" color={Colors.textMuted} /> {resolvedPlace.phone}
@@ -328,7 +337,7 @@ export function TimelineItem({
             </div>
           )}
 
-          {/* Book Now / Alert badges — above the footer row when present */}
+          {/* Book Now / Alert badges */}
           <AnimatePresence>
             {!isConfirmed && !isCustom && itItem.book_now && (
               <motion.div
@@ -358,55 +367,8 @@ export function TimelineItem({
             )}
           </AnimatePresence>
 
-          {/* Footer row: category chip left | confirm/confirmed pill right — same line */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginTop: Spacing.xs,
-            gap: Spacing.sm,
-          }}>
-            {/* Left: category chip */}
-            <div style={{ flex: 1 }}>
-              {/* Curated item category */}
-              {categoryColor && category && category !== 'other' && (
-                <div style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  fontSize: `${Typography.size.xs - 1}px`,
-                  background: categoryColor.bg,
-                  color: categoryColor.text,
-                  padding: `2px ${Spacing.sm}px`,
-                  borderRadius: `${Spacing.xs}px`,
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                  fontFamily: Typography.family.sans,
-                  fontWeight: Typography.weight.semibold,
-                }}>
-                  {category}
-                </div>
-              )}
-              {/* Custom item category */}
-              {isCustom && (item as CustomItem).category && (
-                <div style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: Spacing.xxs,
-                  fontSize: `${Typography.size.xs - 1}px`,
-                  background: Colors.infoBg,
-                  color: Colors.info,
-                  padding: `2px ${Spacing.sm}px`,
-                  borderRadius: `${Spacing.xs}px`,
-                  border: `1px solid ${Colors.info}20`,
-                  letterSpacing: '0.04em',
-                  fontFamily: Typography.family.sans,
-                }}>
-                  {(() => { const e = CATEGORY_ICON_MAP[(item as CustomItem).category ?? '']; return e ? <e.Icon size={11} weight="duotone" color={e.color} /> : null; })()} {(item as CustomItem).category}
-                </div>
-              )}
-            </div>
-
-            {/* Right: confirm pill — both states open the edit sheet for time entry */}
+          {/* Footer: confirm pill */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: Spacing.xs }}>
             <AnimatePresence mode="wait">
               {isConfirmed ? (
                 <motion.button
@@ -418,8 +380,8 @@ export function TimelineItem({
                   onClick={(e) => { e.stopPropagation(); onOpenDetail?.(); }}
                   whileTap={{ scale: 0.94 }}
                   style={{
-                    background: Colors.gold,
-                    color: '#fff',
+                    background: Semantic.confirmed,
+                    color: Core.white,
                     border: 'none',
                     borderRadius: 9999,
                     padding: `${Spacing.xs}px ${Spacing.md}px`,

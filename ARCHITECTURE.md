@@ -25,7 +25,7 @@ clear timestamp. App size stays reasonable.
 ### 4. PWA today, Expo tomorrow — no migration debt
 React component choices must be portable to React Native. Keep platform-specific logic (service
 workers, web manifest, CSS transitions) isolated so it can be swapped cleanly during migration.
-`src/platform/` is the planned isolation point — **not yet created; Phase 2 work.**
+`src/platform/` is the isolation point — **exists as of v0.7.0** (Google Places + AllTrails adapters). Phase 2 will wire live API calls.
 
 ### 5. No tech debt. No AI slop.
 This is a real product with a real future. If something feels like a shortcut, name it before
@@ -48,7 +48,8 @@ src/
 ├── types.ts                   All TypeScript interfaces (Trip, Stop, Place, Booking, etc.)
 ├── index.css                  Global styles (edge-to-edge, text-size-adjust fix)
 ├── design/
-│   └── tokens.ts              Design token source of truth (colors, spacing, animation)
+│   ├── tokens.ts              Design token source of truth — 5-layer hierarchy (Brand/Core/Semantic/TypeColors + compat aliases)
+│   └── tripPacks.ts           Trip/stop color data (TRIP_PACKS) — source of truth for per-stop accent colors
 ├── domain/                    Pure helpers — no React, no side-effects, fully testable
 │   ├── trip.ts                Weather, flights, places, stops, URLs
 │   └── trip.test.ts           23 unit tests (Vitest, node env)
@@ -57,6 +58,7 @@ src/
 │   ├── useLongPress.ts        Cross-platform 500ms long-press
 │   └── useTripData.ts         Lightweight trip data access
 ├── contexts/
+│   ├── TripThemeContext.tsx    TripThemeProvider + useTripTheme() hook — per-stop color delivery
 │   └── SheetContext.tsx       Tracks open sheet count; StopNavigator consults it
 ├── lib/
 │   └── firebase.ts            Firebase initialization (reads VITE_FIREBASE_* env vars)
@@ -84,14 +86,51 @@ User state (Firebase Realtime DB + localStorage):
 
 ---
 
+## Token System
+
+Colors follow a 5-layer hierarchy. Each layer has a clear ownership boundary — never skip layers or mix concerns.
+
+| Layer | Export | Purpose | Override? |
+|-------|--------|---------|-----------|
+| 1 — Brand | `Brand` | Global identity (navy, navySoft, gold) | Never |
+| 2 — Core | `Core` | Neutral app foundation (bg, surface, border, text, white) | Never |
+| 3 — Semantic | `Semantic` | Universal UI states (confirmed=gold, selected, saved, success, warning, error + tints) | Never |
+| 4 — Type | `TypeColors` | Category taxonomy (flight, stay, food, bars, hike, activity, sight, shopping) | Never |
+| 5 — Trip/Stop | `TripThemeContext` | Dynamic per-trip accent colors delivered via React context | Per-trip |
+
+**Key rules:**
+- `Semantic.confirmed` (#C89A2B gold) = completion language only. Never use it as a stop/trip accent.
+- Semantic states are universal — trip packs cannot override them.
+- Components in the Jernie tab consume stop colors via `useTripTheme()`. Overview uses `getStopTheme(tripId, stopId)` (standalone helper — renders multiple stops simultaneously, single context can't serve them).
+- `Colors` and `IconColors` are kept as backwards-compat re-exports — don't add new usages.
+
+**How to add a new trip pack:**
+```ts
+// src/design/tripPacks.ts
+miami: {
+  id: 'miami',
+  trip: { primary: '#C0392B', secondary: '#E67E22' },
+  stops: {
+    southBeach: { primary: '#C0392B', tint: '#FCEAE8' },
+    wynwood:    { primary: '#8E44AD', tint: '#F4E8FB' },
+  },
+},
+// Stop IDs must match Stop.id values in trip.json exactly.
+// Then pass tripId="miami" to TripThemeProvider. No component changes needed.
+```
+
+---
+
 ## Key Abstractions
 
 | Abstraction | File | Purpose |
 |---|---|---|
 | `useSharedTripState` | `src/hooks/useSharedTripState.ts` | Firebase sync, offline write queue, null guards |
 | `SheetContext` | `src/contexts/SheetContext.tsx` | Prevents stop swipe while any sheet is open |
+| `TripThemeContext` | `src/contexts/TripThemeContext.tsx` | Per-stop accent color delivery; `getStopTheme()` for Overview |
 | `ScrollReveal` | `src/components/ScrollReveal.tsx` | Standard scroll-triggered entrance for all below-fold cards |
-| Design tokens | `src/design/tokens.ts` | Single source for colors, spacing, animation — no hardcoded values |
+| Design tokens | `src/design/tokens.ts` | 5-layer color hierarchy + spacing, animation — no hardcoded values |
+| Trip packs | `src/design/tripPacks.ts` | Per-trip/stop color data; add new trips here, not in trip.json |
 | Domain helpers | `src/domain/trip.ts` | Pure logic extracted for testability and Phase 2 portability |
 
 ---
@@ -141,3 +180,5 @@ User state (Firebase Realtime DB + localStorage):
 | Change trip content | `public/trip.json` — **content changes require explicit approval; see DEPLOYMENT.md** |
 | Change animation or style | `src/design/tokens.ts` + `DESIGN-SYSTEM-PLAN.md` |
 | Add a new component | Check `DESIGN-SYSTEM-PLAN.md` for scroll-reveal + mountFrames rules first |
+| Add stop/trip accent color | `src/design/tripPacks.ts` → consumed via `useTripTheme()` or `getStopTheme()` |
+| Add a future trip pack | `src/design/tripPacks.ts` — see "Token System" section above for steps |

@@ -19,7 +19,7 @@ import { buildHikeDetailConfig } from '../entityDetail/builders/buildHikeDetailC
 import type { SelectedEntity } from '../entityDetail/detailTypes';
 import { findEntityInItinerary } from '../../domain/trip';
 import { Icons } from '../../design/icons';
-import { Colors, Spacing, Typography, Radius, Animation, IconColors } from '../../design/tokens';
+import { Colors, Core, Spacing, Typography, Radius, Animation, TypeColors } from '../../design/tokens';
 
 // ---------------------------------------------------------------------------
 // Seeded shuffle — bucket changes every 4 hours so order is stable per session
@@ -77,11 +77,11 @@ const SHUFFLEABLE_CAROUSEL_ROWS: CarouselRow[] = [
 
 const FILTER_PILLS: { id: FilterId; label: string; icon?: React.ReactNode }[] = [
   { id: 'all',        label: 'All' },
-  { id: 'restaurant', label: 'Eats',       icon: <Icons.Restaurant size={12} weight="duotone" color={IconColors.food} /> },
-  { id: 'hike',       label: 'Hikes',      icon: <Icons.Hike size={12} weight="duotone" color={IconColors.nature} /> },
-  { id: 'bar',        label: 'Bars',       icon: <Icons.Bar size={12} weight="duotone" color={IconColors.food} /> },
-  { id: 'sights',     label: 'Sights',     icon: <Icons.Hotel size={12} weight="duotone" color={IconColors.activity} /> },
-  { id: 'activity',   label: 'Activities', icon: <Icons.Theater size={12} weight="duotone" color={IconColors.activity} /> },
+  { id: 'restaurant', label: 'Eats',       icon: <Icons.Restaurant size={12} weight="duotone" color={TypeColors.food} /> },
+  { id: 'hike',       label: 'Hikes',      icon: <Icons.Hike size={12} weight="duotone" color={TypeColors.hike} /> },
+  { id: 'bar',        label: 'Bars',       icon: <Icons.Bar size={12} weight="duotone" color={TypeColors.bars} /> },
+  { id: 'sights',     label: 'Sights',     icon: <Icons.Sight size={12} weight="duotone" color={TypeColors.sight} /> },
+  { id: 'activity',   label: 'Activities', icon: <Icons.Theater size={12} weight="duotone" color={TypeColors.activity} /> },
 ];
 
 const FILTER_CATEGORIES: Record<FilterId, PlaceCategory[]> = {
@@ -105,7 +105,7 @@ function pillStyle(active: boolean, accentColor: string): React.CSSProperties {
     borderRadius: `${Radius.full}px`,
     border: `1px solid ${active ? accentColor : Colors.border}`,
     background: active ? accentColor : Colors.surface,
-    color: active ? '#fff' : Colors.textSecondary,
+    color: active ? Core.white : Colors.textSecondary,
     fontSize: `${Typography.size.xs + 1}px`,
     fontFamily: Typography.family.sans,
     fontWeight: active ? Typography.weight.semibold : Typography.weight.regular,
@@ -139,7 +139,6 @@ export function ExploreScreen() {
     if (FILTER_CATEGORIES[link.filter]) setActiveFilter(link.filter);
     setActiveStopId(link.stopId ?? 'all');
     scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [selectedEntity, setSelectedEntity] = useState<SelectedEntity | null>(null);
   const [addPlaceContext, setAddPlaceContext] = useState<Place | null>(null);
@@ -147,6 +146,7 @@ export function ExploreScreen() {
   const allPlaces = useMemo(() => data?.places ?? [], [data]);
 
   // Seed changes every 4 hours — stable within a session, rotates on next open.
+  // eslint-disable-next-line react-hooks/purity
   const shuffleSeed = useMemo(() => Math.floor(Date.now() / (4 * 3600 * 1000)), []);
   const stopMap = useMemo(() => {
     const map: Record<string, NonNullable<typeof data>['stops'][0]> = {};

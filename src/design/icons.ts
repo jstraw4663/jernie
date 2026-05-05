@@ -45,7 +45,7 @@ import {
   User,
   Waves,
 } from '@phosphor-icons/react';
-import { IconColors } from './tokens';
+import { TypeColors } from './tokens';
 
 // ── Semantic icon variables ──────────────────────────────────────────────────
 // Change these assignments to swap icon packs. Component code never changes.
@@ -101,74 +101,85 @@ export const Icons = {
 
 export type IconName = keyof typeof Icons;
 export type IconComponent = typeof Icons[IconName];
-export type IconEntry = { Icon: IconComponent; color: string };
+
+// ── Icon entry types ─────────────────────────────────────────────────────────
+// Discriminated union — rendering via EntryIcon (src/design/EntryIcon.tsx).
+
+export type IconEntry =
+  | { kind: 'component'; Icon: IconComponent; color: string }
+  | { kind: 'image';     src: string;         color: string };
+
+// Convenience constructors
+const ic  = (Icon: IconComponent, color: string): IconEntry => ({ kind: 'component', Icon, color });
+const img = (src: string,         color: string): IconEntry => ({ kind: 'image', src, color });
 
 // ── emoji → icon maps (values reference Icons.* — no Phosphor names here) ───
 
 // emoji string from trip.json → icon + color  (consumed by PlaceIcon)
 export const EMOJI_ICON_MAP: Record<string, IconEntry> = {
-  '✈️': { Icon: Icons.Flight,      color: IconColors.travel },
-  '✈':  { Icon: Icons.Flight,      color: IconColors.travel },
-  '🚗': { Icon: Icons.Car,         color: IconColors.travel },
-  '🗺️': { Icon: Icons.Map,         color: IconColors.travel },
-  '🗺':  { Icon: Icons.Map,         color: IconColors.travel },
-  '🚶': { Icon: Icons.Walk,        color: IconColors.nature },
-  '🚌': { Icon: Icons.Bus,         color: IconColors.travel },
-  '🚲': { Icon: Icons.Bike,        color: IconColors.nature },
-  '🏨': { Icon: Icons.Hotel,       color: IconColors.accommodation },
-  '🏠': { Icon: Icons.Home,        color: IconColors.accommodation },
-  '🍽':  { Icon: Icons.Restaurant, color: IconColors.food },
-  '🍻': { Icon: Icons.Bar,         color: IconColors.food },
-  '🍺': { Icon: Icons.Bar,         color: IconColors.food },
-  '🥾': { Icon: Icons.Hike,        color: IconColors.nature },
-  '🎭': { Icon: Icons.Theater,     color: IconColors.activity },
-  '🏛':  { Icon: Icons.Museum,     color: IconColors.activity },
-  '⚓': { Icon: Icons.Anchor,      color: IconColors.travel },
-  '👁':  { Icon: Icons.Sight,      color: IconColors.activity },
-  '🛍':  { Icon: Icons.Shop,       color: IconColors.shopping },
-  '🏖':  { Icon: Icons.Beach,      color: IconColors.nature },
-  '✏':  { Icon: Icons.Compass,    color: IconColors.activity },
-  '🌿': { Icon: Icons.Compass,    color: IconColors.nature },
-  '⛵': { Icon: Icons.Anchor,      color: IconColors.travel },
-  '📍': { Icon: Icons.Pin,         color: IconColors.travel },
+  '✈️': img('/icons/flight.png',   TypeColors.flight),
+  '✈':  img('/icons/flight.png',   TypeColors.flight),
+  '🚗': img('/icons/car.png',       TypeColors.car),
+  '🗺️': ic(Icons.Map,              TypeColors.flight),
+  '🗺':  ic(Icons.Map,              TypeColors.flight),
+  '🚶': ic(Icons.Walk,             TypeColors.hike),
+  '🚌': ic(Icons.Bus,              TypeColors.car),
+  '🚲': ic(Icons.Bike,             TypeColors.hike),
+  '🏨': img('/icons/hotel.png',    TypeColors.stay),
+  '🏠': ic(Icons.Home,             TypeColors.stay),
+  '🍽':  img('/icons/food.png',    TypeColors.food),
+  '🍻': img('/icons/bar.png',      TypeColors.bars),
+  '🍺': img('/icons/bar.png',      TypeColors.bars),
+  '🥾': img('/icons/hike.png',     TypeColors.hike),
+  '🎭': ic(Icons.Theater,          TypeColors.activity),
+  '🏛':  ic(Icons.Museum,          TypeColors.activity),
+  '⚓': img('/icons/anchor.png',   TypeColors.flight),
+  '👁':  img('/icons/sight.png',   TypeColors.sight),
+  '🛍':  img('/icons/shopping.png', TypeColors.shopping),
+  '🏖':  ic(Icons.Beach,           TypeColors.hike),
+  '✏':  ic(Icons.Compass,         TypeColors.activity),
+  '🌿': ic(Icons.Compass,         TypeColors.hike),
+  '⛵': img('/icons/anchor.png',   TypeColors.flight),
+  '📍': ic(Icons.Pin,              TypeColors.flight),
+  '🦞': img('/icons/lobster.png',  TypeColors.food),
 };
 
 // WMO weather emoji from wmo(code).e → icon + color  (consumed by WeatherIcon)
 export const WEATHER_ICON_MAP: Record<string, IconEntry> = {
-  '☀️': { Icon: Icons.WeatherClear,        color: IconColors.weatherClear },
-  '🌤️': { Icon: Icons.WeatherMostlyClear,  color: IconColors.weatherClear },
-  '⛅':  { Icon: Icons.WeatherPartlyCloudy, color: IconColors.weatherCloud },
-  '☁️': { Icon: Icons.WeatherCloudy,       color: IconColors.weatherCloud },
-  '🌫️': { Icon: Icons.WeatherFog,          color: IconColors.weatherFog },
-  '🌦️': { Icon: Icons.WeatherRain,         color: IconColors.weatherRain },
-  '🌧️': { Icon: Icons.WeatherRain,         color: IconColors.weatherRain },
-  '🌨️': { Icon: Icons.WeatherSnow,         color: IconColors.weatherSnow },
-  '❄️':  { Icon: Icons.WeatherHeavySnow,   color: IconColors.weatherSnow },
-  '⛈️': { Icon: Icons.WeatherStorm,        color: IconColors.weatherStorm },
-  '🌡️': { Icon: Icons.WeatherThermometer,  color: IconColors.weatherCloud },
+  '☀️': ic(Icons.WeatherClear,        '#E8A020'),
+  '🌤️': ic(Icons.WeatherMostlyClear,  '#E8A020'),
+  '⛅':  ic(Icons.WeatherPartlyCloudy, '#94A3B8'),
+  '☁️': ic(Icons.WeatherCloudy,       '#94A3B8'),
+  '🌫️': ic(Icons.WeatherFog,          '#94A3B8'),
+  '🌦️': ic(Icons.WeatherRain,         '#60A5FA'),
+  '🌧️': ic(Icons.WeatherRain,         '#60A5FA'),
+  '🌨️': ic(Icons.WeatherSnow,         '#BAE6FD'),
+  '❄️':  ic(Icons.WeatherHeavySnow,   '#BAE6FD'),
+  '⛈️': ic(Icons.WeatherStorm,        '#7C3AED'),
+  '🌡️': ic(Icons.WeatherThermometer,  '#94A3B8'),
 };
 
 // PlaceCategory string → icon + color  (replaces ITINERARY_CATEGORY_ICON + CUSTOM_CATEGORY_EMOJI)
 export const CATEGORY_ICON_MAP: Record<string, IconEntry> = {
-  restaurant: { Icon: Icons.Restaurant, color: IconColors.food },
-  bar:        { Icon: Icons.Bar,        color: IconColors.food },
-  hike:       { Icon: Icons.Hike,       color: IconColors.nature },
-  sight:      { Icon: Icons.Sight,      color: IconColors.activity },
-  activity:   { Icon: Icons.Anchor,     color: IconColors.travel },
-  attraction: { Icon: Icons.Theater,    color: IconColors.activity },
-  museum:     { Icon: Icons.Museum,     color: IconColors.activity },
-  beach:      { Icon: Icons.Beach,      color: IconColors.nature },
-  shop:       { Icon: Icons.Shop,       color: IconColors.shopping },
-  travel:     { Icon: Icons.Flight,     color: IconColors.travel },
-  lodging:    { Icon: Icons.Hotel,      color: IconColors.accommodation },
-  leisure:    { Icon: Icons.Beach,      color: IconColors.nature },
-  other:      { Icon: Icons.Compass,    color: IconColors.activity },
+  restaurant: img('/icons/food.png',      TypeColors.food),
+  bar:        img('/icons/bar.png',       TypeColors.bars),
+  hike:       img('/icons/hike.png',      TypeColors.hike),
+  sight:      img('/icons/sight.png',     TypeColors.sight),
+  activity:   ic(Icons.Compass,           TypeColors.activity),
+  attraction: ic(Icons.Theater,           TypeColors.activity),
+  museum:     ic(Icons.Museum,            TypeColors.activity),
+  beach:      ic(Icons.Beach,             TypeColors.hike),
+  shop:       img('/icons/shopping.png',  TypeColors.shopping),
+  travel:     img('/icons/flight.png',    TypeColors.flight),
+  lodging:    img('/icons/hotel.png',     TypeColors.stay),
+  leisure:    ic(Icons.Beach,             TypeColors.hike),
+  other:      ic(Icons.Compass,           TypeColors.activity),
 };
 
 // Activity group name → icon + color  (replaces groupEmojis in PlaceList)
 export const PLACE_GROUP_ICON_MAP: Record<string, IconEntry> = {
-  'Hikes':            { Icon: Icons.Hike,    color: IconColors.nature },
-  'On the Water':     { Icon: Icons.Anchor,  color: IconColors.travel },
-  'Walks & Views':    { Icon: Icons.Walk,    color: IconColors.nature },
-  'Nature & Culture': { Icon: Icons.Compass, color: IconColors.nature },
+  'Hikes':            img('/icons/hike.png',      TypeColors.hike),
+  'On the Water':     img('/icons/anchor.png',    TypeColors.flight),
+  'Walks & Views':    img('/icons/mountains.png', TypeColors.hike),
+  'Nature & Culture': ic(Icons.Compass,           TypeColors.hike),
 };

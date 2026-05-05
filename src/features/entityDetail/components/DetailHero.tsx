@@ -9,7 +9,7 @@
 // handle remains the primary dismiss affordance once the hero is small.
 
 import { useState, type ReactNode } from 'react';
-import { Colors, Typography, Spacing, Radius } from '../../../design/tokens';
+import { Colors, Core, Typography, Spacing, Radius } from '../../../design/tokens';
 
 interface DetailHeroProps {
   gradient: string;
@@ -126,7 +126,7 @@ export function DetailHero({
             borderRadius: Radius.full,
             background: 'rgba(0,0,0,0.35)',
             border: 'none',
-            color: '#fff',
+            color: Core.white,
             fontSize: '1rem',
             lineHeight: 1,
             display: 'flex',
@@ -175,7 +175,7 @@ export function DetailHero({
               fontSize: `${Typography.size.base}px`,
               lineHeight: 1.2,
               fontWeight: Typography.weight.medium,
-              color: '#fff',
+              color: Core.white,
               letterSpacing: '-0.015em',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
