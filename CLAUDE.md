@@ -130,6 +130,7 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 - **v0.6.0 shipped:** Overview itinerary-only restaurant/activity filter; Overview → Explore deep-link navigation; Explore stop-filter pill row + carousel badge; Jernie tab 5-item cap + Explore More buttons; ItineraryBadge shared component; NavigationContext
 - **v0.5.0 shipped:** Explore screen, EntityDetail system, enrichment pipeline, security hardening, PIN persistence fix
 - **V1-Maine target:** May 15, 2026
+- **Bug 2 (deferred):** timeline node circles show correct stop accent color but white icon is missing — `NodeIcon` rendering needs investigation; likely `EntryIcon` kind discriminant not reached for the node icon path in `TimelineItem.tsx`
 - **Bug 1 (deferred):** colored bar visible at bottom of all screens on iOS (viewport-fit=cover)
 - **No offline state indicator:** silent failure when refresh attempted without network
 - **Flight status dedup:** navigating between stops can re-trigger fetches despite 48hr guard

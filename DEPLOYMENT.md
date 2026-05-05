@@ -243,6 +243,9 @@ After Netlify shows a successful build:
 - [ ] Clear browser cache + reload to trigger SW update prompt
 - [ ] Test offline: DevTools → Network → Offline → reload — app should load from cache
 - [ ] Confirm Firebase writes go to `maine-2026` path (not dev path)
+- [ ] **Visual smoke: Jernie tab itinerary** — timeline node circles must show a white icon on top of the colored circle. If circles are colored but blank, `EntryIcon` / `IconEntry` kind discriminant is broken — do not ship.
+- [ ] **Visual smoke: Explore tab** — category filter chips must show correct icons (food=fork/knife terracotta, hike=hiker forest, bars=beer warm brown, sights=eye). Wrong icons or raw emoji = icon map regression.
+- [ ] **Visual smoke: PlaceIcon** — place cards in any stop must show colored icons, not blank squares. Blank = `kind: 'image'` mask rendering broken.
 
 ---
 
