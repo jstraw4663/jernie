@@ -23,6 +23,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { DayCard } from "./DayCard";
 import { ItineraryItem as ItineraryItemRow } from "./ItineraryItem";
 import { Icons, CATEGORY_ICON_MAP } from '../design/icons';
+import { EntryIcon } from '../design/EntryIcon';
 import { Animation, Colors, Spacing, Typography } from "../design/tokens";
 import { TimelineItem } from "./TimelineItem";
 import { ItineraryItemDetailSheet } from "./ItineraryItemDetailSheet";
@@ -105,7 +106,7 @@ function toMinutes(t: string): number | null {
     if (label.toLowerCase() === lower) return mins;
   }
   // Clock parse fallback — strip leading ~, trailing emoji/words
-  const cleaned = t.replace(/^~/, "").replace(/[^\x00-\x7F]/g, "").replace(/\b(sharp)\b/gi, "").trim();
+  const cleaned = t.replace(/^~/, "").replace(/[^ -~]/gu, "").replace(/\b(sharp)\b/gi, "").trim();
   const m = cleaned.match(/(\d+):(\d+)\s*(AM|PM)/i);
   if (!m) return null;
   let h = parseInt(m[1]);
@@ -229,7 +230,7 @@ function SheetSortableItem({ item, isSelected, isLocked, isDragDisabled, onToggl
     ? CATEGORY_ICON_MAP[(item as ItineraryItem).category ?? ''] ?? undefined
     : undefined;
   const categoryIcon = categoryIconEntry
-    ? <categoryIconEntry.Icon size={Typography.size.sm} weight="regular" color={categoryIconEntry.color} />
+    ? <EntryIcon entry={categoryIconEntry} size={Typography.size.sm} />
     : undefined;
 
   return (

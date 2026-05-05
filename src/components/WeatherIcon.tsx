@@ -11,7 +11,7 @@ interface Props {
 
 export function WeatherIcon({ emoji, size = 18 }: Props) {
   const entry = WEATHER_ICON_MAP[emoji];
-  if (!entry) return <span>{emoji}</span>;
+  if (!entry || entry.kind !== 'component') return <span>{emoji}</span>;
   const { Icon, color } = entry;
   return <Icon size={size} weight="duotone" color={color} />;
 }

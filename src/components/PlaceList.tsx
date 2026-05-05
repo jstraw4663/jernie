@@ -5,6 +5,7 @@ import { ActivityCard } from './ActivityCard';
 import { ScrollReveal } from './ScrollReveal';
 import { getActivityDisplayGroup } from '../domain/trip';
 import { Icons, PLACE_GROUP_ICON_MAP } from '../design/icons';
+import { EntryIcon } from '../design/EntryIcon';
 
 function PlaceCard({ place, accent, enrichment, trailEnrichment, isAdded, hideNote, onAddToItinerary, onExpand }: { place: Place; accent: string; enrichment?: PlaceEnrichment; trailEnrichment?: TrailEnrichment; isAdded?: boolean; hideNote?: boolean; onAddToItinerary?: (place: Place) => void; onExpand?: (place: Place, rect: DOMRect) => void }) {
   return place.category === "restaurant"
@@ -55,7 +56,7 @@ export function PlaceList({ places, accent, enrichmentMap, trailEnrichmentMap, i
       {groupOrder.filter(g => grouped[g]?.length).map(g => (
         <div key={g}>
           <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"10px"}}>
-            {(() => { const e = PLACE_GROUP_ICON_MAP[g] ?? { Icon: Icons.Compass, color: '#22C55E' }; return <e.Icon size={16} weight="regular" color={e.color} />; })()}
+            {(() => { const e = PLACE_GROUP_ICON_MAP[g] ?? { kind: 'component' as const, Icon: Icons.Compass, color: '#22C55E' }; return <EntryIcon entry={e} size={16} />; })()}
             <div style={{fontWeight:"bold",color:accent,fontSize:"0.72rem",letterSpacing:"0.1em",textTransform:"uppercase"}}>{g}</div>
             <div style={{flex:1,height:"1px",background:accent+"20"}}/>
           </div>
