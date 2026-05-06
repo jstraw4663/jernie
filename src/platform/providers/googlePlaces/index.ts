@@ -44,7 +44,6 @@ export const GooglePlacesAdapter: ProviderAdapter = {
       duration: place.duration,
       distance: place.distance,
       photo_url: place.photo_url,
-      phone: place.phone,
       addr: place.addr,
       lat: place.lat,
       lon: place.lon,

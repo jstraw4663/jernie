@@ -119,19 +119,11 @@ function FeaturesRow({ features }: { features: string[] }) {
 export function buildHikeDetailConfig(
   place: Place,
   stop: Stop,
-  stops: Stop[],
+  _stops: Stop[],
   trailEnrichment?: TrailEnrichment,
   placeEnrichment?: PlaceEnrichment,
 ): DetailConfig {
   const heroGradient = `linear-gradient(145deg, ${Colors.success} 0%, ${Colors.navy} 100%)`;
-
-  const destinationOptions = stops.map(s => ({
-    id: s.id,
-    label: s.city,
-    lat: s.lat,
-    lon: s.lon,
-    addr: s.city,
-  }));
 
   // ── Trail Info section ─────────────────────────────────────────
   const trailRows: DetailRow[] = [];
@@ -194,8 +186,8 @@ export function buildHikeDetailConfig(
         originAddr={place.addr ?? null}
         originLat={place.lat ?? null}
         originLon={place.lon ?? null}
-        destinationOptions={destinationOptions}
-        defaultDestinationId={stop.id}
+        stopId={stop.id}
+        excludePlaceId={place.id}
       />
     ),
   });
@@ -238,5 +230,7 @@ export function buildHikeDetailConfig(
     externalUrl: place.url ?? undefined,
     stopAccent: stop.accent,
     stopLabel: stop.city,
+    placeId: place.id,
+    googlePlaceId: placeEnrichment?.google_place_id,
   };
 }

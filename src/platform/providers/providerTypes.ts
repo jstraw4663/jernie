@@ -32,8 +32,7 @@ export interface PlaceEntity {
   distance: string | null;
   // Enrichment fields (from trip.json or provider)
   photo_url?: string | null;
-  phone?: string | null;
-  addr?: string | null;
+  addr?: string | null;  // hike trailhead address (trip.json) or enrichment fallback
   lat?: number | null;
   lon?: number | null;
   provider_id?: string | null;

@@ -176,8 +176,9 @@ export interface Place {
   photos?: string[] | null;       // hikes only — carousel photo URLs (separate from hero photo_url)
   // Optional enrichment fields — populate in trip.json as available
   photo_url?: string | null;  // hero image URL (direct image link)
-  phone?: string | null;      // formatted phone number e.g. "(207) 555-0123"
-  addr?: string | null;       // street address for maps deep-link
+  // addr: hike places only — trailhead/parking address (editorial). All other contact
+  // data (phone, addr for non-hikes, website, hours) comes from Firestore enrichment.
+  addr?: string | null;
   // Phase 2: provider-fetched precise coordinates (stop coords used as fallback)
   lat?: number | null;
   lon?: number | null;

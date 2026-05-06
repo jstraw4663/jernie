@@ -156,7 +156,7 @@ function readUnlocked(): boolean {
 }
 
 function writeUnlocked(): void {
-  try { localStorage.setItem(UNLOCK_KEY, JSON.stringify({ v: '1', ts: Date.now() })); } catch {}
+  try { localStorage.setItem(UNLOCK_KEY, JSON.stringify({ v: '1', ts: Date.now() })); } catch { /* storage unavailable */ }
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +168,7 @@ export function AppShell() {
   const [direction, setDirection] = useState(0);
   const prevIndexRef = useRef(TAB_INDEX['jernie']);
   const activeTabRef = useRef<TabId>('jernie');
+  // eslint-disable-next-line react-hooks/refs
   activeTabRef.current = activeTab;
 
   // Sync body/html background so Safari's bottom chrome matches the active surface.

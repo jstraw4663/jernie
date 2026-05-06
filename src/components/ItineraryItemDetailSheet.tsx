@@ -96,10 +96,11 @@ export function ItineraryItemDetailSheet({
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Reset drafts when item changes
+  // Reset drafts when item changes — intentional sync setState in effect (controlled form reset pattern)
   useEffect(() => {
     if (!item) return;
     const { title, blurb } = parseItemText(textOverride ?? item.text ?? '');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTitleDraft(title);
     setBlurbDraft(blurb);
     setTimeDraft(timeOverride ?? item.time ?? '');
@@ -109,6 +110,7 @@ export function ItineraryItemDetailSheet({
 
   // Reset confirm dialog when sheet closes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!isOpen) setShowDeleteConfirm(false);
   }, [isOpen]);
 
@@ -142,7 +144,7 @@ export function ItineraryItemDetailSheet({
 
   function commitAddr(val: string) {
     if (!item || !customItem) return;
-    onUpdateCustomItem(item.id, { addr: val.trim() || null as any });
+    onUpdateCustomItem(item.id, { addr: val.trim() || null as string | null });
   }
 
   function commitCategory(val: PlaceCategory | '') {
@@ -333,24 +335,6 @@ export function ItineraryItemDetailSheet({
               >
                 📍 {resolvedPlace!.addr}
                 <span style={{ fontSize: `${Typography.size.xs - 1}px`, opacity: 0.6 }}>· Maps</span>
-              </a>
-            )}
-
-            {/* Phone */}
-            {resolvedPlace!.phone && (
-              <a
-                href={`tel:${resolvedPlace!.phone.replace(/\D/g, '')}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: Spacing.xs,
-                  fontSize: `${Typography.size.sm}px`,
-                  color: Colors.textMuted,
-                  textDecoration: 'none',
-                  fontFamily: Typography.family.sans,
-                }}
-              >
-                📞 {resolvedPlace!.phone}
               </a>
             )}
 

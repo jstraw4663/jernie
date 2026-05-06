@@ -4,6 +4,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    proxy: {
+      '/.netlify/functions': 'http://localhost:8888',
+    },
+  },
   test: {
     // Pure domain/utility tests only — no browser globals needed.
     environment: 'node',

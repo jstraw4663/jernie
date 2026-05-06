@@ -19,22 +19,22 @@ const LS_BOOKING_OVERRIDES = "jernie_fb_booking_overrides";
 // replayed to Firebase when connectivity is restored after a reload.
 const LS_WRITE_QUEUE = "jernie_write_queue";
 
-type QueuedWrite = { path: string; value: any; ts: number };
+type QueuedWrite = { path: string; value: unknown; ts: number };
 
 function readQueue(): QueuedWrite[] {
   try { return JSON.parse(localStorage.getItem(LS_WRITE_QUEUE) || "[]"); }
   catch { return []; }
 }
 function persistQueue(q: QueuedWrite[]) {
-  try { localStorage.setItem(LS_WRITE_QUEUE, JSON.stringify(q)); } catch {}
+  try { localStorage.setItem(LS_WRITE_QUEUE, JSON.stringify(q)); } catch { /* storage unavailable */ }
 }
-function enqueueWrite(path: string, value: any) {
+function enqueueWrite(path: string, value: unknown) {
   const q = readQueue();
   // Collapse duplicate paths — last local write wins
   persistQueue([...q.filter(w => w.path !== path), { path, value, ts: Date.now() }]);
 }
 // Batch multiple path→value entries into a single localStorage read+write
-function batchEnqueue(entries: Record<string, any>) {
+function batchEnqueue(entries: Record<string, unknown>) {
   const paths = Object.keys(entries);
   const ts = Date.now();
   const q = readQueue().filter(w => !paths.includes(w.path));
@@ -42,13 +42,14 @@ function batchEnqueue(entries: Record<string, any>) {
 }
 function clearQueue() { persistQueue([]); }
 
-function readLS(key: string): Record<string, any> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readLS(key: string): any {
   try { return JSON.parse(localStorage.getItem(key) || "{}"); }
   catch { return {}; }
 }
 
-function writeLS(key: string, val: Record<string, any>) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+function writeLS(key: string, val: Record<string, unknown>) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* storage unavailable */ }
 }
 
 function rand8() {
@@ -83,7 +84,7 @@ export function useSharedTripState(tripId: string) {
     const flushQueue = () => {
       const q = readQueue();
       if (!q.length) return;
-      const updates: Record<string, any> = {};
+      const updates: Record<string, unknown> = {};
       q.forEach(w => { updates[w.path] = w.value; });
       update(ref(db), updates)
         .then(clearQueue)
@@ -215,7 +216,7 @@ export function useSharedTripState(tripId: string) {
       toOrder.splice(insertAtIndex, 0, itemId);
     }
 
-    const updates: Record<string, any> = {
+    const updates: Record<string, unknown> = {
       [`trips/${tripId}/state/itinerary_order/${fromDayId}`]: fromOrder,
       [`trips/${tripId}/state/itinerary_order/${toDayId}`]: toOrder,
     };
@@ -236,7 +237,7 @@ export function useSharedTripState(tripId: string) {
     const currentOrder = [...(itineraryOrder[dayId] || [])];
     currentOrder.push(id);
 
-    const updates: Record<string, any> = {
+    const updates: Record<string, unknown> = {
       [`trips/${tripId}/state/custom_items/${id}`]: item,
       [`trips/${tripId}/state/itinerary_order/${dayId}`]: currentOrder,
     };
@@ -247,7 +248,7 @@ export function useSharedTripState(tripId: string) {
   // Remove custom item and its ID from order
   function deleteCustomItem(itemId: string, dayId: string) {
     const newOrder = (itineraryOrder[dayId] || []).filter(id => id !== itemId);
-    const updates: Record<string, any> = {
+    const updates: Record<string, unknown> = {
       [`trips/${tripId}/state/itinerary_order/${dayId}`]: newOrder,
       [`trips/${tripId}/state/custom_items/${itemId}`]: null,
     };
@@ -285,7 +286,7 @@ export function useSharedTripState(tripId: string) {
   // Patch fields on an existing CustomItem in Firebase.
   // Caller provides only the fields to change — existing fields are preserved.
   function updateCustomItem(id: string, patch: Partial<Pick<CustomItem, 'text' | 'time' | 'category' | 'addr'>>) {
-    const updates: Record<string, any> = {};
+    const updates: Record<string, unknown> = {};
     (Object.keys(patch) as (keyof typeof patch)[]).forEach(field => {
       updates[`trips/${tripId}/state/custom_items/${id}/${field}`] = patch[field] ?? null;
     });
