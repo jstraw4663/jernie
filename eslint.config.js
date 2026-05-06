@@ -19,5 +19,22 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      }],
+    },
+  },
+  // Builder files and SheetContext export both components and non-components by design.
+  // react-refresh HMR limitation accepted — these files change infrequently.
+  {
+    files: [
+      'src/contexts/SheetContext.tsx',
+      'src/features/entityDetail/builders/**',
+    ],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
   },
 ])

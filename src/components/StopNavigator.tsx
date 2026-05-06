@@ -63,6 +63,7 @@ export function StopNavigator({
   const [direction, setDirection] = useState(1);
   useEffect(() => {
     if (prevIndexRef.current !== activeIndex) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDirection(activeIndex > prevIndexRef.current ? 1 : -1);
       prevIndexRef.current = activeIndex;
     }

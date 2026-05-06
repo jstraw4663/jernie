@@ -1,7 +1,7 @@
 # Jernie — Dev Context
 
 > Operational hub. Detailed context lives in supporting docs — load them only when the task requires.
-> Last updated: May 1, 2026 — v0.7.0
+> Last updated: May 6, 2026 — v0.7.2
 
 ---
 
@@ -118,6 +118,8 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 - **ACTIVITY_CATEGORIES:** use the exported Set from `features/overview/selectors.ts` when filtering activities — never use `category !== 'restaurant'` (includes hotels).
 - **useTripTheme():** components inside the Jernie tab must consume stop/trip accent colors via `useTripTheme()` from `TripThemeContext.tsx` — never read `stop.accent` directly. Overview is the exception: it renders multiple stops simultaneously, so it uses the `getStopTheme(tripId, stopId)` standalone helper instead. Stop colors live in `src/design/tripPacks.ts` (not trip.json).
 - **Token layers:** `Brand` (global identity) → `Core` (neutral foundation) → `Semantic` (universal UI states, never overridden) → `TypeColors` (category taxonomy) → trip/stop (dynamic, via `TripThemeContext`). Gold (`Semantic.confirmed`) is completion language only — never used as a stop/trip accent.
+- **Data split — trip.json vs Firestore vs RTDB:** trip.json = editorial identity (name, category, emoji, curator notes, must flag, hike metadata, itinerary schedule). Firestore = operational contact data (phone, addr, hours, website, rating, photos, reviews) fetched from Google Places, 24hr TTL. RTDB = live user state (reorder, time overrides, custom items, confirms). Never add phone to trip.json place objects — that belongs in Firestore enrichment. `addr` is the only contact field allowed in trip.json, and only for hike places (trailhead/parking address; AllTrails enrichment doesn't populate it).
+- **DetailConfig.rating / ratingCount / price:** rendered directly in the body title area of `EntityDetail.tsx` (right-aligned, same row as title/subtitle) — not in the Info section. Set from enrichment in `buildPlaceDetailConfig.tsx`.
 - **No tech debt:** name shortcuts before taking them; present tradeoffs on ambiguous decisions
 - **Build for Phase 2:** every decision assumes Expo migration; avoid PWA-only patterns
 
@@ -125,11 +127,13 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 
 ## Current Status & Known Issues
 
-- **v0.7.1 (in progress):** 5-layer color token refactor — `Brand/Core/Semantic/TypeColors` in `tokens.ts`; Maine trip pack in `tripPacks.ts`; `TripThemeContext` + `useTripTheme()`; stop accent colors (Portland terracotta, Bar Harbor forest, SWH gray-blue) wired through StopsBar, TimelineItem, FloatingAddCTA, OverviewScreen; `Colors`/`IconColors` backwards-compat aliases kept; build ✅ tests ✅
+- **v0.7.2 (in progress):** detail sheet rating/price in title area; `phone` removed from `Place` schema + all trip.json places; `addr` kept for hike trailheads only; data split enforced (editorial in trip.json, operational in Firestore)
+- **v0.7.1 shipped:** 5-layer color token refactor — `Brand/Core/Semantic/TypeColors` in `tokens.ts`; Maine trip pack in `tripPacks.ts`; `TripThemeContext` + `useTripTheme()`; stop accent colors wired through StopsBar, TimelineItem, FloatingAddCTA, OverviewScreen
 - **v0.7.0 shipped:** StopsBar/Trailhead (trail line, carved pill, scaling nodes); trail photos from AllTrails og:image (scraped on first enrichment, 30-day cache); FloatingAddCTA + QuickActions in EntityDetail; design system refresh across all components; flat shared Firestore enrichment; eager batch enrichment
 - **v0.6.0 shipped:** Overview itinerary-only restaurant/activity filter; Overview → Explore deep-link navigation; Explore stop-filter pill row + carousel badge; Jernie tab 5-item cap + Explore More buttons; ItineraryBadge shared component; NavigationContext
 - **v0.5.0 shipped:** Explore screen, EntityDetail system, enrichment pipeline, security hardening, PIN persistence fix
 - **V1-Maine target:** May 15, 2026
+- **Bug 2 (deferred):** timeline node circles show correct stop accent color but white icon is missing — `NodeIcon` rendering needs investigation; likely `EntryIcon` kind discriminant not reached for the node icon path in `TimelineItem.tsx`
 - **Bug 1 (deferred):** colored bar visible at bottom of all screens on iOS (viewport-fit=cover)
 - **No offline state indicator:** silent failure when refresh attempted without network
 - **Flight status dedup:** navigating between stops can re-trigger fetches despite 48hr guard

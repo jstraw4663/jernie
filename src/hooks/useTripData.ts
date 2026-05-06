@@ -26,7 +26,7 @@ export function useTripData() {
         return r.json() as Promise<TripData>;
       })
       .then((fresh) => {
-        try { localStorage.setItem(LS_TRIP_KEY, JSON.stringify(fresh)); } catch {}
+        try { localStorage.setItem(LS_TRIP_KEY, JSON.stringify(fresh)); } catch { /* storage unavailable */ }
         setData(fresh);
       })
       .catch((e) => {

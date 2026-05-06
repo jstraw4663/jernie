@@ -16,6 +16,7 @@ const app = initializeApp(firebaseConfig);
 
 // Must be set on globalThis before initializeAppCheck — Firebase reads it at init time.
 if (import.meta.env.DEV) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).FIREBASE_APPCHECK_DEBUG_TOKEN = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN;
 }
 initializeAppCheck(app, {

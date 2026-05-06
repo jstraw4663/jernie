@@ -22,6 +22,7 @@ export interface DetailSectionConfig {
   rows: DetailRow[];
 }
 
+
 export interface DetailConfig {
   kind: 'place' | 'flight' | 'booking' | 'generic';
   title: string;
@@ -41,6 +42,12 @@ export interface DetailConfig {
   phone?: string;          // formatted phone number — drives Call quick action
   stopAccent?: string;     // stop hex color — CTA button background + icon tint
   stopLabel?: string;      // short stop name e.g. "Bar Harbor" — CTA copy
+  hoursData?: string[];    // raw hours strings for inline HoursAccordion (place only)
+  rating?: number;         // numeric rating — rendered as StarRating in body title area
+  ratingCount?: number;    // number of reviews shown alongside stars
+  price?: string;          // price level string e.g. "$$", "$$$"
+  placeId?: string;        // trip.json place id — Fix Match RTDB override key
+  googlePlaceId?: string;  // currently enriched Google Place ID — Fix Match reference
 }
 
 // SelectedEntity — state shape held in Jernie-PWA.tsx.

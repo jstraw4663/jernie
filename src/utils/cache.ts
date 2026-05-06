@@ -14,5 +14,5 @@ export function readCache<T>(key: string): CacheEntry<T> | null {
 
 export function writeCache(key: string, data: unknown): void {
   try { localStorage.setItem(key, JSON.stringify({ data, cachedAt: Date.now() })); }
-  catch {}
+  catch { /* storage unavailable — writes silently discarded */ }
 }

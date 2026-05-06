@@ -47,6 +47,7 @@ export function ExpandableSearch({ onSearch, onOpen, placeholder = 'Search place
       const id = setTimeout(() => inputRef.current?.focus(), 120);
       return () => clearTimeout(id);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setValue('');
     }
   }, [open]);

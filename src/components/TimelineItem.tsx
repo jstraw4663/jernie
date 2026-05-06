@@ -25,8 +25,8 @@ import { PlaceMetaRow } from './PlaceMetaRow';
 type ResolvedItem = (ItineraryItem & { _isCustom: false }) | (CustomItem & { _isCustom: true });
 
 const NODE_SIZE = 36;
-const TRACK_W   = 64;
-const SPINE_X   = 32;
+const TRACK_W   = 52;
+const SPINE_X   = 26;
 const NODE_TOP  = 6;
 
 // ── TimeDisplay ──────────────────────────────────────────────────
@@ -134,7 +134,7 @@ export function TimelineItem({
 }: TimelineItemProps) {
   const itItem = item as ItineraryItem;
 
-  const { title: parsedTitle, blurb } = parseItemText(item.text);
+  const { title: parsedTitle } = parseItemText(item.text);
   const title = textOverride || parsedTitle;
 
   const category = !isCustom ? (itItem.category ?? null) : null;
@@ -158,7 +158,7 @@ export function TimelineItem({
         ...Animation.springs.gentle,
         delay: animate ? 0.08 + index * 0.025 : 0,
       }}
-      style={{ display: 'flex', paddingBottom: isLast ? 0 : Spacing.base }}
+      style={{ display: 'flex', paddingBottom: isLast ? 0 : 10 }}
     >
       {/* ── Left track: circular node + vertical connector ── */}
       <div style={{
@@ -239,7 +239,7 @@ export function TimelineItem({
             background: Colors.surfaceRaised,
             borderRadius: `${Spacing.md}px`,
             boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
-            padding: `${Spacing.md}px`,
+            padding: `10px`,
             borderLeft: `3px solid`,
             borderLeftColor: cardBorderColor,
             cursor: onTapCard ? 'pointer' : 'default',
@@ -250,7 +250,7 @@ export function TimelineItem({
             display: 'flex',
             alignItems: 'flex-start',
             gap: Spacing.xs,
-            marginBottom: blurb ? Spacing.xxs : Spacing.xs,
+            marginBottom: Spacing.xs,
           }}>
             <div style={{
               fontSize: `${Typography.size.base}px`,
@@ -299,20 +299,6 @@ export function TimelineItem({
             )}
           </div>
 
-          {/* Blurb */}
-          {blurb && (
-            <div style={{
-              fontSize: `${Typography.size.xs + 1}px`,
-              color: Colors.textMuted,
-              lineHeight: Typography.lineHeight.relaxed,
-              fontFamily: Typography.family.serif,
-              fontStyle: 'italic',
-              marginBottom: Spacing.xs,
-            }}>
-              {blurb}
-            </div>
-          )}
-
           {/* Place metadata row — hike chips or rating/price */}
           {resolvedPlace && <PlaceMetaRow place={resolvedPlace} />}
 
@@ -320,13 +306,6 @@ export function TimelineItem({
           {addr && (
             <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: accent, fontFamily: Typography.family.sans, lineHeight: Typography.lineHeight.normal }}>
               <Icons.Pin size={12} weight="duotone" color={accent} /> {addrLabel || addr}
-            </div>
-          )}
-
-          {/* Phone */}
-          {resolvedPlace?.phone && (
-            <div style={{ marginBottom: Spacing.xs, display: 'inline-flex', alignItems: 'center', gap: Spacing.xs, fontSize: `${Typography.size.xs + 1}px`, color: Colors.textMuted, fontFamily: Typography.family.sans, lineHeight: Typography.lineHeight.normal }}>
-              <Icons.Phone size={12} weight="duotone" color={Colors.textMuted} /> {resolvedPlace.phone}
             </div>
           )}
 

@@ -154,7 +154,7 @@ export function ExploreScreen() {
     return map;
   }, [data]);
 
-  const enrichmentMap = usePlaceEnrichment(TRIP_ID, allPlaces);
+  const { enrichmentMap, saveOverride } = usePlaceEnrichment(TRIP_ID, allPlaces);
 
   const detailConfig = useMemo(() => {
     if (!selectedEntity || !data) return null;
@@ -439,6 +439,7 @@ export function ExploreScreen() {
               });
             };
           })()}
+          onSaveOverride={saveOverride}
         />
       )}
     </div>

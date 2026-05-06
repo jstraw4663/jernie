@@ -19,11 +19,7 @@ import { domainFromUrl, brandLogoUrl, brandColor, labelToBrandDomain } from '../
 import { appleMapsUrl } from '../../../domain/trip';
 import { DateTimeRangeModule } from '../components/DateTimeRangeModule';
 import { DistanceModule } from '../components/DistanceModule';
-
-function section(title: string, rows: DetailRow[]): DetailSectionConfig | null {
-  const filled = rows.filter(r => r.component !== undefined || r.value.trim() !== '');
-  return filled.length > 0 ? { title, rows: filled } : null;
-}
+import { section } from './utils';
 
 // ── Inline editable field ─────────────────────────────────────────────────
 // Rendered as a module row — styled <input> matching card surface aesthetics.
@@ -105,7 +101,7 @@ function EditableField({ label, value, placeholder, onChange }: EditableFieldPro
 export function buildHotelDetailConfig(
   booking: Booking,
   stop: Stop,
-  stops: Stop[],
+  _stops: Stop[],
   onBookingChange: (field: keyof Booking, value: string | null) => void,
   enrichment?: PlaceEnrichment,
 ): DetailConfig {
@@ -115,14 +111,6 @@ export function buildHotelDetailConfig(
   const logoUrl = domain ? brandLogoUrl(domain) : null;
   const accent = (domain ? brandColor(domain) : null) ?? '#2D6A8F';
   const heroGradient = `linear-gradient(145deg, ${accent} 0%, ${Colors.navy} 100%)`;
-
-  const destinationOptions = stops.map(s => ({
-    id: s.id,
-    label: s.city,
-    lat: s.lat,
-    lon: s.lon,
-    addr: s.city,
-  }));
 
   // ── Your Stay section ─────────────────────────────────────────
   const stayRows: DetailRow[] = [
@@ -194,8 +182,7 @@ export function buildHotelDetailConfig(
         originAddr={booking.addr ?? null}
         originLat={null}
         originLon={null}
-        destinationOptions={destinationOptions}
-        defaultDestinationId={stop.id}
+        stopId={stop.id}
       />
     ),
   });
@@ -273,5 +260,10 @@ export function buildHotelDetailConfig(
     photos: photos && photos.length > 1 ? photos.slice(1) : undefined,
     sections,
     externalUrl: websiteUrl ?? undefined,
+    phone: enrichment?.phone ?? undefined,
+    stopAccent: stop.accent,
+    stopLabel: stop.city,
+    placeId: booking.id,
+    googlePlaceId: enrichment?.google_place_id,
   };
 }

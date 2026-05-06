@@ -252,9 +252,9 @@ export default function MaineGuide() {
   // Must be before early returns (Rules of Hooks); safe to call with [].
   const allPlaces = data?.places ?? [];
   const allAccommodations = data?.bookings.filter(b => b.type === 'accommodation') ?? [];
-  const enrichmentMap = usePlaceEnrichment(tripId, allPlaces);
+  const { enrichmentMap, saveOverride } = usePlaceEnrichment(tripId, allPlaces);
   const trailEnrichmentMap = useTrailEnrichment(tripId, allPlaces);
-  const hotelEnrichmentMap = useBookingEnrichment(tripId, allAccommodations);
+  const { enrichmentMap: hotelEnrichmentMap, saveOverride: hotelSaveOverride } = useBookingEnrichment(tripId, allAccommodations);
 
   // Derive DetailConfig for entity detail sheet. Must be before early returns (Rules of Hooks).
   const detailConfig = useMemo(() => {
@@ -597,6 +597,7 @@ export default function MaineGuide() {
         })()}
         isAdded={selectedEntity.kind === 'place' && addedPlaceIds.has(selectedEntity.id)}
         onView={handleView}
+        onSaveOverride={selectedEntity.kind === 'booking' ? hotelSaveOverride : saveOverride}
       />
     )}
     </>

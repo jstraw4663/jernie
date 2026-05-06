@@ -1236,9 +1236,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 774-8538",
-      "addr": "86 Middle St, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-r-02",
@@ -1259,9 +1257,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 805-0444",
-      "addr": "68 Commercial St, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-r-03",
@@ -1282,9 +1278,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 772-8862",
-      "addr": "51 Wharf St, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-r-04",
@@ -1305,9 +1299,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 775-0900",
-      "addr": "60 Portland Pier, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-r-05",
@@ -1328,9 +1320,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 899-0088",
-      "addr": "742 Congress St, Portland, ME 04102"
+      "photo_url": null
     },
     {
       "id": "place-portland-r-06",
@@ -1351,9 +1341,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 874-7774",
-      "addr": "194 Park Ave, Portland, ME 04102"
+      "photo_url": null
     },
     {
       "id": "place-portland-r-07",
@@ -1374,9 +1362,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 536-0669",
-      "addr": "519 Congress St, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-r-08",
@@ -1397,9 +1383,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 361-1000",
-      "addr": "Shore Rd, Cape Neddick, ME 03902"
+      "photo_url": null
     },
     {
       "id": "place-portland-r-09",
@@ -1420,9 +1404,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 775-0887",
-      "addr": "33 Wharf St, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-r-10",
@@ -1443,9 +1425,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 773-7070",
-      "addr": "390 Commercial St, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-r-11",
@@ -1466,9 +1446,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 899-4788",
-      "addr": "185 Middle St, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-r-12",
@@ -1489,9 +1467,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": null,
-      "addr": "72 Commercial St, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-r-13",
@@ -1512,9 +1488,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 775-0251",
-      "addr": "9 Custom House Wharf, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-a-01",
@@ -1535,9 +1509,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Portland_Head_Light_-_Cape_Elizabeth_-_Maine_-_USA.jpg/1280px-Portland_Head_Light_-_Cape_Elizabeth_-_Maine_-_USA.jpg",
-      "phone": null,
-      "addr": "1000 Shore Rd, Cape Elizabeth, ME 04107"
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Portland_Head_Light_-_Cape_Elizabeth_-_Maine_-_USA.jpg/1280px-Portland_Head_Light_-_Cape_Elizabeth_-_Maine_-_USA.jpg"
     },
     {
       "id": "place-portland-a-02",
@@ -1558,9 +1530,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": null,
-      "addr": "Exchange St, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-a-03",
@@ -1581,9 +1551,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Spring_Point_Light-LOC.jpg/1280px-Spring_Point_Light-LOC.jpg",
-      "phone": null,
-      "addr": "1000 Fort Rd, South Portland, ME 04106"
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Spring_Point_Light-LOC.jpg/1280px-Spring_Point_Light-LOC.jpg"
     },
     {
       "id": "place-portland-a-04",
@@ -1604,9 +1572,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 774-7871",
-      "addr": "56 Commercial St, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-a-05",
@@ -1627,9 +1593,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": null,
-      "addr": "Eastern Promenade, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-a-06",
@@ -1650,9 +1614,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 772-7468",
-      "addr": "45 Custom House Wharf, Portland, ME 04101"
+      "photo_url": null
     },
     {
       "id": "place-portland-a-07",
@@ -1673,9 +1635,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": null,
-      "addr": "Kennebunkport, ME 04046"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-r-01",
@@ -1696,9 +1656,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 288-2822",
-      "addr": "318 Main St, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-r-02",
@@ -1719,9 +1677,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": null,
-      "addr": "1 Cottage St, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-r-03",
@@ -1742,9 +1698,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 288-4166",
-      "addr": "18 Cottage St, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-r-04",
@@ -1765,9 +1719,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 288-3351",
-      "addr": "1 Newport Dr, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-r-05",
@@ -1788,9 +1740,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": null,
-      "addr": null
+      "photo_url": null
     },
     {
       "id": "place-barharbor-r-06",
@@ -1811,9 +1761,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 596-7007",
-      "addr": "3 Island Rd, South Thomaston, ME 04858"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-r-07",
@@ -1834,9 +1782,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 288-2002",
-      "addr": "231 Main St, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-r-08",
@@ -1857,9 +1803,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 288-4429",
-      "addr": "222 Main St, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-r-09",
@@ -1880,9 +1824,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 276-5827",
-      "addr": "96 Harbour View Dr, Mount Desert, ME 04660"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-r-10",
@@ -1903,9 +1845,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 801-2591",
-      "addr": "49 Rodick St, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-r-11",
@@ -1926,9 +1866,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 288-3281",
-      "addr": "66 Main St, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-r-12",
@@ -1949,9 +1887,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": null,
-      "addr": "100 Eden St, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-a-01",
@@ -1975,7 +1911,6 @@
       "duration": "2–3 hrs",
       "distance": "1.6 miles",
       "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Acadia_National_Park_Beach.jpg/1280px-Acadia_National_Park_Beach.jpg",
-      "phone": null,
       "addr": "Sand Beach Parking Area, Park Loop Rd, Bar Harbor, ME 04609",
       "lat": 44.3196,
       "lon": -68.1827,
@@ -2012,7 +1947,6 @@
       "duration": "2–3 hrs",
       "distance": "4.4 miles",
       "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Cadillac_Mountain_from_Champlain_Mountain_-_panoramio.jpg/1280px-Cadillac_Mountain_from_Champlain_Mountain_-_panoramio.jpg",
-      "phone": null,
       "addr": "Cadillac Mountain Summit Rd, Bar Harbor, ME 04609",
       "lat": 44.3512,
       "lon": -68.2234,
@@ -2049,7 +1983,6 @@
       "duration": "1.5–2 hrs",
       "distance": "3.5 miles",
       "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Acadia_National_Park_02.JPG/1280px-Acadia_National_Park_02.JPG",
-      "phone": "(207) 276-3316",
       "addr": "2928 Park Loop Rd, Seal Harbor, ME 04675",
       "lat": 44.3202,
       "lon": -68.2584,
@@ -2087,7 +2020,6 @@
       "duration": "45 min",
       "distance": "1.3 miles",
       "photo_url": null,
-      "phone": null,
       "addr": "Ship Harbor Trailhead, ME-102A, Tremont, ME 04612",
       "lat": 44.2355,
       "lon": -68.3294,
@@ -2121,9 +2053,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": null,
-      "addr": "Bar Harbor Town Pier, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-a-06",
@@ -2144,9 +2074,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": null,
-      "addr": "Park Loop Rd, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-a-07",
@@ -2167,9 +2095,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": null,
-      "addr": "Bridge St, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-a-08",
@@ -2190,9 +2116,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Acadia_National_Park_Beach.jpg/1280px-Acadia_National_Park_Beach.jpg",
-      "phone": null,
-      "addr": "Sand Beach Parking Area, Park Loop Rd, Bar Harbor, ME 04609"
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Acadia_National_Park_Beach.jpg/1280px-Acadia_National_Park_Beach.jpg"
     },
     {
       "id": "place-barharbor-a-09",
@@ -2213,9 +2137,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": null,
-      "addr": "1 Main St, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-a-10",
@@ -2236,9 +2158,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/BlackDike_SchoodicHeadME.jpg/1280px-BlackDike_SchoodicHeadME.jpg",
-      "phone": null,
-      "addr": "Schoodic Dr, Winter Harbor, ME 04693"
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/BlackDike_SchoodicHeadME.jpg/1280px-BlackDike_SchoodicHeadME.jpg"
     },
     {
       "id": "place-barharbor-a-11",
@@ -2259,9 +2179,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 276-3727",
-      "addr": "3 Thuya Dr, Northeast Harbor, ME 04662"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-a-12",
@@ -2282,9 +2200,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 288-3161",
-      "addr": "56 Main St, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-barharbor-a-13",
@@ -2305,9 +2221,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": null,
-      "addr": "43 Cottage St, Bar Harbor, ME 04609"
+      "photo_url": null
     },
     {
       "id": "place-swh-r-01",
@@ -2328,9 +2242,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 244-5036",
-      "addr": "22 Claremont Rd, Southwest Harbor, ME 04679"
+      "photo_url": null
     },
     {
       "id": "place-swh-r-02",
@@ -2351,9 +2263,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": null,
-      "addr": "26 Clark Point Rd, Southwest Harbor, ME 04679"
+      "photo_url": null
     },
     {
       "id": "place-swh-r-03",
@@ -2374,9 +2284,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 244-5036",
-      "addr": "22 Claremont Rd, Southwest Harbor, ME 04679"
+      "photo_url": null
     },
     {
       "id": "place-swh-a-01",
@@ -2397,9 +2305,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Bass_Harbor_Head_Light_Station_2016.jpg/1280px-Bass_Harbor_Head_Light_Station_2016.jpg",
-      "phone": null,
-      "addr": "Lighthouse Rd, Tremont, ME 04653"
+      "photo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Bass_Harbor_Head_Light_Station_2016.jpg/1280px-Bass_Harbor_Head_Light_Station_2016.jpg"
     },
     {
       "id": "place-swh-a-02",
@@ -2421,7 +2327,6 @@
       "duration": "1.5–2 hrs",
       "distance": "2.5 miles RT",
       "photo_url": null,
-      "phone": null,
       "addr": "Acadia Mountain Trailhead, ME-102, Southwest Harbor, ME 04679",
       "lat": 44.301,
       "lon": -68.3444,
@@ -2456,7 +2361,6 @@
       "duration": "1.5–2 hrs",
       "distance": "2.7 miles",
       "photo_url": null,
-      "phone": null,
       "addr": "Beech Hill Rd, Southwest Harbor, ME 04679",
       "lat": 44.3087,
       "lon": -68.3406,
@@ -2490,9 +2394,7 @@
       "difficulty": null,
       "duration": null,
       "distance": null,
-      "photo_url": null,
-      "phone": "(207) 244-5036",
-      "addr": "22 Claremont Rd, Southwest Harbor, ME 04679"
+      "photo_url": null
     }
   ],
   "alerts": [
