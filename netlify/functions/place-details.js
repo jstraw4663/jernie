@@ -21,6 +21,7 @@ const FIELD_MASK = [
   'nationalPhoneNumber',
   'formattedAddress',
   'currentOpeningHours',
+  'regularOpeningHours',
   'photos',
   'reviews',
   'websiteUri',
@@ -84,8 +85,10 @@ async function resolvePhotoUrl(photoName, apiKey) {
 }
 
 async function normalizeEnrichment(details, googlePlaceId, apiKey) {
-  const hours = details.currentOpeningHours?.weekdayDescriptions ?? null;
-  const openNow = details.currentOpeningHours?.openNow ?? null;
+  const currentHours = details.currentOpeningHours;
+  const regularHours = details.regularOpeningHours;
+  const hours   = currentHours?.weekdayDescriptions ?? regularHours?.weekdayDescriptions ?? null;
+  const openNow = currentHours?.openNow             ?? regularHours?.openNow             ?? null;
 
   // Resolve photo references to public CDN URLs in parallel (up to 10)
   const photoNames = (details.photos ?? []).slice(0, 10).map(p => p.name);
@@ -120,7 +123,10 @@ async function normalizeEnrichment(details, googlePlaceId, apiKey) {
 
 async function enrichPlace(place, apiKey) {
   try {
-    const { resourceName, placeId } = await findPlaceId(place.name, place.addr, apiKey);
+    // Skip text search when a verified google_place_id is already known (e.g. from Fix Match).
+    const { resourceName, placeId } = place.google_place_id
+      ? { resourceName: `places/${place.google_place_id}`, placeId: place.google_place_id }
+      : await findPlaceId(place.name, place.addr, apiKey);
     const details = await fetchPlaceDetails(resourceName, apiKey);
     return await normalizeEnrichment(details, placeId, apiKey);
   } catch (err) {
@@ -135,7 +141,7 @@ exports.handler = async function (event) {
   }
 
   const origin = event.headers.origin || '';
-  const allowed = new Set(['http://100.123.229.87:8888', 'http://localhost:8888', process.env.URL].filter(Boolean));
+  const allowed = new Set(['http://100.123.229.87:8888', 'http://localhost:8888', 'http://100.123.229.87:5173', 'http://localhost:5173', process.env.URL].filter(Boolean));
   if (origin && !allowed.has(origin)) {
     return { statusCode: 403, body: 'Forbidden' };
   }

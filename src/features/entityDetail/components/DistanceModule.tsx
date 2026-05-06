@@ -1,30 +1,34 @@
-// DistanceModule — travel time + distance estimator from an origin to a trip stop.
+// DistanceModule — travel time + distance estimator from an origin to a searched place.
 //
 // Walk / Bike: Haversine straight-line distance client-side. No API required.
 // Drive / Transit: no calculation — shows "Open in Maps for route" with deep-link.
 // When origin has no lat/lon: all modes show "Open in Maps for route".
+// Destination search uses trip.json data cached in localStorage — works offline.
 //
 // Display-only — writes nothing to Firebase.
 
-import { useState } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Icons } from '../../../design/icons';
 import { Colors, Spacing, Radius, Shadow, Typography, IconColors } from '../../../design/tokens';
 import { haversineKm, toMiles } from '../../../domain/geo';
+import { useTripData } from '../../../hooks/useTripData';
 
-export interface DestinationOption {
+// Normalized shape shared by Place and Booking search results
+interface SearchCandidate {
   id: string;
-  label: string;   // stop.city
-  lat: number;
-  lon: number;
-  addr: string;
+  name: string;
+  subtitle: string;
+  lat: number | null;
+  lon: number | null;
+  addr: string | null;
 }
 
 export interface DistanceModuleProps {
   originAddr: string | null;
   originLat: number | null;
   originLon: number | null;
-  destinationOptions: DestinationOption[];
-  defaultDestinationId?: string;
+  stopId: string;
+  excludePlaceId?: string;
 }
 
 // ── Modes ───────────────────────────────────────────────────────────────────
@@ -104,32 +108,80 @@ export function DistanceModule({
   originAddr,
   originLat,
   originLon,
-  destinationOptions,
-  defaultDestinationId,
+  stopId,
+  excludePlaceId,
 }: DistanceModuleProps) {
-  const defaultDest = destinationOptions.find(d => d.id === defaultDestinationId)
-    ?? destinationOptions[0]
-    ?? null;
-
+  const { data } = useTripData();
   const [activeMode, setActiveMode] = useState<ModeId>('walk');
-  // Free-text destination — initialized to default stop city if provided
-  const [destText, setDestText] = useState<string>(defaultDest?.label ?? '');
-  // Coords only known when a quick-select chip is active; null for typed addresses
-  const [destCoords, setDestCoords] = useState<{ lat: number; lon: number } | null>(
-    defaultDest ? { lat: defaultDest.lat, lon: defaultDest.lon } : null,
+  const [destText, setDestText] = useState('');
+  // Resolved coords + addr when a place is selected from the dropdown
+  const [selectedDest, setSelectedDest] = useState<{
+    lat: number | null;
+    lon: number | null;
+    addr: string | null;
+  } | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Accommodation bookings for this stop — shown as quick-select chips and included in search
+  const hotelCandidates = useMemo((): SearchCandidate[] =>
+    (data?.bookings ?? [])
+      .filter(b => b.stop_id === stopId && b.type === 'accommodation')
+      .map(b => ({ id: b.id, name: b.label, subtitle: 'Hotel', lat: null, lon: null, addr: b.addr ?? null })),
+    [data, stopId],
   );
+
+  // Places for this stop (excluding the entity being viewed)
+  const placeCandidates = useMemo((): SearchCandidate[] =>
+    (data?.places ?? [])
+      .filter(p => p.stop_id === stopId && p.id !== excludePlaceId)
+      .map(p => ({ id: p.id, name: p.name, subtitle: p.subcategory.replace(/-/g, ' '), lat: p.lat ?? null, lon: p.lon ?? null, addr: p.addr ?? null })),
+    [data, stopId, excludePlaceId],
+  );
+
+  const candidates = useMemo(() =>
+    [...hotelCandidates, ...placeCandidates],
+    [hotelCandidates, placeCandidates],
+  );
+
+  const results = useMemo(() => {
+    if (!destText.trim()) return [];
+    const q = destText.toLowerCase();
+    return candidates.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.subtitle.toLowerCase().includes(q)
+    ).slice(0, 6);
+  }, [candidates, destText]);
 
   const result = destText.trim() !== ''
     ? calcResult(activeMode, originLat, originLon,
-        destCoords?.lat ?? null, destCoords?.lon ?? null)
+        selectedDest?.lat ?? null, selectedDest?.lon ?? null)
     : null;
 
   const activeModeEntry = MODES.find(m => m.id === activeMode)!;
 
+  // Prefer lat/lon over addr string for the Apple Maps daddr — more precise.
+  function getDestForLink(): string {
+    if (selectedDest) {
+      if (selectedDest.lat !== null && selectedDest.lon !== null) {
+        return `${selectedDest.lat},${selectedDest.lon}`;
+      }
+      if (selectedDest.addr) return selectedDest.addr;
+    }
+    return destText.trim();
+  }
+
   function handleResultTap() {
     if (!result?.canDeepLink || !originAddr || !destText.trim()) return;
-    const url = mapsUrl(originAddr, destText.trim(), activeModeEntry.dirflg);
+    const url = mapsUrl(originAddr, getDestForLink(), activeModeEntry.dirflg);
     window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  function selectCandidate(c: SearchCandidate) {
+    setDestText(c.name);
+    setSelectedDest({ lat: c.lat, lon: c.lon, addr: c.addr });
+    setShowDropdown(false);
+    if (blurTimer.current) clearTimeout(blurTimer.current);
   }
 
   return (
@@ -223,54 +275,116 @@ export function DistanceModule({
         </span>
       </div>
 
-      {/* Destination row — free-text input */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: `${Spacing.sm}px`,
-          marginBottom: `${Spacing.xs}px`,
-        }}
-      >
-        <span
+      {/* Destination row + search dropdown */}
+      <div style={{ position: 'relative' }}>
+        <div
           style={{
-            fontFamily: Typography.family.sans,
-            fontSize: `${Typography.size.xs}px`,
-            color: Colors.textSecondary,
-            textTransform: 'uppercase' as const,
-            letterSpacing: '0.08em',
-            flexShrink: 0,
-            minWidth: 32,
+            display: 'flex',
+            alignItems: 'center',
+            gap: `${Spacing.sm}px`,
+            marginBottom: `${Spacing.xs}px`,
           }}
         >
-          To
-        </span>
-        <input
-          type="text"
-          value={destText}
-          placeholder="Enter an address…"
-          aria-label="Destination address"
-          onChange={e => {
-            setDestText(e.target.value);
-            setDestCoords(null); // typed address has no coords
-          }}
-          style={{
-            flex: 1,
-            fontFamily: Typography.family.sans,
-            fontSize: `${Typography.size.sm}px`,
-            color: Colors.textPrimary,
-            background: 'transparent',
-            border: 'none',
-            borderBottom: `1px solid ${Colors.border}`,
-            outline: 'none',
-            padding: `${Spacing.xs}px 0`,
-            minHeight: 44,
-          }}
-        />
+          <span
+            style={{
+              fontFamily: Typography.family.sans,
+              fontSize: `${Typography.size.xs}px`,
+              color: Colors.textSecondary,
+              textTransform: 'uppercase' as const,
+              letterSpacing: '0.08em',
+              flexShrink: 0,
+              minWidth: 32,
+            }}
+          >
+            To
+          </span>
+          <input
+            type="text"
+            value={destText}
+            placeholder="Search places…"
+            aria-label="Destination search"
+            onChange={e => {
+              setDestText(e.target.value);
+              setSelectedDest(null);
+              setShowDropdown(true);
+            }}
+            onFocus={() => {
+              if (blurTimer.current) clearTimeout(blurTimer.current);
+              if (destText.trim()) setShowDropdown(true);
+            }}
+            onBlur={() => {
+              blurTimer.current = setTimeout(() => setShowDropdown(false), 150);
+            }}
+            style={{
+              flex: 1,
+              fontFamily: Typography.family.sans,
+              fontSize: `${Typography.size.sm}px`,
+              color: Colors.textPrimary,
+              background: 'transparent',
+              border: 'none',
+              borderBottom: `1px solid ${Colors.border}`,
+              outline: 'none',
+              padding: `${Spacing.xs}px 0`,
+              minHeight: 44,
+            }}
+          />
+        </div>
+
+        {showDropdown && results.length > 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              background: Colors.surface,
+              borderRadius: `${Radius.md}px`,
+              boxShadow: Shadow.md,
+              zIndex: 10,
+              overflow: 'hidden',
+            }}
+          >
+            {results.map((c, i) => (
+              <button
+                key={c.id}
+                type="button"
+                onMouseDown={() => selectCandidate(c)}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  textAlign: 'left' as const,
+                  padding: `${Spacing.sm}px ${Spacing.base}px`,
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: i < results.length - 1 ? `1px solid ${Colors.border}` : 'none',
+                  cursor: 'pointer',
+                  fontFamily: Typography.family.sans,
+                  fontSize: `${Typography.size.sm}px`,
+                  color: Colors.textPrimary,
+                  minHeight: 44,
+                }}
+              >
+                {c.name}
+                {c.subtitle && (
+                  <span
+                    style={{
+                      display: 'block',
+                      fontSize: `${Typography.size.xs}px`,
+                      color: Colors.textMuted,
+                      marginTop: 1,
+                    }}
+                  >
+                    {c.subtitle}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Quick-select chips — trip stops */}
-      {destinationOptions.length > 0 && (
+      {/* Hotel quick-select chips */}
+      {hotelCandidates.length > 0 && (
         <div
           style={{
             display: 'flex',
@@ -279,18 +393,15 @@ export function DistanceModule({
             marginBottom: `${Spacing.sm}px`,
           }}
         >
-          {destinationOptions.map(opt => {
-            const isActive = destText === opt.label && destCoords !== null;
+          {hotelCandidates.map(hotel => {
+            const isActive = destText === hotel.name && selectedDest !== null;
             return (
               <button
-                key={opt.id}
+                key={hotel.id}
                 type="button"
-                aria-label={`Quick select: ${opt.label}`}
+                aria-label={`Quick select: ${hotel.name}`}
                 aria-pressed={isActive}
-                onClick={() => {
-                  setDestText(opt.label);
-                  setDestCoords({ lat: opt.lat, lon: opt.lon });
-                }}
+                onClick={() => selectCandidate(hotel)}
                 style={{
                   padding: `${Spacing.xxs + 2}px ${Spacing.sm}px`,
                   minHeight: 36,
@@ -305,7 +416,7 @@ export function DistanceModule({
                   outline: 'none',
                 }}
               >
-                {opt.label}
+                {hotel.name}
               </button>
             );
           })}

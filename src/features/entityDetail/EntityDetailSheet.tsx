@@ -27,9 +27,10 @@ interface EntityDetailSheetProps {
   onAddToItinerary?: () => void;
   isAdded?: boolean;
   onView?: () => void;
+  onSaveOverride?: (placeId: string, googlePlaceId: string) => Promise<void>;
 }
 
-export function EntityDetailSheet({ isOpen, config, onClose, onAddToItinerary, isAdded, onView }: EntityDetailSheetProps) {
+export function EntityDetailSheet({ isOpen, config, onClose, onAddToItinerary, isAdded, onView, onSaveOverride }: EntityDetailSheetProps) {
   useSheetRegistration(isOpen);
 
   // useLayoutEffect fires before paint so top is correct on the first visible frame.
@@ -40,6 +41,7 @@ export function EntityDetailSheet({ isOpen, config, onClose, onAddToItinerary, i
     if (isOpen) {
       const nav = document.querySelector('[data-sticky-nav]');
       if (nav) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setNavBottom(nav.getBoundingClientRect().bottom);
       } else {
         const sat = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0;
@@ -86,7 +88,7 @@ export function EntityDetailSheet({ isOpen, config, onClose, onAddToItinerary, i
 
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <ErrorBoundary>
-              <EntityDetail config={config} onClose={onClose} onAddToItinerary={onAddToItinerary} isAdded={isAdded} onView={onView} />
+              <EntityDetail config={config} onClose={onClose} onAddToItinerary={onAddToItinerary} isAdded={isAdded} onView={onView} onSaveOverride={onSaveOverride} />
             </ErrorBoundary>
           </div>
         </Drawer.Content>

@@ -183,14 +183,6 @@ export function buildRentalCarDetailConfig(
   const accent = (domain ? brandColor(domain) : null) ?? '#5B3FA6';
   const heroGradient = `linear-gradient(145deg, ${accent} 0%, ${Colors.navy} 100%)`;
 
-  const destinationOptions = stops.map(s => ({
-    id: s.id,
-    label: s.city,
-    lat: s.lat,
-    lon: s.lon,
-    addr: s.city,
-  }));
-
   // ── Your Vehicle section ──────────────────────────────────────
   const vehicleRows: DetailRow[] = [
     {
@@ -253,8 +245,7 @@ export function buildRentalCarDetailConfig(
         originAddr={booking.addr ?? null}
         originLat={null}
         originLon={null}
-        destinationOptions={destinationOptions}
-        defaultDestinationId={stop.id}
+        stopId={stop.id}
       />
     ),
   });
@@ -277,8 +268,7 @@ export function buildRentalCarDetailConfig(
           originAddr={returnBooking.addr ?? null}
           originLat={null}
           originLon={null}
-          destinationOptions={destinationOptions}
-          defaultDestinationId={returnStop.id}
+          stopId={returnStop.id}
         />
       ),
     });

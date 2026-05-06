@@ -656,7 +656,7 @@ export function EditableItinerary({
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             {days.map((day, di) => {
               const items = resolveOrderedItems(day.id);
               const isOpen = openDay === di;

@@ -149,9 +149,9 @@ export function OverviewScreen() {
     () => data?.bookings.filter(b => b.type === 'accommodation') ?? [],
     [data],
   );
-  const enrichmentMap     = usePlaceEnrichment(TRIP_ID, allPlaces);
+  const { enrichmentMap, saveOverride } = usePlaceEnrichment(TRIP_ID, allPlaces);
   const trailEnrichmentMap = useTrailEnrichment(TRIP_ID, allPlaces);
-  const hotelEnrichmentMap = useBookingEnrichment(TRIP_ID, allAccommodations);
+  const { enrichmentMap: hotelEnrichmentMap, saveOverride: hotelSaveOverride } = useBookingEnrichment(TRIP_ID, allAccommodations);
   const addedPlaceIds = useAddedPlaceIds(data, customItems);
 
   // Flight status — read from localStorage cache written by Jernie tab
@@ -682,6 +682,7 @@ export function OverviewScreen() {
               });
             };
           })()}
+          onSaveOverride={selectedEntity.kind === 'booking' ? hotelSaveOverride : saveOverride}
         />
       )}
 
