@@ -42,8 +42,8 @@ export function RestaurantCard({ place, accent, enrichment, isAdded, hideNote, o
   const displayRating = enrichment?.rating ?? place.rating;
   const ratingCount = enrichment?.user_ratings_total ?? null;
   const displayPrice = enrichment?.price_level ?? place.price;
-  const displayPhone = enrichment?.phone ?? place.phone ?? null;
-  const displayAddr = enrichment?.addr ?? place.addr ?? null;
+  const displayPhone = enrichment?.phone ?? null;
+  const displayAddr = enrichment?.addr ?? null;
   return (
     <div
       onClick={onExpand ? (e) => onExpand(place, (e.currentTarget as HTMLElement).getBoundingClientRect()) : undefined}
