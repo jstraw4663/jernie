@@ -13,6 +13,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ReactElement } from 'react';
 import { Colors, Typography, Spacing, Radius, Shadow } from '../../../design/tokens';
+import { NavigateIcon } from '../../../design/ActionIcons';
+import { buildDeepLinks, openMapApp } from '../../../utils/mapNavigation';
 
 interface QuickActionsProps {
   phone?: string;
@@ -30,16 +32,6 @@ interface Action {
   href?: string;
   onClick?: () => void;
   disabled: boolean;
-}
-
-// ── Icons ─────────────────────────────────────────────────────────────────────
-
-function NavigateIcon({ color }: { color: string }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 3L21 21L12 16.5L3 21Z" fill={color} />
-    </svg>
-  );
 }
 
 function PhoneIcon({ color }: { color: string }) {
@@ -64,56 +56,6 @@ function GlobeIcon({ color }: { color: string }) {
       <path d="M3 12h18" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
-}
-
-// ── Map app launcher ──────────────────────────────────────────────────────────
-// Native OS URL schemes handed to window.open() so iOS routes to the registered
-// app rather than trying to navigate the WKWebView (which ignores custom schemes).
-// Apple Maps is always installed; Google Maps + Uber fall back to App Store if
-// visibilitychange never fires after the open call (app wasn't installed).
-
-const APP_STORE: Record<string, string> = {
-  google: 'https://apps.apple.com/app/google-maps/id585027354',
-  uber:   'https://apps.apple.com/app/uber/id368677368',
-};
-
-function buildDeepLinks(
-  lat: number | undefined,
-  lon: number | undefined,
-  addr: string | undefined,
-  label: string | undefined,
-) {
-  const hasCoords = lat != null && lon != null;
-  const q = encodeURIComponent(label ?? addr ?? '');
-  return {
-    apple: hasCoords ? `maps://?ll=${lat},${lon}&q=${q}` : `maps://?q=${q}`,
-    google: hasCoords
-      ? `comgooglemaps://?center=${lat},${lon}&q=${q}`
-      : `comgooglemaps://?q=${q}`,
-    uber: hasCoords
-      ? `uber://?action=setPickup&dropoff[latitude]=${lat}&dropoff[longitude]=${lon}&dropoff[nickname]=${q}`
-      : `uber://?action=setPickup&dropoff[formatted_address]=${q}`,
-  };
-}
-
-function openMapApp(deepLink: string, appStoreKey?: string) {
-  // window.open with a custom scheme hands it to the OS — more reliable in iOS
-  // PWA standalone mode than window.location.href, which tries to navigate the WebView.
-  window.open(deepLink, '_blank');
-
-  if (!appStoreKey) return;
-
-  // If the app opened, the PWA goes to background and visibilitychange fires.
-  // If it stays visible after 1.5 s, the app wasn't installed → App Store.
-  let left = false;
-  const mark = () => { left = true; };
-  document.addEventListener('visibilitychange', mark, { once: true });
-  document.addEventListener('pagehide', mark, { once: true });
-  setTimeout(() => {
-    document.removeEventListener('visibilitychange', mark);
-    document.removeEventListener('pagehide', mark);
-    if (!left) window.open(APP_STORE[appStoreKey], '_blank', 'noopener,noreferrer');
-  }, 1500);
 }
 
 // ── MapPicker — fixed popover anchored to the Navigate tile ───────────────────
@@ -251,7 +193,7 @@ export function QuickActions({ phone, website, lat, lon, addr, label, stopColor 
     },
     {
       label: 'Navigate',
-      icon: <NavigateIcon color={hasMaps ? (showMapPicker ? Colors.textInverse : iconColor) : Colors.textMuted} />,
+      icon: <NavigateIcon color={hasMaps ? (showMapPicker ? Colors.textInverse : iconColor) : Colors.textMuted} size={20} />,
       onClick: hasMaps ? () => setShowMapPicker(prev => !prev) : undefined,
       disabled: !hasMaps,
     },

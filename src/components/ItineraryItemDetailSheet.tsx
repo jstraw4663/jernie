@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { BottomSheet } from './BottomSheet';
 import { ConfirmDialog } from './ConfirmDialog';
 import { StarRating } from './StarRating';
-import { Colors, Spacing, Typography, Radius } from '../design/tokens';
+import { Colors, Semantic, Core, Spacing, Typography, Radius } from '../design/tokens';
 import { appleMapsUrl } from '../domain/trip';
 import { parseItemText } from '../utils/parseItemText';
 import type { ItineraryItem, CustomItem, Place, PlaceCategory } from '../types';
@@ -65,7 +65,7 @@ export interface ItineraryItemDetailSheetProps {
   onSetTextOverride: (id: string, text: string) => void;
   onUpdateCustomItem: (id: string, patch: Partial<Pick<CustomItem, 'text' | 'time' | 'category' | 'addr'>>) => void;
   onSetTimeOverride: (id: string, time: string) => void;
-  onDeleteCustomItem?: (id: string, dayId: string) => void;
+  onDelete?: () => void;
   onConfirm?: (id: string, value: boolean) => void;
 }
 
@@ -81,7 +81,7 @@ export function ItineraryItemDetailSheet({
   onSetTextOverride,
   onUpdateCustomItem,
   onSetTimeOverride,
-  onDeleteCustomItem,
+  onDelete,
   onConfirm,
 }: ItineraryItemDetailSheetProps) {
   const isCustom = item?._isCustom ?? false;
@@ -166,14 +166,14 @@ export function ItineraryItemDetailSheet({
     lineHeight: Typography.lineHeight.normal,
   };
 
-  const deleteOverlay = isCustom && onDeleteCustomItem && customItem ? (
+  const deleteOverlay = onDelete ? (
     <ConfirmDialog
       isVisible={showDeleteConfirm}
       message="Delete this item?"
       confirmLabel="Delete"
       variant="danger"
       onConfirm={() => {
-        onDeleteCustomItem(item.id, customItem.day_id);
+        onDelete();
         setShowDeleteConfirm(false);
         onClose();
       }}
@@ -383,25 +383,29 @@ export function ItineraryItemDetailSheet({
                 onConfirm(item.id, !isConfirmed);
               }}
               style={{
-                background: isConfirmed ? Colors.gold : 'transparent',
-                color: isConfirmed ? '#fff' : Colors.gold,
-                border: `1.5px solid ${Colors.gold}`,
-                borderRadius: Radius.full,
-                padding: `${Spacing.xs}px ${Spacing.md}px`,
-                fontSize: `${Typography.size.xs}px`,
+                width: '100%',
+                height: 44,
+                background: isConfirmed ? Semantic.confirmed : 'transparent',
+                color: isConfirmed ? Core.white : Semantic.confirmed,
+                border: `1.5px solid ${Semantic.confirmed}`,
+                borderRadius: Radius.lg,
+                fontSize: `${Typography.size.sm}px`,
                 fontFamily: Typography.family.sans,
                 fontWeight: Typography.weight.semibold,
-                letterSpacing: '0.04em',
                 cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: Spacing.xs,
               }}
             >
-              {isConfirmed ? '✓ Confirmed' : 'Confirm ✓'}
+              {isConfirmed ? '✓ Confirmed' : 'Confirm →'}
             </button>
           </div>
         )}
 
         {/* ── Delete button (custom items only) ── */}
-        {isCustom && onDeleteCustomItem && customItem && (
+        {onDelete && (
           <button
             onClick={() => setShowDeleteConfirm(true)}
             style={{
