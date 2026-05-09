@@ -120,7 +120,7 @@ export const DayCard = React.forwardRef<HTMLDivElement, DayCardProps>(
           >
             <div
               style={{
-                padding: `0 ${Spacing.base}px ${Spacing.md}px`,
+                padding: `${Spacing.xs}px ${Spacing.base}px ${Spacing.md}px`,
                 borderTop: `1px solid ${accent}15`,
               }}
             >

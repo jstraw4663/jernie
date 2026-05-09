@@ -1,7 +1,21 @@
-// TimelineItem — Timeline-style itinerary item for the inline read view.
+// TimelineItem — Dense utility-product timeline card for the inline read view.
 //
-// Open state:      category-colored circle node, muted title, "Confirm" CTA
-// Confirmed state: gold circle node, bold title, "✓ Confirmed" pill
+// Open state:      category-colored circle node, semibold title
+// Confirmed state: gold circle node, bold title, Confirmed badge top-right
+//
+// Card layout:
+//   [reservation time pill — accent, above card, only if exact time set]
+//   Card: [title · confirmed badge] → metadata → action row [primary CTA | ···]
+//
+// Slot headers (Morning, Mid-morning, etc.) are rendered by EditableItinerary,
+// not here — they group items by approximate time without per-card time labels.
+//
+// Primary CTA logic:
+//   pre-trip + unconfirmed → Confirm (ghost, accent text)
+//   pre-trip + confirmed   → Details (solid accent)
+//   on-trip  + confirmed + navData → Navigate (solid accent)
+//   on-trip  + confirmed + no nav  → Details (solid accent)
+//   on-trip  + unconfirmed         → Confirm
 //
 // Animations:
 //   • Staggered entrance — y:8→0, opacity:0→1, delay = index × 50ms, springs.gentle
@@ -13,14 +27,18 @@
 //   Framer Motion animate → Reanimated useAnimatedStyle / Moti springs
 //   No web-specific APIs below this line.
 
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icons, CATEGORY_ICON_MAP } from '../design/icons';
 import type { IconEntry } from '../design/icons';
-import { Colors, Semantic, Core, Typography, Spacing, Animation } from '../design/tokens';
+import { Colors, Semantic, Core, Shadow, Typography, Spacing, Animation } from '../design/tokens';
+import { EllipsisIcon } from '../design/ActionIcons';
 import { Badge } from './Badge';
 import type { ItineraryItem, CustomItem, Place, ItineraryCategory } from '../types';
 import { parseItemText } from '../utils/parseItemText';
 import { PlaceMetaRow } from './PlaceMetaRow';
+import { NavigationSelectorSheet } from './NavigationSelectorSheet';
+import { ConfirmTimeSheet } from './ConfirmTimeSheet';
 
 type ResolvedItem = (ItineraryItem & { _isCustom: false }) | (CustomItem & { _isCustom: true });
 
@@ -29,26 +47,23 @@ const TRACK_W   = 52;
 const SPINE_X   = 26;
 const NODE_TOP  = 6;
 
-// ── TimeDisplay ──────────────────────────────────────────────────
+// ── CTA state machine ─────────────────────────────────────────────
 
-function TimeDisplay({ displayTime }: { displayTime: string }) {
-  return (
-    <div style={{
-      fontSize: `${Typography.size.sm}px`,
-      fontWeight: Typography.weight.bold,
-      color: Colors.textPrimary,
-      fontFamily: Typography.family.sans,
-      lineHeight: 1.3,
-      minHeight: '1em',
-      display: 'inline-block',
-    }}>
-      {displayTime || (
-        <span style={{ opacity: 0.4, fontWeight: Typography.weight.regular, color: Colors.textMuted }}>
-          set time
-        </span>
-      )}
-    </div>
-  );
+type CTAButton = 'confirm' | 'details' | 'navigate';
+
+const CTA_LABELS: Record<CTAButton, string> = {
+  confirm: 'Confirm',
+  details: 'Details',
+  navigate: 'Navigate →',
+};
+
+function resolveCTAs(
+  tripPhase: 'pre-trip' | 'on-trip',
+  isConfirmed: boolean,
+): [CTAButton, CTAButton] {
+  if (!isConfirmed) return ['confirm', 'details'];
+  if (tripPhase === 'on-trip') return ['navigate', 'details'];
+  return ['details', 'navigate'];
 }
 
 // ── NodeIcon — renders a white icon inside the circular spine node ──
@@ -98,6 +113,8 @@ export interface TimelineItemProps {
   isCustom: boolean;
   displayTime: string;
   reservationTime: string;
+  /** Controls primary CTA label and navigate availability */
+  tripPhase: 'pre-trip' | 'on-trip';
   /** Position in the day's list — drives entrance stagger delay */
   index: number;
   /** Play entrance animation; false on re-visits and drag overlays */
@@ -108,7 +125,13 @@ export interface TimelineItemProps {
   resolvedPlace?: Place | null;
   /** User-set title override stored in Firebase — takes precedence over item.text */
   textOverride?: string;
-  /** Open the pencil edit sheet (label, time, confirm toggle) */
+  /** Navigation address from enrichment (Google Places) — same source as detail card navigate */
+  navAddr?: string | null;
+  /** Direct confirm/un-confirm from the primary CTA */
+  onConfirm?: (value: boolean) => void;
+  /** Set reservation time (e.g. "7:30 PM") — wired from EditableItinerary */
+  onSetTime?: (time: string) => void;
+  /** Open the edit/detail sheet (overflow ··· button) */
   onOpenDetail?: () => void;
   /** Tap anywhere on card body — opens entity detail (place/booking) or edit sheet fallback */
   onTapCard?: (rect: DOMRect) => void;
@@ -121,21 +144,28 @@ export function TimelineItem({
   accent,
   isConfirmed,
   isCustom,
-  displayTime,
+  displayTime: _displayTime,
   reservationTime,
+  tripPhase,
   index,
   animate,
   isLast,
   resolvedPlace,
   textOverride,
+  navAddr,
+  onConfirm,
+  onSetTime,
   onOpenDetail,
   onTapCard,
   isPulsing,
 }: TimelineItemProps) {
+  const [navSheetOpen, setNavSheetOpen] = useState(false);
+  const [confirmSheetOpen, setConfirmSheetOpen] = useState(false);
   const itItem = item as ItineraryItem;
 
-  const { title: parsedTitle } = parseItemText(item.text);
+  const { title: parsedTitle, blurb: parsedBlurb } = parseItemText(item.text);
   const title = textOverride || parsedTitle;
+  const snippet = resolvedPlace?.note || parsedBlurb || null;
 
   const category = !isCustom ? (itItem.category ?? null) : null;
   const nodeEntry = resolveNodeEntry(category, isCustom, item);
@@ -147,8 +177,10 @@ export function TimelineItem({
 
   const addr = resolvedPlace?.addr ?? (!isCustom ? itItem.addr : null) ?? (isCustom ? (item as CustomItem).addr : null);
   const addrLabel = !isCustom ? (itItem.addr_label ?? null) : null;
+  const [primaryCTA, secondaryCTA] = resolveCTAs(tripPhase, isConfirmed);
 
   return (
+    <>
     <motion.div
       initial={animate ? { opacity: 0, y: 8 } : false}
       whileInView={animate ? { opacity: 1, y: 0 } : undefined}
@@ -158,8 +190,46 @@ export function TimelineItem({
         ...Animation.springs.gentle,
         delay: animate ? 0.08 + index * 0.025 : 0,
       }}
-      style={{ display: 'flex', paddingBottom: isLast ? 0 : 10 }}
+      style={{ display: 'flex', flexDirection: 'column', paddingBottom: isLast ? 0 : 10 }}
     >
+      {/* ── Time header — pill above node circle + trailing hairline ── */}
+      {reservationTime && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          paddingLeft: SPINE_X - NODE_SIZE / 2,
+          marginBottom: 6,
+        }}>
+          <span style={{
+            display: 'inline-block',
+            height: 28,
+            padding: '0 12px',
+            lineHeight: '28px',
+            borderRadius: 999,
+            background: isConfirmed ? accent : `${accent}18`,
+            color: isConfirmed ? Core.white : accent,
+            fontSize: `${Typography.size.xs}px`,
+            fontWeight: Typography.weight.bold,
+            fontFamily: Typography.family.sans,
+            letterSpacing: '0.02em',
+            flexShrink: 0,
+          }}>
+            {reservationTime}
+          </span>
+          <div style={{
+            flex: 1,
+            height: 1,
+            marginLeft: 8,
+            marginRight: 4,
+            background: isConfirmed ? `${accent}40` : `${accent}22`,
+            borderRadius: 1,
+          }} />
+        </div>
+      )}
+
+      {/* ── Main row: left track + card ── */}
+      <div style={{ display: 'flex' }}>
+
       {/* ── Left track: circular node + vertical connector ── */}
       <div style={{
         width: TRACK_W,
@@ -203,28 +273,22 @@ export function TimelineItem({
         )}
       </div>
 
-      {/* ── Right side: time label + card ── */}
+      {/* ── Right side: card ── */}
       <div style={{ flex: 1, minWidth: 0 }}>
-
-        {/* Time label — read-only (edit via pencil sheet) */}
-        <div style={{ marginBottom: Spacing.xxs + 2 }}>
-          <TimeDisplay
-            displayTime={isConfirmed && reservationTime ? reservationTime : displayTime}
-          />
-        </div>
 
         {/* ── Item card ── */}
         <motion.div
+          data-card
           animate={{
             borderLeftColor: cardBorderColor,
             boxShadow: isPulsing
               ? [
-                  '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+                  Shadow.cardResting,
                   `0 0 0 3px ${Colors.gold}60, 0 4px 16px ${Colors.gold}30`,
-                  `0 0 0 1px ${Colors.gold}20, 0 1px 4px rgba(13,43,62,0.08)`,
-                  '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+                  `0 0 0 1px ${Colors.gold}20, ${Shadow.cardResting}`,
+                  Shadow.cardResting,
                 ]
-              : '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
+              : Shadow.cardResting,
           }}
           transition={{
             borderLeftColor: { duration: 0.3, ease: Animation.fm.ease },
@@ -237,70 +301,83 @@ export function TimelineItem({
           } : undefined}
           style={{
             background: Colors.surfaceRaised,
-            borderRadius: `${Spacing.md}px`,
-            boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
-            padding: `10px`,
-            borderLeft: `3px solid`,
+            borderRadius: 16,
+            boxShadow: Shadow.cardResting,
+            padding: '12px 14px',
+            minHeight: 112,
+            borderLeft: '3px solid',
             borderLeftColor: cardBorderColor,
             cursor: onTapCard ? 'pointer' : 'default',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-          {/* Title + edit pencil */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: Spacing.xs,
-            marginBottom: Spacing.xs,
-          }}>
-            <div style={{
-              fontSize: `${Typography.size.base}px`,
-              fontWeight: isConfirmed ? Typography.weight.bold : Typography.weight.medium,
-              color: isConfirmed ? Colors.textPrimary : Colors.textSecondary,
-              lineHeight: Typography.lineHeight.normal,
-              fontFamily: Typography.family.sans,
-              transition: `color ${Animation.duration.normal} ${Animation.easing.default}`,
-              flex: 1,
-            }}>
-              {title}
+          {/* Top row: title + confirmed badge */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: snippet ? 2 : 4 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 16,
+                fontWeight: isConfirmed ? Typography.weight.bold : Typography.weight.semibold,
+                color: Colors.textPrimary,
+                lineHeight: 1.25,
+                fontFamily: Typography.family.sans,
+              }}>
+                {title}
+              </div>
             </div>
-            {onOpenDetail && (
+            {isConfirmed && (
               <button
-                onClick={(e) => { e.stopPropagation(); onOpenDetail(); }}
-                title="Edit"
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setConfirmSheetOpen(true); }}
                 style={{
                   flexShrink: 0,
-                  width: 22,
                   height: 22,
-                  borderRadius: '50%',
-                  border: `1px solid ${Colors.border}`,
-                  background: 'transparent',
-                  color: Colors.textMuted,
-                  cursor: 'pointer',
-                  fontSize: `${Typography.size.xs - 1}px`,
+                  padding: '0 8px',
+                  borderRadius: 999,
+                  background: Semantic.confirmedTint,
+                  color: Semantic.confirmedDark,
+                  fontSize: `${Typography.size.xs}px`,
+                  fontWeight: Typography.weight.semibold,
+                  fontFamily: Typography.family.sans,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
+                  gap: 3,
                   lineHeight: 1,
-                  padding: 0,
-                  marginTop: 1,
-                  transition: `border-color ${Animation.duration.fast} ${Animation.easing.default}, color ${Animation.duration.fast} ${Animation.easing.default}`,
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = accent;
-                  (e.currentTarget as HTMLButtonElement).style.color = accent;
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = Colors.border;
-                  (e.currentTarget as HTMLButtonElement).style.color = Colors.textMuted;
+                  border: 'none',
+                  cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
               >
-                ✎
+                ✓ Confirmed
               </button>
             )}
           </div>
 
-          {/* Place metadata row — hike chips or rating/price */}
-          {resolvedPlace && <PlaceMetaRow place={resolvedPlace} />}
+          {/* Guide note / item blurb — 2-line italic snippet */}
+          {snippet && (
+            <div style={{
+              fontSize: `${Typography.size.xs + 1}px`,
+              color: Colors.textSecondary,
+              fontStyle: 'italic',
+              lineHeight: Typography.lineHeight.relaxed,
+              fontFamily: Typography.family.sans,
+              marginBottom: 6,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical' as const,
+              overflow: 'hidden',
+            }}>
+              {snippet}
+            </div>
+          )}
+
+          {/* Place metadata row — hike chips or rating/subcategory/price */}
+          {resolvedPlace && (
+            <PlaceMetaRow
+              place={resolvedPlace}
+              subcategory={resolvedPlace.subcategory || undefined}
+            />
+          )}
 
           {/* Address */}
           {addr && (
@@ -346,70 +423,103 @@ export function TimelineItem({
             )}
           </AnimatePresence>
 
-          {/* Footer: confirm pill */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: Spacing.xs }}>
-            <AnimatePresence mode="wait">
-              {isConfirmed ? (
-                <motion.button
-                  key="confirmed"
-                  initial={{ opacity: 0, scale: 0.85 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.85 }}
-                  transition={{ type: 'spring', ...Animation.springs.snappy }}
-                  onClick={(e) => { e.stopPropagation(); onOpenDetail?.(); }}
-                  whileTap={{ scale: 0.94 }}
-                  style={{
-                    background: Semantic.confirmed,
-                    color: Core.white,
-                    border: 'none',
-                    borderRadius: 9999,
-                    padding: `${Spacing.xs}px ${Spacing.md}px`,
-                    fontSize: `${Typography.size.xs}px`,
-                    fontFamily: Typography.family.sans,
-                    fontWeight: Typography.weight.semibold,
-                    letterSpacing: '0.04em',
-                    cursor: 'pointer',
-                    boxShadow: `0 2px 8px ${Colors.gold}55`,
-                    flexShrink: 0,
-                    userSelect: 'none',
-                    WebkitUserSelect: 'none',
-                  }}
-                >
-                  ✓ Confirmed
-                </motion.button>
-              ) : (
-                <motion.button
-                  key="confirm"
-                  initial={{ opacity: 0, scale: 0.85 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.85 }}
-                  transition={{ type: 'spring', ...Animation.springs.snappy }}
-                  onClick={(e) => { e.stopPropagation(); onOpenDetail?.(); }}
-                  whileTap={{ scale: 0.94 }}
-                  style={{
-                    background: 'transparent',
-                    color: Colors.gold,
-                    border: `1.5px solid ${Colors.gold}`,
-                    borderRadius: 9999,
-                    padding: `${Spacing.xs}px ${Spacing.md}px`,
-                    fontSize: `${Typography.size.xs}px`,
-                    fontFamily: Typography.family.sans,
-                    fontWeight: Typography.weight.semibold,
-                    letterSpacing: '0.04em',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    userSelect: 'none',
-                    WebkitUserSelect: 'none',
-                  }}
-                >
-                  Confirm ✓
-                </motion.button>
-              )}
-            </AnimatePresence>
+          {/* Spacer pushes action row to bottom when card is taller than content */}
+          <div style={{ flex: 1 }} />
+
+          {/* Action row — primary CTA + secondary CTA + overflow */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginTop: 10,
+          }}>
+            {([primaryCTA, secondaryCTA] as const).map((variant, btnIdx) => (
+              <button
+                key={`${variant}-${btnIdx}`}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (variant === 'confirm') {
+                    setConfirmSheetOpen(true);
+                  } else if (variant === 'navigate') {
+                    setNavSheetOpen(true);
+                  } else {
+                    if (onTapCard) {
+                      const card = (e.currentTarget as HTMLElement).closest('[data-card]') as HTMLElement | null;
+                      onTapCard((card ?? e.currentTarget as HTMLElement).getBoundingClientRect());
+                    } else {
+                      onOpenDetail?.();
+                    }
+                  }
+                }}
+                style={{
+                  flex: btnIdx === 0 ? 5 : 4,
+                  height: 40,
+                  borderRadius: 13,
+                  border: btnIdx === 0 ? 'none' : `1px solid ${accent}35`,
+                  background: btnIdx === 0 ? `${accent}15` : 'transparent',
+                  color: accent,
+                  fontSize: btnIdx === 0 ? 14 : 13,
+                  fontWeight: btnIdx === 0 ? Typography.weight.semibold : Typography.weight.medium,
+                  fontFamily: Typography.family.sans,
+                  cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent',
+                  opacity: btnIdx === 0 ? 1 : 0.75,
+                }}
+              >
+                {CTA_LABELS[variant]}
+              </button>
+            ))}
+
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onOpenDetail?.(); }}
+              style={{
+                width: 34,
+                height: 40,
+                borderRadius: 13,
+                border: `1px solid ${Colors.border}`,
+                background: 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <EllipsisIcon color={Colors.textMuted} size={16} />
+            </button>
           </div>
 
         </motion.div>
       </div>
+      </div>
     </motion.div>
+    <NavigationSelectorSheet
+      isOpen={navSheetOpen}
+      onClose={() => setNavSheetOpen(false)}
+      lat={resolvedPlace?.lat}
+      lon={resolvedPlace?.lon}
+      addr={navAddr ?? resolvedPlace?.addr}
+      label={resolvedPlace?.name ?? title}
+    />
+    <ConfirmTimeSheet
+      isOpen={confirmSheetOpen}
+      isConfirmed={isConfirmed}
+      currentTime={reservationTime}
+      accent={accent}
+      onConfirm={(time) => {
+        if (time) onSetTime?.(time);
+        onConfirm?.(true);
+        setConfirmSheetOpen(false);
+      }}
+      onUnconfirm={() => {
+        onConfirm?.(false);
+        setConfirmSheetOpen(false);
+      }}
+      onClose={() => setConfirmSheetOpen(false)}
+    />
+    </>
   );
 }
