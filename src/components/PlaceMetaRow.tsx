@@ -11,9 +11,10 @@ const DIFFICULTY_STYLES: Record<string, { bg: string; color: string }> = {
 
 interface PlaceMetaRowProps {
   place: Place;
+  subcategory?: string;
 }
 
-export function PlaceMetaRow({ place }: PlaceMetaRowProps) {
+export function PlaceMetaRow({ place, subcategory }: PlaceMetaRowProps) {
   if (place.category === 'hike') {
     const hasAny = place.difficulty || place.distance || place.duration;
     if (!hasAny) return null;
@@ -43,10 +44,21 @@ export function PlaceMetaRow({ place }: PlaceMetaRowProps) {
 
   const hasRating = place.rating != null;
   const hasPrice = !!place.price;
-  if (!hasRating && !hasPrice) return null;
+  if (!hasRating && !hasPrice && !subcategory) return null;
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs, flexWrap: 'wrap' }}>
+      {subcategory && (
+        <span style={{
+          fontSize: `${Typography.size.xs - 1}px`,
+          color: Colors.textMuted,
+          fontFamily: Typography.family.sans,
+          fontStyle: 'italic',
+          letterSpacing: '0.04em',
+        }}>
+          {subcategory.replace(/-/g, ' ')}
+        </span>
+      )}
       {hasRating && <StarRating rating={place.rating!} compact />}
       {hasPrice && (
         <span style={{

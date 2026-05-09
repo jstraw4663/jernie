@@ -3,7 +3,7 @@
 // react-native-reanimated + react-native-gesture-handler.
 // All props and Firebase state are platform-agnostic.
 
-import { useState, useEffect, useRef, useMemo, type RefObject } from "react";
+import { useState, useEffect, useRef, useMemo, Fragment, type RefObject } from "react";
 import {
   DndContext, DragOverlay, PointerSensor, TouchSensor,
   useSensor, useSensors, closestCenter,
@@ -24,7 +24,7 @@ import { DayCard } from "./DayCard";
 import { ItineraryItem as ItineraryItemRow } from "./ItineraryItem";
 import { Icons, CATEGORY_ICON_MAP } from '../design/icons';
 import { EntryIcon } from '../design/EntryIcon';
-import { Animation, Colors, Spacing, Typography } from "../design/tokens";
+import { Animation, Colors, Core, Spacing, Typography } from "../design/tokens";
 import { TimelineItem } from "./TimelineItem";
 import { ItineraryItemDetailSheet } from "./ItineraryItemDetailSheet";
 import { findPlaceForItem } from "../domain/trip";
@@ -135,6 +135,86 @@ function inferSoftTime(prevTime: string | null | undefined, nextTime: string | n
   return "";
 }
 
+// ── Slot grouping ─────────────────────────────────────────────────
+
+type SlotId = 'morning' | 'midmorning' | 'earlyafternoon' | 'lateafternoon' | 'evening';
+
+const SLOT_LABELS: Record<SlotId, string> = {
+  morning:        'Morning',
+  midmorning:     'Mid-morning',
+  earlyafternoon: 'Early afternoon',
+  lateafternoon:  'Late afternoon',
+  evening:        'Evening',
+};
+
+const SLOT_BOUNDARIES: [SlotId, number][] = [
+  ['morning',        0],
+  ['midmorning',   570],   // 9:30 AM
+  ['earlyafternoon', 660], // 11:00 AM
+  ['lateafternoon',  840], // 2:00 PM
+  ['evening',       1050], // 5:30 PM
+];
+
+function assignSlot(displayTime: string): SlotId {
+  const mins = toMinutes(displayTime);
+  if (mins === null) return 'morning';
+  let slot: SlotId = 'morning';
+  for (const [id, threshold] of SLOT_BOUNDARIES) {
+    if (mins >= threshold) slot = id;
+  }
+  return slot;
+}
+
+const SLOT_ORDER: SlotId[] = ['morning', 'midmorning', 'earlyafternoon', 'lateafternoon', 'evening'];
+
+function findSlotForId(id: string, groups: Record<SlotId, string[]>): SlotId | null {
+  for (const slot of SLOT_ORDER) {
+    if (groups[slot].includes(id)) return slot;
+  }
+  return null;
+}
+
+// SPINE_X / NODE_SIZE mirror the consts in TimelineItem.tsx — keep in sync.
+const SPINE_X = 26;
+const NODE_SIZE = 36;
+
+function SlotHeader({ label, paddingLeft = SPINE_X - NODE_SIZE / 2 }: { label: string; paddingLeft?: number }) {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      paddingLeft,
+      paddingTop: 10,
+      paddingBottom: 4,
+    }}>
+      <span style={{
+        display: 'inline-block',
+        height: 28,
+        padding: '0 12px',
+        lineHeight: '28px',
+        borderRadius: 999,
+        background: Core.surfaceMuted,
+        color: Core.textFaint,
+        fontSize: `${Typography.size.xs}px`,
+        fontWeight: Typography.weight.semibold,
+        fontFamily: Typography.family.sans,
+        letterSpacing: '0.04em',
+        flexShrink: 0,
+      }}>
+        {label}
+      </span>
+      <div style={{
+        flex: 1,
+        height: 1,
+        marginLeft: 8,
+        marginRight: 4,
+        background: Core.surfaceMuted,
+        borderRadius: 1,
+      }} />
+    </div>
+  );
+}
+
 // ── DroppableDay — makes collapsed day headers register as drop targets ──
 
 function DroppableDay({ dayId, children }: { dayId: string; children: React.ReactNode }) {
@@ -146,23 +226,43 @@ function DroppableDay({ dayId, children }: { dayId: string; children: React.Reac
   );
 }
 
+function DroppableSlotZone({ slotId }: { slotId: SlotId }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `slot-drop-${slotId}` });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        height: 40,
+        borderRadius: 8,
+        border: `1.5px dashed ${isOver ? Core.textFaint : Core.surfaceMuted}`,
+        background: isOver ? Core.surfaceMuted : 'transparent',
+        transition: 'border-color 0.15s, background 0.15s',
+        margin: '2px 0 6px',
+      }}
+    />
+  );
+}
+
 // TimeLabel and ItemContent replaced by TimelineItem component.
 
 // ── SortableItem ──────────────────────────────────────────────
 // Inline read-only view. Long press triggers Edit Mode BottomSheet.
 // Drag reorder now lives inside the sheet (Bundle 3).
 
-function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reservationTime, index, isLast, animate, resolvedPlace, textOverride, onOpenDetail, onTapCard, isPulsing, itemRef }: {
+function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reservationTime, tripPhase, index, isLast, animate, resolvedPlace, textOverride, onConfirm, onSetTime, onOpenDetail, onTapCard, isPulsing, itemRef }: {
   item: ResolvedItem; accent: string;
   isLocked: boolean;
   onLongPress?: () => void;
   displayTime: string;
   reservationTime: string;
+  tripPhase: 'pre-trip' | 'on-trip';
   index: number;
   isLast: boolean;
   animate: boolean;
   resolvedPlace: Place | null;
   textOverride?: string;
+  onConfirm?: (value: boolean) => void;
+  onSetTime?: (time: string) => void;
   onOpenDetail: () => void;
   onTapCard?: (rect: DOMRect) => void;
   isPulsing?: boolean;
@@ -191,11 +291,14 @@ function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reserv
           isCustom={item._isCustom}
           displayTime={displayTime}
           reservationTime={reservationTime}
+          tripPhase={tripPhase}
           index={index}
           animate={animate}
           isLast={isLast}
           resolvedPlace={resolvedPlace}
           textOverride={textOverride}
+          onConfirm={onConfirm}
+          onSetTime={onSetTime}
           onOpenDetail={onOpenDetail}
           onTapCard={onTapCard}
           isPulsing={isPulsing}
@@ -266,7 +369,7 @@ export function EditableItinerary({
   itineraryOrder, customItems, timeOverrides, textOverrides, reservationTimes,
   setDayOrder, moveItem, addCustomItem, deleteCustomItem, initializeOrder,
   setTimeOverride, setTextOverride, updateCustomItem,
-  scrollRef, onExpandPlace, onExpandBooking: _onExpandBooking,
+  scrollRef, onExpandPlace, onExpandBooking,
   requestOpenDayId, onRequestOpenDayConsumed,
   requestScrollToItemId, onRequestScrollToItemConsumed,
 }: EditableItineraryProps) {
@@ -299,6 +402,8 @@ export function EditableItinerary({
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [pendingOrder, setPendingOrder] = useState<string[] | null>(null);
   const [confirmMode, setConfirmMode] = useState<'delete' | 'exit' | null>(null);
+  const [liveGroups, setLiveGroups] = useState<Record<SlotId, string[]> | null>(null);
+  const liveGroupsRef = useRef<Record<SlotId, string[]> | null>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInitializingRef = useRef(false);
 
@@ -307,6 +412,11 @@ export function EditableItinerary({
     item: ResolvedItem;
     resolvedPlace: Place | null;
   } | null>(null);
+
+  const tripPhase = useMemo<'pre-trip' | 'on-trip'>(
+    () => new Date() >= new Date(data.trip.departure) ? 'on-trip' : 'pre-trip',
+    [data.trip.departure],
+  );
 
   const days = data.itinerary_days.filter(d => d.stop_id === stop.id);
 
@@ -560,6 +670,10 @@ export function EditableItinerary({
       : baseEditItems,
     [pendingOrder, baseEditItems]
   );
+  const editItemsById = useMemo(
+    () => new Map(editItems.map(i => [i.id, i])),
+    [editItems]
+  );
 
   function closeEditMode() {
     setEditModeDay(null);
@@ -587,14 +701,81 @@ export function EditableItinerary({
     });
   }
 
-  function handleSheetDragEnd(event: DragEndEvent) {
+  function handleSheetDragStart(_event: DragStartEvent) {
+    const groups: Record<SlotId, string[]> = { morning: [], midmorning: [], earlyafternoon: [], lateafternoon: [], evening: [] };
+    for (const item of editItems) {
+      groups[assignSlot(getDisplayTime(item))].push(item.id);
+    }
+    liveGroupsRef.current = groups;
+    setLiveGroups(groups);
+  }
+
+  function handleSheetDragOver(event: DragOverEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id || !editModeDay) return;
-    const currentIds = editItems.map(i => i.id);
-    const oldIndex = currentIds.indexOf(active.id as string);
-    const newIndex = currentIds.indexOf(over.id as string);
-    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
-    setPendingOrder(arrayMove([...currentIds], oldIndex, newIndex));
+    if (!over) return;
+    const activeId = active.id as string;
+    const overId = over.id as string;
+    if (activeId === overId) return;
+
+    setLiveGroups(prev => {
+      if (!prev) return null;
+      const activeSlot = findSlotForId(activeId, prev);
+      if (!activeSlot) return prev;
+
+      // Drop onto an empty slot's droppable zone
+      if (overId.startsWith('slot-drop-')) {
+        const overSlot = overId.replace('slot-drop-', '') as SlotId;
+        if (activeSlot === overSlot) return prev;
+        const next = {
+          ...prev,
+          [activeSlot]: prev[activeSlot].filter(id => id !== activeId),
+          [overSlot]: [activeId, ...prev[overSlot]],
+        };
+        liveGroupsRef.current = next;
+        return next;
+      }
+
+      const overSlot = findSlotForId(overId, prev);
+      if (!overSlot) return prev;
+
+      let next: Record<SlotId, string[]>;
+      if (activeSlot === overSlot) {
+        const slot = prev[activeSlot];
+        const oldIdx = slot.indexOf(activeId);
+        const newIdx = slot.indexOf(overId);
+        if (oldIdx === newIdx) return prev;
+        next = { ...prev, [activeSlot]: arrayMove(slot, oldIdx, newIdx) };
+      } else {
+        const fromArr = prev[activeSlot].filter(id => id !== activeId);
+        const toArr = [...prev[overSlot]];
+        const overIdx = toArr.indexOf(overId);
+        toArr.splice(overIdx === -1 ? toArr.length : overIdx, 0, activeId);
+        next = { ...prev, [activeSlot]: fromArr, [overSlot]: toArr };
+      }
+      liveGroupsRef.current = next;
+      return next;
+    });
+  }
+
+  function handleSheetDragEnd(event: DragEndEvent) {
+    const activeId = event.active.id as string;
+    const finalGroups = liveGroupsRef.current;
+    liveGroupsRef.current = null;
+    setLiveGroups(null);
+
+    if (!finalGroups || !editModeDay) return;
+
+    const newOrder = SLOT_ORDER.flatMap(s => finalGroups[s]);
+    setPendingOrder(newOrder);
+
+    const movedItem = editItems.find(i => i.id === activeId);
+    if (movedItem) {
+      const originalSlot = assignSlot(getDisplayTime(movedItem));
+      const newSlot = findSlotForId(activeId, finalGroups);
+      if (newSlot && newSlot !== originalSlot) {
+        setTimeOverride(activeId, SLOT_LABELS[newSlot]);
+      }
+    }
   }
 
   function handleDeleteConfirmed() {
@@ -622,6 +803,15 @@ export function EditableItinerary({
     () => selectedStopIds.size > 1 ? "Selected items span multiple stops" : undefined,
     [selectedStopIds]
   );
+
+  function deleteItem(item: ResolvedItem) {
+    const dayId = item.day_id;
+    if (item._isCustom) {
+      deleteCustomItem(item.id, dayId);
+    } else {
+      setDayOrder(dayId, (itineraryOrder[dayId] || []).filter(id => id !== item.id));
+    }
+  }
 
   function handleMoveItems(toDayId: string) {
     if (!editModeDay) return;
@@ -714,37 +904,63 @@ export function EditableItinerary({
                     }}
                     shouldAnimate={isFirstVisit}
                   >
-                    <SortableContext items={items.map(it => it.id)} strategy={verticalListSortingStrategy}>
-                      {items.map((item, ii) => {
-                        const isItemLocked = confirms[item.id] || (!item._isCustom && !!(item as ItineraryItem).locked);
-                        const itemPlace = findPlaceForItem(item, data.places);
-                        return (
-                            <SortableItem
-                              key={item.id}
-                              item={item} accent={stop.accent}
-                              isLocked={isItemLocked}
-                              index={ii}
-                              isLast={ii === items.length - 1}
-                              animate={isFirstVisit}
-                              onLongPress={() => {
-                                setEditModeDay(day.id);
-                                setSelectedItems(new Set([item.id]));
-                              }}
-                              displayTime={getDisplayTime(item)}
-                              reservationTime={reservationTimes[item.id] || ""}
-                              resolvedPlace={itemPlace}
-                              textOverride={textOverrides[item.id]}
-                              onOpenDetail={() => setDetailState({ item, resolvedPlace: itemPlace })}
-                              onTapCard={itemPlace
-                                ? (rect) => onExpandPlace(itemPlace, rect)
-                                : (_rect) => setDetailState({ item, resolvedPlace: null })
-                              }
-                              isPulsing={pulsingItemId === item.id}
-                              itemRef={el => { itemRefs.current[item.id] = el; }}
-                            />
-                        );
-                      })}
-                    </SortableContext>
+                    {(() => {
+                      const sortedItems = [...items].sort((a, b) => {
+                        const am = toMinutes(getDisplayTime(a));
+                        const bm = toMinutes(getDisplayTime(b));
+                        if (am === null && bm === null) return 0;
+                        if (am === null) return -1;
+                        if (bm === null) return 1;
+                        return am - bm;
+                      });
+                      return (
+                        <SortableContext items={sortedItems.map(it => it.id)} strategy={verticalListSortingStrategy}>
+                          {sortedItems.map((item, ii) => {
+                            const isItemLocked = confirms[item.id] || (!item._isCustom && !!(item as ItineraryItem).locked);
+                            const itemPlace = findPlaceForItem(item, data.places);
+                            const itemBooking = !item._isCustom && (item as ItineraryItem).booking_id
+                              ? data.bookings.find(b => b.id === (item as ItineraryItem).booking_id) ?? null
+                              : null;
+                            const displayTimeForSlot = getDisplayTime(item);
+                            const onTapCard = itemPlace
+                              ? (rect: DOMRect) => onExpandPlace(itemPlace, rect)
+                              : itemBooking
+                                ? (rect: DOMRect) => onExpandBooking(itemBooking, rect)
+                                : () => setDetailState({ item, resolvedPlace: null });
+                            const slot = assignSlot(displayTimeForSlot);
+                            const prevSlot = ii > 0 ? assignSlot(getDisplayTime(sortedItems[ii - 1])) : null;
+                            const showSlotHeader = slot !== prevSlot;
+                            return (
+                              <Fragment key={item.id}>
+                                {showSlotHeader && <SlotHeader label={SLOT_LABELS[slot]} />}
+                                <SortableItem
+                                  item={item} accent={stop.accent}
+                                  isLocked={isItemLocked}
+                                  tripPhase={tripPhase}
+                                  index={ii}
+                                  isLast={ii === sortedItems.length - 1}
+                                  animate={isFirstVisit}
+                                  onLongPress={() => {
+                                    setEditModeDay(day.id);
+                                    setSelectedItems(new Set([item.id]));
+                                  }}
+                                  displayTime={displayTimeForSlot}
+                                  reservationTime={reservationTimes[item.id] || ""}
+                                  resolvedPlace={itemPlace}
+                                  textOverride={textOverrides[item.id]}
+                                  onConfirm={(value) => onConfirm(item.id, value)}
+                                  onSetTime={(time) => setTimeOverride(item.id, time)}
+                                  onOpenDetail={() => setDetailState({ item, resolvedPlace: itemPlace })}
+                                  onTapCard={onTapCard}
+                                  isPulsing={pulsingItemId === item.id}
+                                  itemRef={el => { itemRefs.current[item.id] = el; }}
+                                />
+                              </Fragment>
+                            );
+                          })}
+                        </SortableContext>
+                      );
+                    })()}
 
                     {/* Inline add form */}
                     {addForm?.dayId === day.id ? (
@@ -826,6 +1042,7 @@ export function EditableItinerary({
                   isCustom={activeItem._isCustom}
                   displayTime={getDisplayTime(activeItem)}
                   reservationTime=""
+                  tripPhase={tripPhase}
                   index={0}
                   animate={false}
                   isLast={true}
@@ -890,30 +1107,51 @@ export function EditableItinerary({
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
+          onDragStart={handleSheetDragStart}
+          onDragOver={handleSheetDragOver}
           onDragEnd={handleSheetDragEnd}
+          onDragCancel={() => { liveGroupsRef.current = null; setLiveGroups(null); }}
         >
-          <SortableContext items={editItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
-            <div style={{ padding: `${Spacing.xs}px ${Spacing.base}px` }}>
-              {editItems.map(item => {
-                // Lock = user-confirmed OR editorial locked in trip data.
-                // Both selection and drag are gated on the same condition.
-                const isItemLocked = confirms[item.id] || (!item._isCustom && !!(item as ItineraryItem).locked);
-                const isItemDragDisabled = isItemLocked;
-                return (
-                  <SheetSortableItem
-                    key={item.id}
-                    item={item}
-                    isSelected={selectedItems.has(item.id)}
-                    isLocked={isItemLocked}
-                    isDragDisabled={isItemDragDisabled}
-                    onToggleSelect={() => toggleItem(item.id)}
-                    displayTime={getDisplayTime(item)}
-                    accent={stop.accent}
-                  />
-                );
-              })}
-            </div>
-          </SortableContext>
+          <div style={{ padding: `${Spacing.xs}px ${Spacing.base}px` }}>
+            {SLOT_ORDER.map(slotId => {
+              const slotItemIds: string[] = liveGroups
+                ? liveGroups[slotId]
+                : editItems.filter(i => assignSlot(getDisplayTime(i)) === slotId).map(i => i.id);
+              const slotItems = slotItemIds
+                .map(id => editItemsById.get(id))
+                .filter((i): i is ResolvedItem => !!i);
+
+              // Hide empty slots when nothing is being dragged
+              if (slotItems.length === 0 && !liveGroups) return null;
+
+              return (
+                <Fragment key={slotId}>
+                  <SlotHeader label={SLOT_LABELS[slotId]} paddingLeft={0} />
+                  {slotItems.length === 0 ? (
+                    <DroppableSlotZone slotId={slotId} />
+                  ) : (
+                    <SortableContext items={slotItemIds} strategy={verticalListSortingStrategy}>
+                      {slotItems.map(item => {
+                        const isItemLocked = confirms[item.id] || (!item._isCustom && !!(item as ItineraryItem).locked);
+                        return (
+                          <SheetSortableItem
+                            key={item.id}
+                            item={item}
+                            isSelected={selectedItems.has(item.id)}
+                            isLocked={isItemLocked}
+                            isDragDisabled={isItemLocked}
+                            onToggleSelect={() => toggleItem(item.id)}
+                            displayTime={getDisplayTime(item)}
+                            accent={stop.accent}
+                          />
+                        );
+                      })}
+                    </SortableContext>
+                  )}
+                </Fragment>
+              );
+            })}
+          </div>
         </DndContext>
       </BottomSheet>
 
@@ -941,7 +1179,7 @@ export function EditableItinerary({
         onSetTextOverride={setTextOverride}
         onUpdateCustomItem={updateCustomItem}
         onSetTimeOverride={setTimeOverride}
-        onDeleteCustomItem={deleteCustomItem}
+        onDelete={() => { if (detailState) { deleteItem(detailState.item); setDetailState(null); } }}
         onConfirm={onConfirm}
       />
 

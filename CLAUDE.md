@@ -1,7 +1,7 @@
 # Jernie — Dev Context
 
 > Operational hub. Detailed context lives in supporting docs — load them only when the task requires.
-> Last updated: May 6, 2026 — v0.7.2
+> Last updated: May 9, 2026 — v0.7.3
 
 ---
 
@@ -64,6 +64,10 @@ APIs: Open-Meteo (weather, 3hr cache) · Anthropic + web_search (flight status, 
 | `src/components/EditableItinerary.tsx` | Itinerary — drag-reorder, edit mode, custom items (hotspot) |
 | `src/components/TimelineItem.tsx` | Timeline cards — animation state, category chips, confirm logic (hotspot) |
 | `src/components/TravelSection.tsx` | Bookings + hotel + flight rows (hotspot) |
+| `src/components/ConfirmTimeSheet.tsx` | Confirm/unconfirm bottom sheet with time input + AM/PM toggle — opened from TimelineItem |
+| `src/components/NavigationSelectorSheet.tsx` | Map app picker sheet (Apple Maps / Google Maps / Uber) — opened from TimelineItem Navigate CTA |
+| `src/design/ActionIcons.tsx` | Inline SVG icons: NavigateIcon, CheckmarkIcon, EllipsisIcon |
+| `src/utils/mapNavigation.ts` | Shared map deep-link construction + fallback App Store launcher — used by QuickActions and NavigationSelectorSheet |
 | `src/components/BottomSheet.tsx` | Swipe-dismiss sheet — reference impl for mountFrames pattern |
 | `src/components/ScrollReveal.tsx` | Standard scroll-triggered entrance — wrap all below-fold cards |
 | `netlify/functions/flight-status.js` | Anthropic API serverless function for flight status |
@@ -127,7 +131,8 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 
 ## Current Status & Known Issues
 
-- **v0.7.2 (in progress):** detail sheet rating/price in title area; `phone` removed from `Place` schema + all trip.json places; `addr` kept for hike trailheads only; data split enforced (editorial in trip.json, operational in Firestore)
+- **v0.7.3 (in progress):** TimelineItem redesign — CTA state machine (Confirm/Details/Navigate per trip phase + confirmed status); ConfirmTimeSheet + NavigationSelectorSheet new components; ActionIcons SVGs; mapNavigation util extracted from QuickActions; EditableItinerary slot-group headers + requestOpenDayId/requestScrollToItemId deep-link from Overview; PlaceMetaRow compact StarRating + subcategory; DayCard safe-area-aware scrollMarginTop
+- **v0.7.2 shipped:** detail sheet rating/price in title area; `phone` removed from `Place` schema + all trip.json places; `addr` kept for hike trailheads only; data split enforced (editorial in trip.json, operational in Firestore)
 - **v0.7.1 shipped:** 5-layer color token refactor — `Brand/Core/Semantic/TypeColors` in `tokens.ts`; Maine trip pack in `tripPacks.ts`; `TripThemeContext` + `useTripTheme()`; stop accent colors wired through StopsBar, TimelineItem, FloatingAddCTA, OverviewScreen
 - **v0.7.0 shipped:** StopsBar/Trailhead (trail line, carved pill, scaling nodes); trail photos from AllTrails og:image (scraped on first enrichment, 30-day cache); FloatingAddCTA + QuickActions in EntityDetail; design system refresh across all components; flat shared Firestore enrichment; eager batch enrichment
 - **v0.6.0 shipped:** Overview itinerary-only restaurant/activity filter; Overview → Explore deep-link navigation; Explore stop-filter pill row + carousel badge; Jernie tab 5-item cap + Explore More buttons; ItineraryBadge shared component; NavigationContext
