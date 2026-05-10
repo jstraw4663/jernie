@@ -5,6 +5,8 @@
 
 import {
   Airplane,
+  AirplaneLanding,
+  AirplaneTakeoff,
   Anchor,
   Bank,
   BeerBottle,
@@ -53,6 +55,8 @@ import { TypeColors } from './tokens';
 export const Icons = {
   // Travel & Transport
   Flight:              Airplane,
+  FlightTakeoff:       AirplaneTakeoff,
+  FlightLanding:       AirplaneLanding,
   Car:                 Car,
   Bus:                 Bus,
   Walk:                PersonSimpleWalk,

@@ -5,6 +5,8 @@ import { Colors, Semantic, Brand, Core, Typography, Spacing, Radius } from '../d
 import { ScrollReveal } from './ScrollReveal';
 import { PlaceIcon } from './PlaceIcon';
 import type { FlightStatus } from '../domain/trip';
+import { FlightCard } from './FlightCard';
+import { useTripTheme } from '../contexts/TripThemeContext';
 
 // ── AlertBox ──────────────────────────────────────────────────
 
@@ -428,6 +430,9 @@ export function TravelSection({ stop, stopBookings, groups, flightStatus, flight
         ? groups.find(g => g.id === b.group_ids![0])?.name
         : "Party-Wide";
       return <HotelCard key={b.id} accent={stop.accent} label={groupName + "'s Accommodations"} booking={b} enrichment={hotelEnrichmentMap?.[b.id]} onExpand={onBookingExpand}/>;
+    }
+    if (b.type === "flight") {
+      return <FlightCard key={b.id} booking={b} accent={stop.accent} flightStatus={flightStatus} flightLoading={flightLoading} onExpand={onBookingExpand}/>;
     }
     return <BookingCard key={b.id} booking={b} accent={stop.accent} flightStatus={flightStatus} flightLoading={flightLoading} onExpand={onBookingExpand}/>;
   };
