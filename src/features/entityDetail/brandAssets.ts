@@ -90,7 +90,7 @@ export function domainFromUrl(url: string): string | null {
   }
 }
 
-// Brands where Clearbit logo quality is poor or unavailable — use direct source instead.
+// Clearbit returns a poor/blank result for some brands — use a direct source instead.
 const BRAND_LOGO_OVERRIDES: Record<string, string> = {
   'avis.com': 'https://upload.wikimedia.org/wikipedia/commons/f/f3/AVIS_logo_2012.svg',
 };

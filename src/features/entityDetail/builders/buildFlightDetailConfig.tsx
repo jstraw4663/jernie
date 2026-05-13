@@ -265,6 +265,11 @@ export function buildFlightDetailConfig(
   const firstFlight = booking.flights?.[0];
   const flights = booking.flights ?? [];
 
+  const departureIata = firstFlight
+    ? (parseIataFromRoute(firstFlight.route)?.origin.toUpperCase() ?? null)
+    : null;
+  const departureRec = departureIata ? (IATA_AIRPORTS[departureIata] ?? null) : null;
+
   // Airline logo from IATA code
   const iata = firstFlight ? iataFromFlightNum(firstFlight.num) : '';
   const logoUrl = iata ? airlineLogoUrl(iata) : null;
@@ -418,6 +423,9 @@ export function buildFlightDetailConfig(
     heroGradient,
     heroLogoUrl: logoUrl ?? undefined,
     categoryChip: flights.length > 1 ? 'Connecting Flight' : 'Flight',
+    mapLat: departureRec?.lat,
+    mapLon: departureRec?.lon,
+    mapAddr: departureRec ? departureRec.name : undefined,
     sections,
     externalUrl: firstFlight?.trackingUrl ?? (booking.url ?? undefined),
   };

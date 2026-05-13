@@ -20,14 +20,6 @@ function fmt(t: string): string {
   return t.replace(' AM', 'a').replace(' PM', 'p');
 }
 
-function fmtFlightCardDate(dateStr: string): { weekday: string; day: string; month: string } {
-  const d = new Date(dateStr + 'T12:00:00');
-  return {
-    weekday: d.toLocaleString('en-US', { weekday: 'short' }),
-    day: String(d.getDate()),
-    month: d.toLocaleString('en-US', { month: 'short' }).toUpperCase(),
-  };
-}
 
 function FnPill({ num }: { num: string }) {
   return (
@@ -200,12 +192,10 @@ export function FlightGroupCard({
     .filter(b => b.flights?.length)
     .sort((a, b) => parseFlightTime(a.flights![0].dep) - parseFlightTime(b.flights![0].dep));
 
-  const firstDateStr = bookings
-    .flatMap(b => b.flights ?? [])
-    .map(f => f.date)
-    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0];
-
-  const headerDate = firstDateStr ? fmtFlightCardDate(firstDateStr) : null;
+  // Use the first sorted flight for the header time + date
+  const firstFlightDep = sorted[0]?.flights?.[0]?.dep ?? null;
+  // Date format from trip.json: "May 22 2026" — strip the year for display
+  const firstFlightDate = (sorted[0]?.flights?.[0]?.date ?? null)?.replace(/\s+\d{4}$/, '') ?? null;
   const n = sorted.length;
 
   return (
@@ -248,29 +238,32 @@ export function FlightGroupCard({
           </div>
         </div>
 
-        {headerDate && (
+        {(firstFlightDep || firstFlightDate) && (
           <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: Spacing.md }}>
-            <div style={{
-              fontSize: Typography.size.sm,
-              fontWeight: Typography.weight.bold,
-              color: '#ffffff',
-              fontFamily: Typography.family.sans,
-              whiteSpace: 'nowrap' as const,
-            }}>
-              {headerDate.weekday} {headerDate.day}
-            </div>
-            <div style={{
-              fontSize: 9,
-              fontWeight: Typography.weight.medium,
-              color: 'rgba(255,255,255,0.55)',
-              fontFamily: Typography.family.sans,
-              textTransform: 'uppercase' as const,
-              letterSpacing: '0.08em',
-              marginTop: 2,
-              whiteSpace: 'nowrap' as const,
-            }}>
-              {headerDate.month}
-            </div>
+            {firstFlightDep && (
+              <div style={{
+                fontSize: Typography.size.sm,
+                fontWeight: Typography.weight.bold,
+                color: '#ffffff',
+                fontFamily: Typography.family.sans,
+                whiteSpace: 'nowrap' as const,
+              }}>
+                {firstFlightDep}
+              </div>
+            )}
+            {firstFlightDate && (
+              <div style={{
+                fontSize: 9,
+                fontWeight: Typography.weight.medium,
+                color: 'rgba(255,255,255,0.55)',
+                fontFamily: Typography.family.sans,
+                letterSpacing: '0.04em',
+                marginTop: 2,
+                whiteSpace: 'nowrap' as const,
+              }}>
+                {firstFlightDate}
+              </div>
+            )}
           </div>
         )}
       </div>
