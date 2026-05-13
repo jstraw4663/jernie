@@ -918,7 +918,9 @@ export function EditableItinerary({
                       return (
                         <SortableContext items={sortedItems.map(it => it.id)} strategy={verticalListSortingStrategy}>
                           {sortedItems.map((item, ii) => {
-                            const isItemLocked = confirms[item.id] || (!item._isCustom && !!(item as ItineraryItem).locked);
+                            const isItemLocked = item.id in confirms
+                              ? confirms[item.id]
+                              : (!item._isCustom && !!(item as ItineraryItem).locked);
                             const itemPlace = findPlaceForItem(item, data.places);
                             const itemBooking = !item._isCustom && (item as ItineraryItem).booking_id
                               ? data.bookings.find(b => b.id === (item as ItineraryItem).booking_id) ?? null
@@ -1134,7 +1136,9 @@ export function EditableItinerary({
                   ) : (
                     <SortableContext items={slotItemIds} strategy={verticalListSortingStrategy}>
                       {slotItems.map(item => {
-                        const isItemLocked = confirms[item.id] || (!item._isCustom && !!(item as ItineraryItem).locked);
+                        const isItemLocked = item.id in confirms
+                          ? confirms[item.id]
+                          : (!item._isCustom && !!(item as ItineraryItem).locked);
                         return (
                           <SheetSortableItem
                             key={item.id}

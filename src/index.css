@@ -51,7 +51,7 @@ h1, h2, h3, h4 {
 
 @media (display-mode: standalone) {
   .bottom-bar-shell {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: min(env(safe-area-inset-bottom, 0px), 5px);
   }
 }
 

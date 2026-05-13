@@ -29,6 +29,7 @@ import { useTrailEnrichment } from "./hooks/useTrailEnrichment";
 import { useBookingEnrichment } from "./hooks/useBookingEnrichment";
 import { useWeatherEnrichment } from "./hooks/useWeatherEnrichment";
 import { readCache, writeCache } from "./utils/cache";
+import { useConnectivityState } from "./contexts/ConnectivityContext";
 import { buildHikeDetailConfig } from "./features/entityDetail/builders/buildHikeDetailConfig";
 import { buildFlightDetailConfig } from "./features/entityDetail/builders/buildFlightDetailConfig";
 import { buildBookingDetailConfig } from "./features/entityDetail/builders/buildBookingDetailConfig";
@@ -73,10 +74,12 @@ async function fetchFlightStatusGroupWithData(
   setLoading(true);
   const cacheKey = "jernie_flights_" + dateKey;
 
+  const MAX_FLIGHT_CACHE_AGE_MS = 72 * 60 * 60 * 1000; // 72hr — clear stale post-trip data
   if (!navigator.onLine) {
     const cached = readCache<Record<string, FlightStatus>>(cacheKey);
-    if (cached) setStatus(prev => ({ ...prev, ...cached.data }));
-    setLastUpdated(prev => ({ ...prev, [dateKey]: cached ? new Date(cached.cachedAt) : new Date() }));
+    const valid = cached && (Date.now() - cached.cachedAt) < MAX_FLIGHT_CACHE_AGE_MS;
+    if (valid) setStatus(prev => ({ ...prev, ...cached!.data }));
+    setLastUpdated(prev => ({ ...prev, [dateKey]: valid ? new Date(cached!.cachedAt) : new Date() }));
     setLoading(false);
     return;
   }
@@ -175,14 +178,16 @@ export default function MaineGuide() {
   // Phase 2: replace with trip ID from router when multi-trip support is added.
   const tripId: string = import.meta.env.VITE_TRIP_ID ?? "maine-2026";
   const { confirms, packing, setConfirm, setPacking, resetPacking,
-          itineraryOrder, customItems, timeOverrides, textOverrides, reservationTimes, initializeOrder, setDayOrder, moveItem,
+          itineraryOrder, customItems, timeOverrides, textOverrides, reservationTimes, initializeOrder, initializeConfirms, setDayOrder, moveItem,
           addCustomItem, deleteCustomItem, setTimeOverride, setTextOverride, updateCustomItem,
           setBookingField, bookingOverrides } = useSharedTripState(tripId);
   const addedPlaceIds = useAddedPlaceIds(data, customItems);
+  const { isOnline } = useConnectivityState();
   const { navigateToExplore } = useNavigation();
   const onExploreMore = useCallback(() => navigateToExplore({ filter: 'all' }), [navigateToExplore]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const confirmsSeededRef = useRef(false);
   const ACTIVE_STOP_KEY = "jernie_active_stop";
   const [active, setActive] = useState(() => {
     try { return localStorage.getItem(ACTIVE_STOP_KEY) || "portland"; } catch { return "portland"; }
@@ -191,10 +196,10 @@ export default function MaineGuide() {
     try { localStorage.setItem(ACTIVE_STOP_KEY, id); } catch { /* storage unavailable */ }
     setActive(id);
   };
-  const weatherData = useWeatherEnrichment(tripId, data?.stops ?? []);
+  const { weather: weatherData, cachedAtMap: weatherCachedAtMap } = useWeatherEnrichment(tripId, data?.stops ?? []);
   const [flightStatus, setFlightStatus] = useState<Record<string, FlightStatus>>({});
   const [flightLoading, setFlightLoading] = useState(false);
-  const [, setLastUpdated] = useState<Record<string, Date>>({});
+  const [lastUpdated, setLastUpdated] = useState<Record<string, Date>>({});
   const [travelOpen, setTravelOpen] = useState(true);
   const [eatOpen, setEatOpen] = useState(true);
   const [doOpen, setDoOpen] = useState(true);
@@ -311,12 +316,13 @@ export default function MaineGuide() {
   useEffect(() => {
     if (!data) return;
 
+    const MAX_FLIGHT_CACHE_AGE_MS = 72 * 60 * 60 * 1000;
     const flightInit: Record<string, FlightStatus> = {};
     const lastUpdatedInit: Record<string, Date> = {};
     const groups = deriveFlightGroups(data.bookings);
     Object.keys(groups).forEach(dk => {
       const c = readCache<Record<string, FlightStatus>>("jernie_flights_" + dk);
-      if (c) {
+      if (c && (Date.now() - c.cachedAt) < MAX_FLIGHT_CACHE_AGE_MS) {
         Object.assign(flightInit, c.data);
         lastUpdatedInit[dk] = new Date(c.cachedAt);
       }
@@ -328,6 +334,15 @@ export default function MaineGuide() {
         fetchFlightStatusGroupWithData(dateKey, group.flights, setFlightStatus, setFlightLoading, setLastUpdated);
       }
     });
+  }, [data]);
+
+  // Seed RTDB confirms for editorially-locked items once per session.
+  // get() reads authoritative RTDB before writing, so existing user values are never touched.
+  useEffect(() => {
+    if (!data || confirmsSeededRef.current) return;
+    confirmsSeededRef.current = true;
+    initializeConfirms(data.itinerary_items);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   useEffect(() => {
@@ -452,7 +467,7 @@ export default function MaineGuide() {
         </motion.div>
 
         <motion.div variants={contentSectionVariants}>
-          <WeatherStrip stop={stop} weatherData={weatherData}/>
+          <WeatherStrip stop={stop} weatherData={weatherData} cachedAt={weatherCachedAtMap[stop.id]} />
         </motion.div>
 
         {/* Travel & Accommodations */}
@@ -465,13 +480,14 @@ export default function MaineGuide() {
             rightSlot={hasFlights&&(
               <button onClick={(e)=>{
                 e.stopPropagation();
+                if (!isOnline) return;
                 const groups = deriveFlightGroups(stopBookings);
                 Object.entries(groups).forEach(([dk, g]) => {
                   fetchFlightStatusGroupWithData(dk, g.flights, setFlightStatus, setFlightLoading, setLastUpdated);
                 });
-              }} disabled={flightLoading}
-                style={{background:"transparent",border:"1px solid "+stopAccent+"50",borderRadius:"6px",padding:"3px 10px",fontSize:"0.72rem",color:stopAccent,cursor:flightLoading?"default":"pointer",opacity:flightLoading?0.5:1,fontFamily:Typography.family.sans}}>
-                {flightLoading?"Checking…":"↻ Refresh"}
+              }} disabled={flightLoading || !isOnline}
+                style={{background:"transparent",border:"1px solid "+stopAccent+"50",borderRadius:"6px",padding:"3px 10px",fontSize:"0.72rem",color:stopAccent,cursor:(flightLoading||!isOnline)?"default":"pointer",opacity:(flightLoading||!isOnline)?0.5:1,fontFamily:Typography.family.sans}}>
+                {flightLoading?"Checking…":(!isOnline?"Offline":"↻ Refresh")}
               </button>
             )}
           >
@@ -484,6 +500,7 @@ export default function MaineGuide() {
               flightLoading={flightLoading}
               onBookingExpand={handleBookingExpand}
               hotelEnrichmentMap={hotelEnrichmentMap}
+              flightLastUpdated={lastUpdated}
             />
           </CollapsibleSection>
         </motion.div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { ref, onValue, set, update } from "firebase/database";
+import { ref, onValue, set, update, get } from "firebase/database";
 import { db } from "../lib/firebase";
+import * as writeQueue from "../lib/writeQueue";
 import type { Booking, CustomItem, ItineraryDay, ItineraryItem } from "../types";
 
 // localStorage keys — used as offline cache only
@@ -12,35 +13,6 @@ const LS_TIME_OVERRIDES = "jernie_fb_time_overrides";
 const LS_TEXT_OVERRIDES = "jernie_fb_text_overrides";
 const LS_RESERVATION_TIMES = "jernie_fb_reservation_times";
 const LS_BOOKING_OVERRIDES = "jernie_fb_booking_overrides";
-
-// Write queue — survives page reloads while offline.
-// Firebase RTDB keeps its write queue in memory only; on page reload that queue
-// is destroyed. This queue persists writes to localStorage so they can be
-// replayed to Firebase when connectivity is restored after a reload.
-const LS_WRITE_QUEUE = "jernie_write_queue";
-
-type QueuedWrite = { path: string; value: unknown; ts: number };
-
-function readQueue(): QueuedWrite[] {
-  try { return JSON.parse(localStorage.getItem(LS_WRITE_QUEUE) || "[]"); }
-  catch { return []; }
-}
-function persistQueue(q: QueuedWrite[]) {
-  try { localStorage.setItem(LS_WRITE_QUEUE, JSON.stringify(q)); } catch { /* storage unavailable */ }
-}
-function enqueueWrite(path: string, value: unknown) {
-  const q = readQueue();
-  // Collapse duplicate paths — last local write wins
-  persistQueue([...q.filter(w => w.path !== path), { path, value, ts: Date.now() }]);
-}
-// Batch multiple path→value entries into a single localStorage read+write
-function batchEnqueue(entries: Record<string, unknown>) {
-  const paths = Object.keys(entries);
-  const ts = Date.now();
-  const q = readQueue().filter(w => !paths.includes(w.path));
-  persistQueue([...q, ...paths.map(p => ({ path: p, value: entries[p], ts }))]);
-}
-function clearQueue() { persistQueue([]); }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function readLS(key: string): any {
@@ -77,24 +49,6 @@ export function useSharedTripState(tripId: string) {
     const textRef = ref(db, `trips/${tripId}/state/text_overrides`);
     const resvRef = ref(db, `trips/${tripId}/state/reservation_times`);
     const bookingsRef = ref(db, `trips/${tripId}/state/bookings`);
-
-    // Flush any writes that were queued offline and survived a page reload.
-    // Firebase's in-memory write queue is destroyed on page reload; this replays
-    // those writes to the server as soon as connectivity is available.
-    const flushQueue = () => {
-      const q = readQueue();
-      if (!q.length) return;
-      const updates: Record<string, unknown> = {};
-      q.forEach(w => { updates[w.path] = w.value; });
-      update(ref(db), updates)
-        .then(clearQueue)
-        .catch(() => { /* still offline — queue stays, retries on next 'online' event */ });
-    };
-
-    if (navigator.onLine) {
-      flushQueue();
-    }
-    window.addEventListener("online", flushQueue);
 
     // null-guard: if snap.val() is null the path either doesn't exist yet OR
     // we're offline and Firebase hasn't sent data. In either case, keep the
@@ -156,7 +110,6 @@ export function useSharedTripState(tripId: string) {
     });
 
     return () => {
-      window.removeEventListener("online", flushQueue);
       unsubConfirms();
       unsubPacking();
       unsubOrder();
@@ -170,19 +123,18 @@ export function useSharedTripState(tripId: string) {
 
   function setConfirm(itemId: string, value: boolean) {
     const path = `trips/${tripId}/state/confirms/${itemId}`;
-    enqueueWrite(path, value);
+    writeQueue.enqueue(path, value);
     set(ref(db, path), value);
   }
 
   function setPack(itemId: string, value: boolean) {
     const path = `trips/${tripId}/state/packing/${itemId}`;
-    enqueueWrite(path, value);
+    writeQueue.enqueue(path, value);
     set(ref(db, path), value);
   }
 
   function resetPacking() {
-    // Full reset: clear the queue entries for packing too
-    persistQueue(readQueue().filter(w => !w.path.includes(`/state/packing`)));
+    writeQueue.removeWhere(w => w.path.includes(`/state/packing`));
     set(ref(db, `trips/${tripId}/state/packing`), null);
     setPacking({});
     writeLS(LS_PACKING, {});
@@ -201,7 +153,7 @@ export function useSharedTripState(tripId: string) {
   // Single-day reorder
   function setDayOrder(dayId: string, orderedIds: string[]) {
     const path = `trips/${tripId}/state/itinerary_order/${dayId}`;
-    enqueueWrite(path, orderedIds);
+    writeQueue.enqueue(path, orderedIds);
     set(ref(db, path), orderedIds);
   }
 
@@ -226,7 +178,7 @@ export function useSharedTripState(tripId: string) {
       updates[`trips/${tripId}/state/custom_items/${itemId}/day_id`] = toDayId;
     }
 
-    batchEnqueue(updates);
+    writeQueue.enqueueMany(updates);
     update(ref(db), updates);
   }
 
@@ -241,7 +193,7 @@ export function useSharedTripState(tripId: string) {
       [`trips/${tripId}/state/custom_items/${id}`]: item,
       [`trips/${tripId}/state/itinerary_order/${dayId}`]: currentOrder,
     };
-    batchEnqueue(updates);
+    writeQueue.enqueueMany(updates);
     update(ref(db), updates);
   }
 
@@ -252,17 +204,16 @@ export function useSharedTripState(tripId: string) {
       [`trips/${tripId}/state/itinerary_order/${dayId}`]: newOrder,
       [`trips/${tripId}/state/custom_items/${itemId}`]: null,
     };
-    // Remove any queued write for the deleted item; enqueue the new order
-    persistQueue(readQueue().filter(w => w.path !== `trips/${tripId}/state/custom_items/${itemId}`));
-    enqueueWrite(`trips/${tripId}/state/itinerary_order/${dayId}`, newOrder);
+    writeQueue.removeWhere(w => w.path === `trips/${tripId}/state/custom_items/${itemId}`);
+    writeQueue.enqueue(`trips/${tripId}/state/itinerary_order/${dayId}`, newOrder);
     update(ref(db), updates);
   }
 
   // Set or clear a keyed time field (time_overrides or reservation_times)
   function setTimePath(stateKey: string, itemId: string, time: string) {
     const path = `trips/${tripId}/state/${stateKey}/${itemId}`;
-    if (time) enqueueWrite(path, time);
-    else persistQueue(readQueue().filter(w => w.path !== path));
+    if (time) writeQueue.enqueue(path, time);
+    else writeQueue.removeWhere(w => w.path === path);
     set(ref(db, path), time || null);
   }
 
@@ -278,8 +229,8 @@ export function useSharedTripState(tripId: string) {
   // For CustomItems, prefer updateCustomItem({text}) instead — this is for ItineraryItems.
   function setTextOverride(itemId: string, text: string) {
     const path = `trips/${tripId}/state/text_overrides/${itemId}`;
-    if (text) enqueueWrite(path, text);
-    else persistQueue(readQueue().filter(w => w.path !== path));
+    if (text) writeQueue.enqueue(path, text);
+    else writeQueue.removeWhere(w => w.path === path);
     set(ref(db, path), text || null);
   }
 
@@ -290,24 +241,42 @@ export function useSharedTripState(tripId: string) {
     (Object.keys(patch) as (keyof typeof patch)[]).forEach(field => {
       updates[`trips/${tripId}/state/custom_items/${id}/${field}`] = patch[field] ?? null;
     });
-    batchEnqueue(updates);
+    writeQueue.enqueueMany(updates);
     update(ref(db), updates);
   }
 
   // Write a single field on a Booking record to Firebase.
   // Used by hotel check-in/out, room info, car type, rental dates, etc.
-  // Follows the exact same enqueueWrite + set(ref) pattern as setConfirm / setTimeOverride.
+  // Follows the exact same enqueue + set(ref) pattern as setConfirm / setTimeOverride.
   function setBookingField(bookingId: string, field: keyof Booking, value: string | null | boolean | Record<string, string | null>) {
     const path = `trips/${tripId}/state/bookings/${bookingId}/${String(field)}`;
-    enqueueWrite(path, value);
+    writeQueue.enqueue(path, value);
     set(ref(db, path), value);
+  }
+
+  // Seed RTDB confirms for items that were editorially locked in trip.json.
+  // Safe to call on every session — uses get() to read current RTDB state first,
+  // then update() (partial write) to fill only absent keys. Never overwrites user values.
+  async function initializeConfirms(items: ItineraryItem[]) {
+    const confirmsRef = ref(db, `trips/${tripId}/state/confirms`);
+    const snap = await get(confirmsRef);
+    const existing: Record<string, boolean> = snap.val() ?? {};
+    const seed: Record<string, boolean> = {};
+    items
+      .filter(it => !!(it as ItineraryItem).locked)
+      .forEach(it => {
+        if (!(it.id in existing)) seed[it.id] = true;
+      });
+    if (Object.keys(seed).length > 0) {
+      await update(ref(db, `trips/${tripId}/state/confirms`), seed);
+    }
   }
 
   return {
     confirms, packing, setConfirm, setPacking: setPack, resetPacking,
     itineraryOrder, customItems, timeOverrides, textOverrides, reservationTimes,
     bookingOverrides,
-    initializeOrder, setDayOrder, moveItem, addCustomItem, deleteCustomItem,
+    initializeOrder, initializeConfirms, setDayOrder, moveItem, addCustomItem, deleteCustomItem,
     setTimeOverride, setTextOverride, setReservationTime, setBookingField,
     updateCustomItem,
   };
