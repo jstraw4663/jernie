@@ -144,27 +144,41 @@ export function RentalCard({ booking, returnBooking, stop, onExpand }: RentalCar
           </div>
           <div>
             <div style={{
-              fontSize: 13,
-              fontWeight: Typography.weight.bold,
-              color: '#ffffff',
-              fontFamily: Typography.family.sans,
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 5,
+              flexWrap: 'wrap' as const,
               lineHeight: 1.2,
             }}>
-              Rental Car
-            </div>
-            {carLabel && (
-              <div style={{
-                fontSize: 9,
-                fontWeight: Typography.weight.medium,
-                color: 'rgba(255,255,255,0.5)',
+              <span style={{
+                fontSize: 13,
+                fontWeight: Typography.weight.bold,
+                color: '#ffffff',
                 fontFamily: Typography.family.sans,
-                textTransform: 'uppercase' as const,
-                letterSpacing: '0.08em',
-                marginTop: 2,
               }}>
-                {carLabel}
-              </div>
-            )}
+                Rental Car
+              </span>
+              {carLabel && (
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: Typography.weight.regular,
+                  color: 'rgba(255,255,255,0.65)',
+                  fontFamily: Typography.family.sans,
+                }}>
+                  {carLabel}
+                </span>
+              )}
+            </div>
+            <div style={{
+              fontSize: 9,
+              fontWeight: Typography.weight.medium,
+              color: 'rgba(255,255,255,0.55)',
+              fontFamily: Typography.family.sans,
+              letterSpacing: '0.04em',
+              marginTop: 2,
+            }}>
+              {stop.city}
+            </div>
           </div>
         </div>
 

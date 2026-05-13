@@ -23,6 +23,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NavigationContext } from '../contexts/NavigationContext';
+import { useConnectivityState } from '../contexts/ConnectivityContext';
 import { navigation } from '../navigation';
 import type { ExploreDeepLink, JernieDeepLink } from '../navigation';
 import MaineGuide from '../Jernie-PWA';
@@ -30,6 +31,7 @@ import { ExploreScreen } from '../features/explore/ExploreScreen';
 import { OverviewScreen } from '../features/overview/OverviewScreen';
 import { PinGate } from './PinGate';
 import { BottomBar } from './BottomBar';
+import { OfflineBanner } from './OfflineBanner';
 import type { TabId, BottomBarTab } from './BottomBar';
 import {
   IconClipboard,
@@ -203,6 +205,8 @@ export function AppShell() {
   }
 
   const ActiveScreen = TABS.find(t => t.id === activeTab)!.screen;
+  const { isOnline, wasOffline } = useConnectivityState();
+  const showOfflineBanner = !isOnline || wasOffline;
 
   return (
     <NavigationContext.Provider value={navContextValue}>
@@ -216,6 +220,8 @@ export function AppShell() {
         overflow: 'hidden',
       }}
     >
+      {showOfflineBanner && <OfflineBanner />}
+
       {/* Screen area — fills all space above the nav bar.
           overflow:hidden + position:relative creates the containing block for
           each screen's position:absolute scroll container. */}

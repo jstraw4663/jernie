@@ -1,7 +1,7 @@
 # Jernie — Dev Context
 
 > Operational hub. Detailed context lives in supporting docs — load them only when the task requires.
-> Last updated: May 13, 2026 — v0.7.4
+> Last updated: May 13, 2026 — v0.7.5
 
 ---
 
@@ -38,17 +38,23 @@ APIs: Open-Meteo (weather, 3hr cache) · Anthropic + web_search (flight status, 
 | `src/domain/airports.ts` | Airport code → name/city mapping |
 | `src/domain/geo.ts` | Haversine distance helpers |
 | `src/domain/hike.ts` | Hike difficulty/stat formatting helpers |
-| `src/hooks/useSharedTripState.ts` | Firebase RTDB sync + offline write queue (critical — read before editing) |
+| `src/hooks/useSharedTripState.ts` | Firebase RTDB sync — delegates write queue to `src/lib/writeQueue.ts` |
+| `src/hooks/useConnectivity.ts` | `{ isOnline, wasOffline }` — listens to online/offline events; React Native: swap window events for NetInfo |
 | `src/hooks/useTripData.ts` | Lightweight trip data access |
-| `src/hooks/useFirestoreEnrichment.ts` | Generic Firestore TTL-cache hook (backing place + trail enrichment) |
+| `src/hooks/useFirestoreEnrichment.ts` | Generic Firestore TTL-cache hook — session-guarded via `refreshScheduler`; skips external API when offline |
 | `src/hooks/usePlaceEnrichment.ts` | Google Places enrichment per stop (ratings, photos, hours, reviews) |
 | `src/hooks/useTrailEnrichment.ts` | Trail enrichment per stop (elevation, route type, dogs, features) |
 | `src/hooks/useBookingEnrichment.ts` | User-editable booking fields from RTDB (check-in/out, room type, car type) |
 | `src/lib/firebase.ts` | Firebase init — RTDB, Firestore, App Check, `authReady` promise |
+| `src/lib/writeQueue.ts` | Persistent offline write queue — module-level singleton; `enqueue/enqueueMany/removeWhere/flush/subscribe`; React Native: swap localStorage in readRaw/persistRaw only |
+| `src/lib/refreshScheduler.ts` | Session-level Firestore read guard — `shouldReadFirestore/markRead/invalidate`; 30min debounce prevents redundant `getDocs()` on tab remount |
+| `src/utils/cacheAge.ts` | `formatCacheAge(cachedAt)` — pure formatter, zero deps, identical in React Native |
 | `src/navigation.ts` | Module-level one-shot Explore deep-link signal + `FilterId` / `ExploreDeepLink` types |
 | `src/contexts/NavigationContext.tsx` | `navigateToExplore(link)` context — AppShell provides, any screen consumes via `useNavigation()` |
 | `src/contexts/SheetContext.tsx` | Tracks open sheet count; StopNavigator consults before drag |
+| `src/contexts/ConnectivityContext.tsx` | `ConnectivityProvider` + `useConnectivityState()` — provides `{ isOnline, wasOffline, pendingWriteCount }`; owns queue flush on reconnect |
 | `src/contexts/TripThemeContext.tsx` | `TripThemeProvider` + `useTripTheme()` hook — delivers stop/trip color theme to Jernie tab components; `getStopTheme()` standalone helper for Overview |
+| `src/components/OfflineBanner.tsx` | Persistent offline banner below sticky nav — shows on `!isOnline` or `wasOffline`; amber=offline, green=reconnecting |
 | `src/design/tripPacks.ts` | Trip/stop color data (`TRIP_PACKS`) — source of truth for per-stop accent colors; add new trips here, not in trip.json |
 | `src/components/ItineraryBadge.tsx` | Shared gold-checkmark / blue-plus badge — used by RestaurantCard, ActivityCard, PlaceCarouselCard |
 | `src/features/entityDetail/` | Full-height detail sheets — place, hike, hotel, flight, booking, rental car |
@@ -114,11 +120,14 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 
 ## Operational Principles
 
-- **Offline-first:** all UI works offline; live data (weather, flight) shows last-cached value + timestamp
+- **Offline-first:** all UI works offline; live data (weather, flight) shows last-cached value + timestamp. `OfflineBanner` appears below sticky nav when offline; pending writes shown as count. `ConnectivityContext` owns flush-on-reconnect.
+- **Cache hierarchy (Firestore-first):** detail sheet → Firestore (persistent IndexedDB, instant, works offline) → external API via Netlify function (only if missing or stale) → write back with `cached_at`. TTL schedule: weather 3h, place/hotel enrichment 24h, trail 30d, flight localStorage 72h. Session guard (`refreshScheduler`) prevents redundant `getDocs()` on tab remount (30min debounce). `useFirestoreEnrichment` skips external API call when `!navigator.onLine`.
+- **Write queue:** all RTDB writes go through `writeQueue.enqueue/enqueueMany` in `src/lib/writeQueue.ts`. Queue persists to localStorage (`jernie_write_queue`). React Native migration: swap storage adapter in `readRaw`/`persistRaw` only. Do not use direct `localStorage` for write queuing — always use the module.
 - **Token-driven:** all colors, spacing, animation via `src/design/tokens.ts` — no hardcoded hex
 - **Scroll-reveal:** every discrete card or list item below the fold must be wrapped in `<ScrollReveal>` — this is a design language rule, not optional polish. Screens with a custom `overflow:auto` scroll container (Overview, Explore, any non-window scroll) must pass `root={scrollRef}` and `margin="80px"` to `<ScrollReveal>` and `scrollRoot`/`revealMargin` to `<PlaceList>` — without `root`, the IO uses the browser viewport and fires on mount for all elements
 - **mountFrames:** any component that mounts then animates in must chain `Animation.mountFrames` RAF calls before setting visible state — see `BottomSheet.tsx` for the pattern
 - **Safe-area top:** every screen's sticky header must start with `<div style={{ height: 'env(safe-area-inset-top, 0px)' }} />` as its first child — content begins below the notch, same visual position as the compact date above the Jernie tab title. See `StickyHeader.tsx:90` and `ExploreScreen.tsx` for the pattern.
+- **Safe-area bottom (BottomBar):** `env(safe-area-inset-bottom)` is ~34px on modern iPhones (home indicator). The BottomBar caps this at 5px via `min(env(safe-area-inset-bottom, 0px), 5px)` in `src/index.css` under `@media (display-mode: standalone)` — this only applies in PWA mode; Safari browser handles the safe area implicitly through the visual viewport. If moving or replacing the BottomBar, update both the `.bottom-bar-shell` padding rule in `index.css` AND the `OfflineBanner` bottom calc in `OfflineBanner.tsx` (which mirrors the same cap so the banner stays flush above the nav). The full `env(safe-area-inset-bottom)` (~34px) is Apple's recommended clearance; 5px is intentionally aggressive but tested and looks correct on device.
 - **authReady:** all Firestore operations must await `authReady` from `src/lib/firebase.ts` before making any calls — prevents permission errors on first load before anonymous auth token propagates.
 - **NavigationContext:** cross-tab navigation (e.g., Overview → Explore with filter) uses `useNavigation()` from `NavigationContext.tsx`; the one-shot payload travels via `navigation.ts` module state (safe because Explore remounts on tab switch via AnimatePresence key).
 - **ItineraryBadge:** use `<ItineraryBadge>` from `components/ItineraryBadge.tsx` for all add-to-itinerary / view-detail badges; never inline badge button logic in card components.
@@ -134,17 +143,18 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 
 ## Current Status & Known Issues
 
-- **v0.7.4 (in progress):** FlightGroupCard + HotelGroupCard + RentalCard — stop-grouped consolidated cards replacing per-booking cards; `Stop.accent` removed from type and trip.json, all color resolution now via `resolveStopColor(stop)` in `tripPacks.ts`; `StopBookingGroup` unified interface + `groupBookingsByStop` shared factory in selectors; `buildHotelDetailConfig` StayTimeline + AmenityPills; `buildRentalCarDetailConfig` JourneyTimeline, VehicleCard, Call/Navigate/Manage quick actions; `brandSupportPhone`/`brandAccountUrl`/`brandShortName` in brandAssets; `titleLogoUrl`/`externalUrlLabel` in DetailConfig; `pillVariant=soft` on DateTimeRangeModule; hotel amenities from Google Places API
+- **v0.7.5 shipped:** Issue #80 — offline-first cache engine; `writeQueue.ts` portable queue module (replaces inline impl in `useSharedTripState`); `refreshScheduler.ts` 30-min session debounce for Firestore reads; `useConnectivity.ts` + `ConnectivityContext` + `OfflineBanner`; `cacheAge.ts` + "Updated X ago" on WeatherStrip + "Checked X ago" on FlightGroupCard; flight refresh button shows "Offline" when disconnected; `navigator.onLine` guard in `useFirestoreEnrichment`; `initializeConfirms()` seeds RTDB confirms for locked itinerary items; HotelGroupCard header "Stays" + inline room count + city subtitle; RentalCard car label inline + city subtitle; FlightGroupCard timeline row restructure + gate info + airline logo; 2 new trip.json places (Lucky Catch Lobstering, Glisten Oyster Farm); `booking_id` wired on 7 itinerary items
+- **v0.7.4 shipped:** FlightGroupCard + HotelGroupCard + RentalCard — stop-grouped consolidated cards replacing per-booking cards; `Stop.accent` removed from type and trip.json, all color resolution now via `resolveStopColor(stop)` in `tripPacks.ts`; `StopBookingGroup` unified interface + `groupBookingsByStop` shared factory in selectors; `buildHotelDetailConfig` StayTimeline + AmenityPills; `buildRentalCarDetailConfig` JourneyTimeline, VehicleCard, Call/Navigate/Manage quick actions; `brandSupportPhone`/`brandAccountUrl`/`brandShortName` in brandAssets; `titleLogoUrl`/`externalUrlLabel` in DetailConfig; `pillVariant=soft` on DateTimeRangeModule; hotel amenities from Google Places API
 - **v0.7.3 shipped:** TimelineItem redesign — CTA state machine (Confirm/Details/Navigate per trip phase + confirmed status); ConfirmTimeSheet + NavigationSelectorSheet new components; ActionIcons SVGs; mapNavigation util extracted from QuickActions; EditableItinerary slot-group headers + requestOpenDayId/requestScrollToItemId deep-link from Overview; PlaceMetaRow compact StarRating + subcategory; DayCard safe-area-aware scrollMarginTop
 - **v0.7.2 shipped:** detail sheet rating/price in title area; `phone` removed from `Place` schema + all trip.json places; `addr` kept for hike trailheads only; data split enforced (editorial in trip.json, operational in Firestore)
 - **v0.7.1 shipped:** 5-layer color token refactor — `Brand/Core/Semantic/TypeColors` in `tokens.ts`; Maine trip pack in `tripPacks.ts`; `TripThemeContext` + `useTripTheme()`; stop accent colors wired through StopsBar, TimelineItem, FloatingAddCTA, OverviewScreen
 - **v0.7.0 shipped:** StopsBar/Trailhead (trail line, carved pill, scaling nodes); trail photos from AllTrails og:image (scraped on first enrichment, 30-day cache); FloatingAddCTA + QuickActions in EntityDetail; design system refresh across all components; flat shared Firestore enrichment; eager batch enrichment
 - **v0.6.0 shipped:** Overview itinerary-only restaurant/activity filter; Overview → Explore deep-link navigation; Explore stop-filter pill row + carousel badge; Jernie tab 5-item cap + Explore More buttons; ItineraryBadge shared component; NavigationContext
 - **v0.5.0 shipped:** Explore screen, EntityDetail system, enrichment pipeline, security hardening, PIN persistence fix
+- **v1-Maine feature scope: COMPLETE** — Overview (#87), Search & Add / custom items (#43), drag-reorder (#63), offline engine (#80) all shipped; only open items are 2 tracked bugs below
 - **V1-Maine target:** May 15, 2026
 - **Bug 2 (deferred):** timeline node circles show correct stop accent color but white icon is missing — `NodeIcon` rendering needs investigation; likely `EntryIcon` kind discriminant not reached for the node icon path in `TimelineItem.tsx`
 - **Bug 1 (deferred):** colored bar visible at bottom of all screens on iOS (viewport-fit=cover)
-- **No offline state indicator:** silent failure when refresh attempted without network
 - **Flight status dedup:** navigating between stops can re-trigger fetches despite 48hr guard
 
 ---

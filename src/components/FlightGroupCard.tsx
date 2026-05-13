@@ -2,8 +2,10 @@ import type { Booking, Group, Stop } from '../types';
 import type { FlightStatus } from '../domain/trip';
 import { parseFlightTime, flightDuration, layoverDuration } from '../domain/trip';
 import { Icons } from '../design/icons';
-import { Colors, Semantic, Typography, Spacing, Radius, Shadow } from '../design/tokens';
+import { Colors, Semantic, Typography, Spacing, Radius, Shadow, Core } from '../design/tokens';
 import { resolveStopColor } from '../design/tripPacks';
+import { formatCacheAge } from '../utils/cacheAge';
+import { airlineLogoUrl, iataFromFlightNum } from '../features/entityDetail/brandAssets';
 
 export interface FlightGroupCardProps {
   bookings: Booking[];
@@ -12,6 +14,7 @@ export interface FlightGroupCardProps {
   flightStatus: Record<string, FlightStatus>;
   flightLoading?: boolean;
   onExpand?: (booking: Booking, rect: DOMRect) => void;
+  lastUpdated?: Record<string, Date>;
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -96,7 +99,11 @@ function StatusChip({ status }: { status: string }) {
 
 // ── FlightTimeline — full CSS-grid horizontal timeline ────────
 
-function FlightTimeline({ flights, accent }: { flights: NonNullable<Booking['flights']>; accent: string }) {
+function FlightTimeline({ flights, accent, flightStatus }: {
+  flights: NonNullable<Booking['flights']>;
+  accent: string;
+  flightStatus?: Record<string, FlightStatus> | null;
+}) {
   const isConnecting = flights.length > 1;
   const allIatas: string[] = [flights[0].route.split(' → ')[0]];
   for (const f of flights) allIatas.push(f.route.split(' → ')[1]);
@@ -114,41 +121,18 @@ function FlightTimeline({ flights, accent }: { flights: NonNullable<Booking['fli
     <div style={{
       display: 'grid',
       gridTemplateColumns,
-      gridTemplateRows: '16px auto auto',
+      gridTemplateRows: 'auto auto auto',
       alignItems: 'center',
       justifyItems: 'center',
-      rowGap: 3,
+      rowGap: 4,
     }}>
-      {/* Row 1: duration labels above each segment */}
-      {flights.map((f, i) => [
-        <div key={`r1-node-${i}`} />,
-        <div key={`r1-seg-${i}`} style={{
-          fontSize: Typography.size.xs, color: Colors.textMuted,
-          fontFamily: Typography.family.sans, whiteSpace: 'nowrap' as const,
-        }}>
-          {flightDuration(f.dep, f.arr)}
-        </div>,
-      ]).flat()}
-      <div key="r1-node-last" />
-
-      {/* Row 2: dots + lines */}
-      {flights.map((_f, i) => {
-        const isFirst = i === 0;
-        const isLast = i === flights.length - 1;
-        return [
-          <Dot key={`r2-dot-${i}`} accent={accent} />,
-          <HLine key={`r2-line-${i}`} accent={accent} takeoff={isFirst} landing={isLast} />,
-        ];
-      }).flat()}
-      <Dot key="r2-dot-last" accent={accent} />
-
-      {/* Row 3: IATA codes, fn-pills, layover labels */}
+      {/* Row 1: IATA codes (nodes) + duration labels (tracks) */}
       {flights.map((f, i) => {
         const iata = allIatas[i];
         const isMiddle = isConnecting && i > 0;
         const layover = isMiddle ? layoverDuration(flights[i - 1].arr, f.dep) : null;
         return [
-          <div key={`r3-node-${i}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+          <div key={`r1-node-${i}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
             <div style={{
               fontSize: Typography.size.xs + 1,
               fontWeight: Typography.weight.bold,
@@ -163,15 +147,49 @@ function FlightTimeline({ flights, accent }: { flights: NonNullable<Booking['fli
               </div>
             )}
           </div>,
-          <FnPill key={`r3-seg-${i}`} num={f.num} />,
+          <div key={`r1-seg-${i}`} style={{
+            fontSize: Typography.size.xs, color: Colors.textMuted,
+            fontFamily: Typography.family.sans, whiteSpace: 'nowrap' as const,
+          }}>
+            {flightDuration(f.dep, f.arr)}
+          </div>,
         ];
       }).flat()}
-      <div key="r3-node-last" style={{
+      <div key="r1-node-last" style={{
         fontSize: Typography.size.xs + 1, fontWeight: Typography.weight.bold,
         color: Colors.textPrimary, fontFamily: Typography.family.sans,
       }}>
         {allIatas[allIatas.length - 1]}
       </div>
+
+      {/* Row 2: dots + lines */}
+      {flights.map((_f, i) => {
+        const isFirst = i === 0;
+        const isLast = i === flights.length - 1;
+        return [
+          <Dot key={`r2-dot-${i}`} accent={accent} />,
+          <HLine key={`r2-line-${i}`} accent={accent} takeoff={isFirst} landing={isLast} />,
+        ];
+      }).flat()}
+      <Dot key="r2-dot-last" accent={accent} />
+
+      {/* Row 3: gate info (nodes) + FnPill (tracks) */}
+      {flights.map((f, i) => {
+        const gate = flightStatus?.[f.key]?.gate ?? null;
+        return [
+          <div key={`r3-node-${i}`} style={{
+            fontSize: 9,
+            fontWeight: gate ? Typography.weight.semibold : Typography.weight.regular,
+            color: gate ? accent : Colors.textMuted,
+            fontFamily: Typography.family.sans,
+            whiteSpace: 'nowrap' as const,
+          }}>
+            {gate ? `Gate ${gate}` : 'Gate —'}
+          </div>,
+          <FnPill key={`r3-seg-${i}`} num={f.num} />,
+        ];
+      }).flat()}
+      <div key="r3-node-last" />
     </div>
   );
 }
@@ -185,6 +203,7 @@ export function FlightGroupCard({
   flightStatus,
   flightLoading,
   onExpand,
+  lastUpdated,
 }: FlightGroupCardProps) {
   const accent = resolveStopColor(stop);
 
@@ -192,7 +211,13 @@ export function FlightGroupCard({
     .filter(b => b.flights?.length)
     .sort((a, b) => parseFlightTime(a.flights![0].dep) - parseFlightTime(b.flights![0].dep));
 
-  // Use the first sorted flight for the header time + date
+  // Derive last-checked timestamp from the earliest booking's dateKey
+  const firstDateKey = sorted[0]?.flights?.[0]?.date
+    ? new Date(sorted[0].flights![0].date).toISOString().split('T')[0]
+    : null;
+  const lastChecked = firstDateKey ? lastUpdated?.[firstDateKey] : undefined;
+
+  // Earliest departure across all bookings for the header
   const firstFlightDep = sorted[0]?.flights?.[0]?.dep ?? null;
   // Date format from trip.json: "May 22 2026" — strip the year for display
   const firstFlightDate = (sorted[0]?.flights?.[0]?.date ?? null)?.replace(/\s+\d{4}$/, '') ?? null;
@@ -217,23 +242,38 @@ export function FlightGroupCard({
           <Icons.Flight size={16} color="rgba(255,255,255,0.65)" weight="duotone" />
           <div style={{ minWidth: 0 }}>
             <div style={{
-              fontSize: 15,
-              fontWeight: Typography.weight.bold,
-              color: '#ffffff',
-              fontFamily: Typography.family.sans,
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 5,
+              flexWrap: 'wrap' as const,
               lineHeight: 1.2,
             }}>
-              Flights
+              <span style={{
+                fontSize: 15,
+                fontWeight: Typography.weight.bold,
+                color: '#ffffff',
+                fontFamily: Typography.family.sans,
+              }}>
+                Flights
+              </span>
+              <span style={{
+                fontSize: 11,
+                fontWeight: Typography.weight.regular,
+                color: 'rgba(255,255,255,0.65)',
+                fontFamily: Typography.family.sans,
+              }}>
+                {n} {n === 1 ? 'Booking' : 'Bookings'}
+              </span>
             </div>
             <div style={{
               fontSize: 9,
-              fontWeight: Typography.weight.bold,
+              fontWeight: Typography.weight.medium,
               color: 'rgba(255,255,255,0.55)',
               fontFamily: Typography.family.sans,
-              textTransform: 'uppercase' as const,
-              letterSpacing: '0.1em',
+              letterSpacing: '0.04em',
+              marginTop: 2,
             }}>
-              {n} {n === 1 ? 'Booking' : 'Bookings'}
+              {stop.city}
             </div>
           </div>
         </div>
@@ -248,7 +288,7 @@ export function FlightGroupCard({
                 fontFamily: Typography.family.sans,
                 whiteSpace: 'nowrap' as const,
               }}>
-                {firstFlightDep}
+                {fmt(firstFlightDep)}
               </div>
             )}
             {firstFlightDate && (
@@ -278,6 +318,8 @@ export function FlightGroupCard({
           : null;
         const statusEntry = flightStatus[firstFlight.key];
         const status = !flightLoading ? statusEntry?.status : null;
+        const iata = iataFromFlightNum(firstFlight.num);
+        const logoUrl = airlineLogoUrl(iata);
 
         return (
           <div
@@ -291,43 +333,72 @@ export function FlightGroupCard({
               cursor: onExpand ? 'pointer' : 'default',
             }}
           >
-            {/* Group label */}
-            {groupName && (
-              <div style={{
-                fontSize: 9,
-                fontWeight: Typography.weight.bold,
-                color: accent,
-                fontFamily: Typography.family.sans,
-                textTransform: 'uppercase' as const,
-                letterSpacing: '0.1em',
-                marginBottom: 8,
-              }}>
-                {groupName}
-              </div>
-            )}
-
-            {/* Horizontal timeline */}
-            <FlightTimeline flights={flights} accent={accent} />
-
-            {/* Info footer: times · airline · status */}
+            {/* Row: group name (left) + trip time range (right) */}
             <div style={{
               display: 'flex',
-              alignItems: 'center',
               justifyContent: 'space-between',
-              marginTop: 8,
+              alignItems: 'center',
+              marginBottom: 6,
             }}>
+              {groupName ? (
+                <div style={{
+                  fontSize: 9,
+                  fontWeight: Typography.weight.bold,
+                  color: accent,
+                  fontFamily: Typography.family.sans,
+                  textTransform: 'uppercase' as const,
+                  letterSpacing: '0.1em',
+                }}>
+                  {groupName}
+                </div>
+              ) : <div />}
               <div style={{
                 fontSize: Typography.size.xs,
                 color: Colors.textMuted,
                 fontFamily: Typography.family.sans,
+                whiteSpace: 'nowrap' as const,
               }}>
-                {fmt(firstFlight.dep)} – {fmt(lastFlight.arr)} · {firstFlight.airline}
+                {fmt(firstFlight.dep)} – {fmt(lastFlight.arr)}
               </div>
-              {status && <StatusChip status={status} />}
             </div>
+
+            {/* Airline logo */}
+            {logoUrl && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
+                <img
+                  src={logoUrl}
+                  alt={firstFlight.airline}
+                  style={{ height: 18, width: 'auto', display: 'block' }}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
+            )}
+
+            <FlightTimeline flights={flights} accent={accent} flightStatus={flightStatus} />
+
+            {/* Status chip */}
+            {status && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                <StatusChip status={status} />
+              </div>
+            )}
           </div>
         );
       })}
+
+      {/* Cache timestamp footer */}
+      {lastChecked && (
+        <div style={{
+          borderTop: `1px solid ${Colors.border}`,
+          padding: '6px 14px',
+          textAlign: 'right',
+          fontSize: 11,
+          color: Core.textFaint,
+          fontFamily: Typography.family.sans,
+        }}>
+          Checked {formatCacheAge(lastChecked.getTime())}
+        </div>
+      )}
     </div>
   );
 }
