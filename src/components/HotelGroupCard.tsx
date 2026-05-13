@@ -81,23 +81,38 @@ export function HotelGroupCard({ bookings, stop, groups, enrichmentMap, onExpand
           <Icons.Hotel size={16} color="rgba(255,255,255,0.65)" weight="duotone" />
           <div style={{ minWidth: 0 }}>
             <div style={{
-              fontSize: 15,
-              fontWeight: Typography.weight.bold,
-              color: '#ffffff',
-              fontFamily: Typography.family.sans,
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 5,
+              flexWrap: 'wrap' as const,
               lineHeight: 1.2,
             }}>
-              Accommodations
+              <span style={{
+                fontSize: 15,
+                fontWeight: Typography.weight.bold,
+                color: '#ffffff',
+                fontFamily: Typography.family.sans,
+              }}>
+                Stays
+              </span>
+              <span style={{
+                fontSize: 11,
+                fontWeight: Typography.weight.regular,
+                color: 'rgba(255,255,255,0.65)',
+                fontFamily: Typography.family.sans,
+              }}>
+                {bookings.length} {bookings.length === 1 ? 'Room' : 'Rooms'}
+              </span>
             </div>
             <div style={{
               fontSize: 9,
-              fontWeight: Typography.weight.bold,
+              fontWeight: Typography.weight.medium,
               color: 'rgba(255,255,255,0.55)',
               fontFamily: Typography.family.sans,
-              textTransform: 'uppercase' as const,
-              letterSpacing: '0.1em',
+              letterSpacing: '0.04em',
+              marginTop: 2,
             }}>
-              {bookings.length} {bookings.length === 1 ? 'Room' : 'Rooms'}
+              {stop.city}
             </div>
           </div>
         </div>

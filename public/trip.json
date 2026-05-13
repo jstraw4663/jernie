@@ -454,6 +454,7 @@
       "tide_url": null,
       "booking_url": null,
       "category": "travel",
+      "booking_id": "book-portland-car",
       "place_id": null
     },
     {
@@ -469,6 +470,7 @@
       "tide_url": null,
       "booking_url": null,
       "category": "lodging",
+      "booking_id": "book-portland-hotel-jj",
       "place_id": null
     },
     {
@@ -559,7 +561,7 @@
       "tide_url": null,
       "booking_url": null,
       "category": "activity",
-      "place_id": null
+      "place_id": "place-portland-a-08"
     },
     {
       "id": "item-portland-2-4",
@@ -664,7 +666,7 @@
       "tide_url": null,
       "booking_url": null,
       "category": "activity",
-      "place_id": null
+      "place_id": "place-portland-a-09"
     },
     {
       "id": "item-portland-3-5",
@@ -679,6 +681,7 @@
       "tide_url": null,
       "booking_url": null,
       "category": "lodging",
+      "booking_id": "book-barharbor-hotel-jj",
       "place_id": null
     },
     {
@@ -724,6 +727,7 @@
       "tide_url": null,
       "booking_url": null,
       "category": "lodging",
+      "booking_id": "book-barharbor-hotel-jj",
       "place_id": null
     },
     {
@@ -859,7 +863,7 @@
       "tide_url": null,
       "booking_url": null,
       "category": "activity",
-      "place_id": null
+      "place_id": "place-barharbor-a-09"
     },
     {
       "id": "item-barharbor-3-1",
@@ -1009,6 +1013,7 @@
       "tide_url": null,
       "booking_url": null,
       "category": "lodging",
+      "booking_id": "book-swh-hotel-jj",
       "place_id": null
     },
     {
@@ -1159,6 +1164,7 @@
       "tide_url": null,
       "booking_url": null,
       "category": "lodging",
+      "booking_id": "book-swh-hotel-jj",
       "place_id": null
     },
     {
@@ -1174,6 +1180,7 @@
       "tide_url": null,
       "booking_url": null,
       "category": "travel",
+      "booking_id": "book-swh-car-dropoff",
       "place_id": null
     },
     {
@@ -1189,6 +1196,7 @@
       "tide_url": null,
       "booking_url": null,
       "category": "travel",
+      "booking_id": "book-swh-flights-sjf",
       "place_id": null
     },
     {
@@ -1204,6 +1212,7 @@
       "tide_url": null,
       "booking_url": null,
       "category": "travel",
+      "booking_id": "book-swh-flights-jj",
       "place_id": null
     },
     {
@@ -1635,6 +1644,48 @@
       "rating": null,
       "source": "community",
       "attribution_handle": "stacy",
+      "group_ids": null,
+      "flag": null,
+      "price": null,
+      "difficulty": null,
+      "duration": null,
+      "distance": null,
+      "photo_url": null
+    },
+    {
+      "id": "place-portland-a-08",
+      "stop_id": "portland",
+      "category": "activity",
+      "subcategory": "cruise",
+      "name": "Lucky Catch Lobstering Cruise",
+      "emoji": "🦞",
+      "note": "90-minute working lobster boat — you haul the traps yourself. Portland Lobster Co. cooks your catch right on the dock afterward. Boards at 170 Commercial St. Book online — fills up fast in season.",
+      "url": "https://www.luckycatch.com",
+      "must": true,
+      "rating": null,
+      "source": "guide",
+      "attribution_handle": null,
+      "group_ids": null,
+      "flag": null,
+      "price": null,
+      "difficulty": null,
+      "duration": "90 min",
+      "distance": null,
+      "photo_url": null
+    },
+    {
+      "id": "place-portland-a-09",
+      "stop_id": "portland",
+      "category": "activity",
+      "subcategory": "farm-tour",
+      "name": "Glisten Oyster Farm",
+      "emoji": "🦪",
+      "note": "Small oyster farm with on-site tasting on the Damariscotta River, right off Route 1 — perfect midway stop on the Portland → Bar Harbor drive. Call ahead to confirm hours; they can be variable.",
+      "url": null,
+      "must": false,
+      "rating": null,
+      "source": "guide",
+      "attribution_handle": null,
       "group_ids": null,
       "flag": null,
       "price": null,

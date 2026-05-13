@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { collection, getDocs, setDoc, doc } from 'firebase/firestore';
 import { authReady, firestore } from '../lib/firebase';
+import { shouldReadFirestore, markRead } from '../lib/refreshScheduler';
 
 interface EnrichmentOptions<E extends { id: string }> {
   /** Top-level Firestore collection name, e.g. 'place_enrichment' or 'trail_enrichment' */
@@ -58,23 +59,30 @@ export function useFirestoreEnrichment<T extends { cached_at: number }, E extend
         : collection(firestore, options.rootCollection);
       const inflightPrefix = scoped ? `${tripId}:${options.rootCollection}` : options.rootCollection;
 
-      let snapshot;
-      try {
-        snapshot = await getDocs(colRef);
-      } catch (err) {
-        console.warn(`[${options.label}] Firestore read failed:`, err);
-        return;
-      }
-      if (cancelled) return;
+      let firestoreMap: Record<string, T> = {};
 
-      const firestoreMap: Record<string, T> = {};
-      snapshot.forEach(docSnap => {
-        firestoreMap[docSnap.id] = docSnap.data() as T;
-      });
+      if (shouldReadFirestore(inflightPrefix)) {
+        let snapshot;
+        try {
+          snapshot = await getDocs(colRef);
+        } catch (err) {
+          console.warn(`[${options.label}] Firestore read failed:`, err);
+          return;
+        }
+        if (cancelled) return;
 
-      if (Object.keys(firestoreMap).length > 0) {
-        setEnrichmentMap(prev => ({ ...prev, ...firestoreMap }));
+        snapshot.forEach(docSnap => {
+          firestoreMap[docSnap.id] = docSnap.data() as T;
+        });
+
+        markRead(inflightPrefix);
+
+        if (Object.keys(firestoreMap).length > 0) {
+          setEnrichmentMap(prev => ({ ...prev, ...firestoreMap }));
+        }
       }
+
+      if (!navigator.onLine) return;
 
       const now = Date.now();
       const needsRefresh = filtered.filter(e => {

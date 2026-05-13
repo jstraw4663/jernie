@@ -288,9 +288,10 @@ interface TravelSectionProps {
   flightLoading: boolean;
   onBookingExpand?: (booking: Booking, rect: DOMRect) => void;
   hotelEnrichmentMap?: Record<string, PlaceEnrichment>;
+  flightLastUpdated?: Record<string, Date>;
 }
 
-export function TravelSection({ stop, stopBookings, allBookings, groups, flightStatus, flightLoading, onBookingExpand, hotelEnrichmentMap }: TravelSectionProps) {
+export function TravelSection({ stop, stopBookings, allBookings, groups, flightStatus, flightLoading, onBookingExpand, hotelEnrichmentMap, flightLastUpdated }: TravelSectionProps) {
   const stopColor = resolveStopColor(stop);
   const sorted = [...stopBookings].sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999));
 
@@ -337,6 +338,7 @@ export function TravelSection({ stop, stopBookings, allBookings, groups, flightS
             flightStatus={flightStatus}
             flightLoading={flightLoading}
             onExpand={onBookingExpand}
+            lastUpdated={flightLastUpdated}
           />
         </ScrollReveal>
       )}
