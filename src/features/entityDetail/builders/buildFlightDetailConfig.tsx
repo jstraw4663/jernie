@@ -22,6 +22,7 @@ import { flightDuration, layoverDuration, parseFlightTime } from '../../../domai
 import { AIRCRAFT_OPTIONS, AIRCRAFT_LABELS, getAircraftImageUrl, matchAircraftSlug } from '../aircraftAssets';
 import { PillSelect } from '../../../components/PillSelect';
 import type { PillSelectOption } from '../../../components/PillSelect';
+import { resolveStopColor } from '../../../design/tripPacks';
 import { section } from './utils';
 import { haversineKm, toMiles } from '../../../domain/geo';
 
@@ -260,6 +261,7 @@ export function buildFlightDetailConfig(
   flightStatus?: Record<string, FlightStatus>,
   onLegAircraftChange?: (legKey: string, value: string | null) => void,
 ): DetailConfig {
+  const stopColor = resolveStopColor(stop);
   const firstFlight = booking.flights?.[0];
   const flights = booking.flights ?? [];
 
@@ -307,7 +309,7 @@ export function buildFlightDetailConfig(
       component: (
         <JourneyTimeline
           booking={booking}
-          accent={stop.accent}
+          accent={stopColor}
           flightStatus={flightStatus}
           onLegAircraftChange={onLegAircraftChange}
         />

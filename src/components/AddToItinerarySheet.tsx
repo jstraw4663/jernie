@@ -9,6 +9,7 @@
 import { BottomSheet } from './BottomSheet';
 import type { ItineraryDay, Place, Stop } from '../types';
 import { Colors, Spacing, Typography } from '../design/tokens';
+import { resolveStopColor } from '../design/tripPacks';
 
 interface AddToItinerarySheetProps {
   isOpen: boolean;
@@ -102,7 +103,7 @@ export function AddToItinerarySheet({
               style={{
                 fontFamily: Typography.family.sans,
                 fontSize: Typography.size.xs,
-                color: stop.accent,
+                color: resolveStopColor(stop),
                 textTransform: 'uppercase' as const,
                 letterSpacing: '0.08em',
                 marginTop: 2,
@@ -136,7 +137,7 @@ export function AddToItinerarySheet({
               WebkitTapHighlightColor: 'transparent',
             }}
             onPointerEnter={e => {
-              (e.currentTarget as HTMLElement).style.background = stop ? stop.accent + '12' : Colors.surface2;
+              (e.currentTarget as HTMLElement).style.background = stop ? resolveStopColor(stop) + '12' : Colors.surface2;
             }}
             onPointerLeave={e => {
               (e.currentTarget as HTMLElement).style.background = 'transparent';
@@ -167,7 +168,7 @@ export function AddToItinerarySheet({
             <span
               style={{
                 fontSize: Typography.size.xs,
-                color: stop?.accent ?? Colors.textMuted,
+                color: resolveStopColor(stop) ?? Colors.textMuted,
                 opacity: 0.6,
               }}
             >

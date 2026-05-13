@@ -19,6 +19,7 @@ import { buildDeepLinks, openMapApp } from '../../../utils/mapNavigation';
 interface QuickActionsProps {
   phone?: string;
   website?: string;
+  websiteLabel?: string;
   lat?: number;
   lon?: number;
   addr?: string;
@@ -166,7 +167,7 @@ function MapPicker({ anchorEl, lat, lon, addr, label, onClose }: MapPickerProps)
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function QuickActions({ phone, website, lat, lon, addr, label, stopColor }: QuickActionsProps) {
+export function QuickActions({ phone, website, websiteLabel, lat, lon, addr, label, stopColor }: QuickActionsProps) {
   const [showMapPicker, setShowMapPicker] = useState(false);
   const navigateRef = useRef<HTMLDivElement>(null);
   const closeMapPicker = useCallback(() => setShowMapPicker(false), []);
@@ -186,7 +187,7 @@ export function QuickActions({ phone, website, lat, lon, addr, label, stopColor 
       disabled: !phone,
     },
     {
-      label: 'Website',
+      label: websiteLabel ?? 'Website',
       icon: <GlobeIcon color={website ? iconColor : Colors.textMuted} />,
       href: website,
       disabled: !website,

@@ -5,6 +5,7 @@ import { appleMapsUrl } from '../../../domain/trip';
 import { ROUTE_TYPE_LABELS } from '../../../domain/hike';
 import { section } from './utils';
 import { DistanceModule } from '../components/DistanceModule';
+import { resolveStopColor } from '../../../design/tripPacks';
 
 // Derive AllTrails widget embed URL from a standard AllTrails trail URL.
 // "https://www.alltrails.com/trail/us/maine/the-beehive-loop-trail"
@@ -123,6 +124,7 @@ export function buildHikeDetailConfig(
   trailEnrichment?: TrailEnrichment,
   placeEnrichment?: PlaceEnrichment,
 ): DetailConfig {
+  const stopColor = resolveStopColor(stop);
   const heroGradient = `linear-gradient(145deg, ${Colors.success} 0%, ${Colors.navy} 100%)`;
 
   // ── Trail Info section ─────────────────────────────────────────
@@ -228,7 +230,7 @@ export function buildHikeDetailConfig(
     trailEmbedUrl,
     sections,
     externalUrl: place.url ?? undefined,
-    stopAccent: stop.accent,
+    stopAccent: stopColor,
     stopLabel: stop.city,
     placeId: place.id,
     googlePlaceId: placeEnrichment?.google_place_id,

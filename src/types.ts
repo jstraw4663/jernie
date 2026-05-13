@@ -32,7 +32,6 @@ export interface Stop {
   city: string;
   dates: string;
   emoji: string;
-  accent: string; // Phase 2: moves to UI config, not stops table
   summary: string;
   lat: number;
   lon: number;
@@ -89,6 +88,8 @@ export interface Booking {
   return_date?: string | null;
   return_time?: string | null;
   airport_pickup?: boolean | null; // true = on-airport, false = off-airport
+  pickup_airport?: string | null;  // IATA code e.g. "PWM"
+  dropoff_airport?: string | null; // IATA code e.g. "BGR"
 
   // Flight — per-leg aircraft slugs keyed by Flight.key
   aircraft_types?: Record<string, string | null> | null;
@@ -225,6 +226,7 @@ export interface PlaceEnrichment {
   photos: string[] | null;          // direct CDN photo URLs, up to 10
   reviews: PlaceReview[] | null;    // up to 5 Google reviews
   editorial_summary: string | null;
+  amenities: string[] | null;       // e.g. ["Free Parking", "Fitness Center", "Hot Tub"]
   cached_at: number;                // Date.now() ms — used for 24hr TTL check
 }
 

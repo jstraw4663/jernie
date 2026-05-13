@@ -26,6 +26,9 @@ const FIELD_MASK = [
   'reviews',
   'websiteUri',
   'editorialSummary',
+  'amenities',
+  'parkingOptions',
+  'accessibilityOptions',
 ].join(',');
 
 const PRICE_MAP = {
@@ -104,6 +107,22 @@ async function normalizeEnrichment(details, googlePlaceId, apiKey) {
       time: r.relativePublishTimeDescription ?? '',
     }));
 
+  // Build amenities array from structured Google Places fields (hotel-relevant)
+  const amenityList = [];
+  const am = details.amenities ?? {};
+  const pk = details.parkingOptions ?? {};
+  const ac = details.accessibilityOptions ?? {};
+  if (am.fitnessCenter)                     amenityList.push('Fitness Center');
+  if (am.hotTub)                            amenityList.push('Hot Tub');
+  if (am.pool)                              amenityList.push('Pool');
+  if (am.restaurant)                        amenityList.push('Restaurant');
+  if (am.bar)                               amenityList.push('Bar');
+  if (am.kidsFriendly)                      amenityList.push('Family Friendly');
+  if (pk.freeParkingLot || pk.freeGarage)   amenityList.push('Free Parking');
+  if (pk.valetParking)                      amenityList.push('Valet Parking');
+  if (pk.paidParkingLot || pk.paidGarage)   amenityList.push('Paid Parking');
+  if (ac.wheelchairAccessibleEntrance)      amenityList.push('Accessible');
+
   return {
     google_place_id: googlePlaceId,
     rating: details.rating ?? null,
@@ -117,6 +136,7 @@ async function normalizeEnrichment(details, googlePlaceId, apiKey) {
     photos: photos.length > 0 ? photos : null,
     reviews: reviews.length > 0 ? reviews : null,
     editorial_summary: details.editorialSummary?.text ?? null,
+    amenities: amenityList.length > 0 ? amenityList : null,
     cached_at: Date.now(),
   };
 }

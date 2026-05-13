@@ -9,7 +9,7 @@
 //     </div>
 //
 //   In Overview (multiple stops rendered simultaneously):
-//     const theme = getStopTheme('maine', stop.id);
+//     const theme = getStopTheme(TRIP_ID, stop.id); // tripId normalizes 'maine-2026' → 'maine'
 //     <div style={{ color: theme.cardHeading }}>{stop.city}</div>
 //
 // ── RULES ────────────────────────────────────────────────────────────────────

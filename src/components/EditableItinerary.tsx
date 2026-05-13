@@ -28,6 +28,7 @@ import { Animation, Colors, Core, Spacing, Typography } from "../design/tokens";
 import { TimelineItem } from "./TimelineItem";
 import { ItineraryItemDetailSheet } from "./ItineraryItemDetailSheet";
 import { findPlaceForItem } from "../domain/trip";
+import { resolveStopColor } from "../design/tripPacks";
 
 type ResolvedItem = (ItineraryItem & { _isCustom: false }) | (CustomItem & { _isCustom: true });
 
@@ -373,6 +374,7 @@ export function EditableItinerary({
   requestOpenDayId, onRequestOpenDayConsumed,
   requestScrollToItemId, onRequestScrollToItemConsumed,
 }: EditableItineraryProps) {
+  const stopColor = resolveStopColor(stop);
   const [openDay, setOpenDay] = useState(0);
   // Kept in a ref so the requestOpenDayId effect always sees the current value
   // without needing to re-run whenever openDay changes.
@@ -835,8 +837,8 @@ export function EditableItinerary({
     <>
       <div style={{ marginBottom: "28px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-          <div style={{ fontWeight: "bold", color: stop.accent, fontSize: "0.78rem", letterSpacing: "0.12em", textTransform: "uppercase", display: 'flex', alignItems: 'center', gap: 5 }}><Icons.Calendar size={14} weight="duotone" color={stop.accent} /> Daily Itinerary</div>
-          <div style={{ flex: 1, height: "1px", background: stop.accent + "30" }} />
+          <div style={{ fontWeight: "bold", color: stopColor, fontSize: "0.78rem", letterSpacing: "0.12em", textTransform: "uppercase", display: 'flex', alignItems: 'center', gap: 5 }}><Icons.Calendar size={14} weight="duotone" color={stopColor} /> Daily Itinerary</div>
+          <div style={{ flex: 1, height: "1px", background: stopColor + "30" }} />
         </div>
 
         <DndContext
@@ -855,7 +857,7 @@ export function EditableItinerary({
                   <DayCard
                     ref={el => { cardRefs.current[day.id] = el; }}
                     day={day}
-                    accent={stop.accent}
+                    accent={stopColor}
                     isOpen={isOpen}
                     onToggle={() => {
                       if (isOpen) { setOpenDay(-1); return; }
@@ -934,7 +936,7 @@ export function EditableItinerary({
                               <Fragment key={item.id}>
                                 {showSlotHeader && <SlotHeader label={SLOT_LABELS[slot]} />}
                                 <SortableItem
-                                  item={item} accent={stop.accent}
+                                  item={item} accent={stopColor}
                                   isLocked={isItemLocked}
                                   tripPhase={tripPhase}
                                   index={ii}
@@ -1004,7 +1006,7 @@ export function EditableItinerary({
                               if (addForm.text.trim()) addCustomItem(day.id, addForm.time, addForm.text.trim(), null, addForm.category || undefined);
                               setAddForm(null);
                             }}
-                            style={{ background: stop.accent, color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontFamily: Typography.family.sans, flexShrink: 0 }}
+                            style={{ background: stopColor, color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontFamily: Typography.family.sans, flexShrink: 0 }}
                           >Add</button>
                           <button
                             onClick={() => setAddForm(null)}
@@ -1016,9 +1018,9 @@ export function EditableItinerary({
                       <button
                         onClick={() => setAddForm({ dayId: day.id, time: "", text: "", category: "" })}
                         style={{
-                          marginTop: "10px", background: "transparent", border: "1px dashed " + stop.accent + "50",
+                          marginTop: "10px", background: "transparent", border: "1px dashed " + stopColor + "50",
                           borderRadius: "6px", padding: "6px 14px", cursor: "pointer",
-                          fontSize: "0.75rem", color: stop.accent + "99", fontFamily: Typography.family.sans,
+                          fontSize: "0.75rem", color: stopColor + "99", fontFamily: Typography.family.sans,
                           display: "flex", alignItems: "center", gap: "5px",
                         }}
                       >+ Add item</button>
@@ -1037,7 +1039,7 @@ export function EditableItinerary({
               }}>
                 <TimelineItem
                   item={activeItem}
-                  accent={stop.accent}
+                  accent={stopColor}
                   isConfirmed={false}
                   isCustom={activeItem._isCustom}
                   displayTime={getDisplayTime(activeItem)}
@@ -1142,7 +1144,7 @@ export function EditableItinerary({
                             isDragDisabled={isItemLocked}
                             onToggleSelect={() => toggleItem(item.id)}
                             displayTime={getDisplayTime(item)}
-                            accent={stop.accent}
+                            accent={stopColor}
                           />
                         );
                       })}
@@ -1171,7 +1173,7 @@ export function EditableItinerary({
         isOpen={!!detailState}
         item={detailState?.item ?? null}
         resolvedPlace={detailState?.resolvedPlace ?? null}
-        accent={stop.accent}
+        accent={stopColor}
         textOverride={detailState ? textOverrides[detailState.item.id] : undefined}
         timeOverride={detailState ? timeOverrides[detailState.item.id] : undefined}
         isConfirmed={detailState ? (confirms[detailState.item.id] || (!detailState.item._isCustom && (detailState.item as ItineraryItem).locked)) : false}

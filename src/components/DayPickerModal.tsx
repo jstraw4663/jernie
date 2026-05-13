@@ -1,6 +1,7 @@
 import { BottomSheet } from './BottomSheet';
 import type { ItineraryDay, Stop } from '../types';
 import { Colors, Spacing, Typography } from '../design/tokens';
+import { resolveStopColor } from '../design/tripPacks';
 
 interface DayPickerModalProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ export function DayPickerModal({
               fontWeight: Typography.weight.bold,
               letterSpacing: '0.1em',
               textTransform: 'uppercase',
-              color: stop.accent,
+              color: resolveStopColor(stop),
             }}>
               {stop.city}
             </div>
@@ -73,7 +74,7 @@ export function DayPickerModal({
                     fontFamily: Typography.family.sans,
                     borderBottom: `1px solid ${Colors.border}`,
                   }}
-                  onMouseEnter={e => { if (!isCurrent) (e.currentTarget as HTMLElement).style.background = stop.accent + '0A'; }}
+                  onMouseEnter={e => { if (!isCurrent) (e.currentTarget as HTMLElement).style.background = resolveStopColor(stop) + '0A'; }}
                   onMouseLeave={e => { if (!isCurrent) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                 >
                   <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{day.emoji}</span>
