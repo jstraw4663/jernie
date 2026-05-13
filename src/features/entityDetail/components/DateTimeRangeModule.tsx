@@ -24,6 +24,7 @@ export interface DateTimeRangeModuleProps {
   onEndDateChange: (val: string) => void;
   onEndTimeChange: (val: string) => void;
   readOnly?: boolean;
+  pillVariant?: 'default' | 'soft'; // 'soft' uses surface2+border instead of navy
 }
 
 // ── Duration calculation ────────────────────────────────────────────────────
@@ -88,9 +89,10 @@ interface PillProps {
   onChange: (val: string) => void;
   readOnly: boolean;
   displayText: string;
+  soft?: boolean;
 }
 
-function Pill({ value, placeholder, type, isoValue, onChange, readOnly, displayText }: PillProps) {
+function Pill({ value, placeholder, type, isoValue, onChange, readOnly, displayText, soft }: PillProps) {
   const filled = value !== null && value !== '';
 
   const pillStyle: React.CSSProperties = {
@@ -99,8 +101,9 @@ function Pill({ value, placeholder, type, isoValue, onChange, readOnly, displayT
     padding: `${Spacing.xs}px ${Spacing.sm}px`,
     minHeight: 44,
     borderRadius: Radius.full,
-    background: filled ? Colors.navy : Colors.surface2,
-    color: filled ? Colors.textInverse : Colors.textMuted,
+    background: soft ? Colors.surface2 : (filled ? Colors.navy : Colors.surface2),
+    color: soft ? Colors.textPrimary : (filled ? Colors.textInverse : Colors.textMuted),
+    border: soft ? `1px solid ${Colors.border}` : 'none',
     fontFamily: Typography.family.sans,
     fontSize: `${Typography.size.sm}px`,
     fontWeight: Typography.weight.medium,
@@ -150,9 +153,10 @@ interface RowProps {
   onDateChange: (val: string) => void;
   onTimeChange: (val: string) => void;
   readOnly: boolean;
+  soft?: boolean;
 }
 
-function DateTimeRow({ icon, label, date, time, onDateChange, onTimeChange, readOnly }: RowProps) {
+function DateTimeRow({ icon, label, date, time, onDateChange, onTimeChange, readOnly, soft }: RowProps) {
   return (
     <div
       style={{
@@ -186,6 +190,7 @@ function DateTimeRow({ icon, label, date, time, onDateChange, onTimeChange, read
           onChange={onDateChange}
           readOnly={readOnly}
           displayText={formatDate(date)}
+          soft={soft}
         />
         <Pill
           value={time}
@@ -195,6 +200,7 @@ function DateTimeRow({ icon, label, date, time, onDateChange, onTimeChange, read
           onChange={onTimeChange}
           readOnly={readOnly}
           displayText={formatTime(time)}
+          soft={soft}
         />
       </div>
     </div>
@@ -218,7 +224,9 @@ export function DateTimeRangeModule({
   onEndDateChange,
   onEndTimeChange,
   readOnly = false,
+  pillVariant = 'default',
 }: DateTimeRangeModuleProps) {
+  const soft = pillVariant === 'soft';
   // Local state for optimistic UI — the picker fires onChange immediately on selection
   // but trip.json never reflects writes (Phase 2 adds the Firebase listener). Without
   // local state the controlled inputs snap back to the prop value on each render.
@@ -247,6 +255,7 @@ export function DateTimeRangeModule({
         onDateChange={v => { setLocalStartDate(v); onStartDateChange(v); }}
         onTimeChange={v => { setLocalStartTime(v); onStartTimeChange(v); }}
         readOnly={readOnly}
+        soft={soft}
       />
 
       {/* Divider */}
@@ -260,6 +269,7 @@ export function DateTimeRangeModule({
         onDateChange={v => { setLocalEndDate(v); onEndDateChange(v); }}
         onTimeChange={v => { setLocalEndTime(v); onEndTimeChange(v); }}
         readOnly={readOnly}
+        soft={soft}
       />
 
       {/* Duration */}

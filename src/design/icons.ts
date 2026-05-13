@@ -5,8 +5,12 @@
 
 import {
   Airplane,
+  AirplaneLanding,
+  AirplaneTakeoff,
   Anchor,
   Bank,
+  Barbell,
+  Bathtub,
   BeerBottle,
   Bicycle,
   Building,
@@ -29,6 +33,7 @@ import {
   Key,
   MapPin,
   MapTrifold,
+  Martini,
   PencilSimple,
   PersonSimpleHike,
   PersonSimpleWalk,
@@ -38,12 +43,14 @@ import {
   Snowflake,
   Sun,
   SunDim,
+  SwimmingPool,
   Thermometer,
   Ticket,
   Timer,
   Umbrella,
   User,
   Waves,
+  WifiHigh,
 } from '@phosphor-icons/react';
 import { TypeColors } from './tokens';
 
@@ -53,6 +60,8 @@ import { TypeColors } from './tokens';
 export const Icons = {
   // Travel & Transport
   Flight:              Airplane,
+  FlightTakeoff:       AirplaneTakeoff,
+  FlightLanding:       AirplaneLanding,
   Car:                 Car,
   Bus:                 Bus,
   Walk:                PersonSimpleWalk,
@@ -67,6 +76,12 @@ export const Icons = {
   // Food & Drink
   Restaurant:          ForkKnife,
   Bar:                 BeerBottle,
+  Cocktail:            Martini,
+  // Amenities
+  Wifi:                WifiHigh,
+  Fitness:             Barbell,
+  HotTub:              Bathtub,
+  Pool:                SwimmingPool,
   // Activities & Nature
   Hike:                PersonSimpleHike,
   Theater:             Ticket,

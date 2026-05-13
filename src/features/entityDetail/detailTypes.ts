@@ -32,6 +32,7 @@ export interface DetailConfig {
   heroPhotoUrl?: string;   // direct image URL — shown full-bleed when present
   photos?: string[];       // additional photos for strip (index 0 = hero, 1+ = strip)
   heroLogoUrl?: string;    // brand/airline logo — shown in hero alongside title
+  titleLogoUrl?: string;   // brand logo shown on right side of body title row (+ collapsed overlay)
   categoryChip?: string;   // e.g. "Restaurant", "Hike", "Accommodation"
   mapLat?: number;         // present only when meaningful coordinates are available
   mapLon?: number;
@@ -39,6 +40,7 @@ export interface DetailConfig {
   trailEmbedUrl?: string;  // AllTrails widget embed URL — when present, DetailMap renders iframe instead of pin
   sections: DetailSectionConfig[];
   externalUrl?: string;    // primary CTA link (opens in new tab)
+  externalUrlLabel?: string; // override "Website" label in QuickActions (e.g. "Manage")
   phone?: string;          // formatted phone number — drives Call quick action
   stopAccent?: string;     // stop hex color — CTA button background + icon tint
   stopLabel?: string;      // short stop name e.g. "Bar Harbor" — CTA copy

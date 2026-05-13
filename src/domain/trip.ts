@@ -186,6 +186,39 @@ export function isRentalCar(booking: Booking): boolean {
   return RENTAL_CAR_KEYWORDS.some(k => label.includes(k));
 }
 
+// ── Flight time helpers ───────────────────────────────────────
+
+/** Parse "8:20 AM" or "10:40 AM" → minutes since midnight. */
+export function parseFlightTime(t: string): number {
+  const [timePart, period] = t.trim().split(' ');
+  const [h, m] = timePart.split(':').map(Number);
+  let hours = h;
+  if (period === 'AM') {
+    if (hours === 12) hours = 0;
+  } else {
+    if (hours !== 12) hours += 12;
+  }
+  return hours * 60 + m;
+}
+
+/** Returns "Xh Ym" (or "Xm" / "Xh") from two dep/arr time strings. Same-day assumed. */
+export function flightDuration(dep: string, arr: string): string {
+  let mins = parseFlightTime(arr) - parseFlightTime(dep);
+  if (mins < 0) mins += 1440;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+/** Returns "Xm" layover between end of one leg and start of the next. */
+export function layoverDuration(leg1Arr: string, leg2Dep: string): string {
+  let mins = parseFlightTime(leg2Dep) - parseFlightTime(leg1Arr);
+  if (mins < 0) mins += 1440;
+  return `${mins}m`;
+}
+
 /**
  * Returns true when now is within the auto-fetch window:
  * 48 hours before earliest departure through 24 hours after.

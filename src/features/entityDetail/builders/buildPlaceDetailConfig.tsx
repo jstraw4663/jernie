@@ -9,6 +9,7 @@ import { appleMapsUrl } from '../../../domain/trip';
 import { section } from './utils';
 import { DistanceModule } from '../components/DistanceModule';
 import { ReviewCarousel } from '../components/ReviewCarousel';
+import { resolveStopColor } from '../../../design/tripPacks';
 
 const CATEGORY_LABELS: Record<string, string> = {
   restaurant: 'Restaurant',
@@ -25,9 +26,10 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export function buildPlaceDetailConfig(place: Place, stop: Stop, _stops: Stop[] = [], enrichment?: PlaceEnrichment): DetailConfig {
+  const stopColor = resolveStopColor(stop);
   // Hero gradient: stop accent → navy
   const heroGradient =
-    `linear-gradient(145deg, ${stop.accent} 0%, ${Colors.navy} 100%)`;
+    `linear-gradient(145deg, ${stopColor} 0%, ${Colors.navy} 100%)`;
 
   // ── Rating / price — rendered in body title area, not in Info section ─────
   const displayRating = enrichment?.rating ?? place.rating;
@@ -128,7 +130,7 @@ export function buildPlaceDetailConfig(place: Place, stop: Stop, _stops: Stop[] 
     sections,
     externalUrl: website ?? undefined,
     phone: phone ?? undefined,
-    stopAccent: stop.accent,
+    stopAccent: stopColor,
     stopLabel: stop.city,
     hoursData: enrichment?.hours?.length ? enrichment.hours : undefined,
     rating: displayRating ?? undefined,

@@ -106,6 +106,50 @@ export function groupAccommodationsByTraveler(
 }
 
 // ---------------------------------------------------------------------------
+// Flights + Accommodations — shared shape and shared grouping factory
+// ---------------------------------------------------------------------------
+
+export interface StopBookingGroup {
+  stop: Stop;
+  bookings: Booking[];
+}
+
+function groupBookingsByStop(
+  filtered: Booking[],
+  stops: Stop[],
+  innerSort?: (a: Booking, b: Booking) => number,
+): StopBookingGroup[] {
+  const stopOrder = Object.fromEntries(stops.map((s, i) => [s.id, i]));
+  const map = new Map<string, Booking[]>();
+  filtered.forEach(b => {
+    if (!map.has(b.stop_id)) map.set(b.stop_id, []);
+    map.get(b.stop_id)!.push(b);
+  });
+  return [...map.entries()]
+    .sort(([a], [b]) => (stopOrder[a] ?? 99) - (stopOrder[b] ?? 99))
+    .map(([stopId, stopBookings]) => ({
+      stop: stops.find(s => s.id === stopId)!,
+      bookings: innerSort ? [...stopBookings].sort(innerSort) : stopBookings,
+    }))
+    .filter(g => g.stop != null);
+}
+
+export function groupAccommodationsByStop(bookings: Booking[], stops: Stop[]): StopBookingGroup[] {
+  return groupBookingsByStop(
+    bookings.filter(b => b.type === 'accommodation'),
+    stops,
+    (a, b) => (a.display_order ?? 999) - (b.display_order ?? 999),
+  );
+}
+
+export function groupFlightsByStop(bookings: Booking[], stops: Stop[]): StopBookingGroup[] {
+  return groupBookingsByStop(
+    bookings.filter(b => b.type === 'flight' && b.flights?.length),
+    stops,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Rental cars — primary bookings only (linked_booking_id = return leg, excluded)
 // ---------------------------------------------------------------------------
 

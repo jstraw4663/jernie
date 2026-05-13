@@ -16,7 +16,9 @@ import { AddToItinerarySheet } from '../../components/AddToItinerarySheet';
 import { useNavigation } from '../../contexts/NavigationContext';
 import { PlaceList } from '../../components/PlaceList';
 import { ScrollReveal } from '../../components/ScrollReveal';
-import { HotelCard, BookingCard } from '../../components/TravelSection';
+import { HotelGroupCard } from '../../components/HotelGroupCard';
+import { FlightGroupCard } from '../../components/FlightGroupCard';
+import { BookingCard } from '../../components/TravelSection';
 import type { SelectedEntity } from '../entityDetail/detailTypes';
 import type { Booking, Place, Stop } from '../../types';
 import { deriveFlightGroups, findEntityInItinerary, isRentalCar } from '../../domain/trip';
@@ -24,14 +26,15 @@ import type { FlightStatus } from '../../domain/trip';
 import { Icons } from '../../design/icons';
 import { Colors, Spacing, Typography, Radius, TypeColors } from '../../design/tokens';
 import { getStopTheme } from '../../contexts/TripThemeContext';
+import { resolveStopColor } from '../../design/tripPacks';
 import { PlaceIcon } from '../../components/PlaceIcon';
 import { OverviewAnchorNav } from './OverviewAnchorNav';
 import type { NavSection } from './OverviewAnchorNav';
 import { OverviewSection } from './OverviewSection';
 import {
   selectFlightBookings,
-  groupFlightsByTraveler,
-  groupAccommodationsByTraveler,
+  groupFlightsByStop,
+  groupAccommodationsByStop,
   selectRentalCars,
   groupRestaurantsByStop,
   groupActivitiesByStop,
@@ -42,34 +45,10 @@ const TRIP_ID = import.meta.env.VITE_TRIP_ID ?? 'maine-2026';
 
 
 // ---------------------------------------------------------------------------
-// Sub-header for traveler groups (flights + accommodations)
-// ---------------------------------------------------------------------------
-function TravelerGroupHeader({ groupName }: { groupName: string }) {
-  return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: Spacing.xs,
-      marginBottom: Spacing.sm,
-    }}>
-      <Icons.User size={15} weight="duotone" color={Colors.textSecondary} />
-      <span style={{
-        fontFamily: Typography.family.sans,
-        fontWeight: Typography.weight.semibold,
-        fontSize: `${Typography.size.sm}px`,
-        color: Colors.textSecondary,
-      }}>
-        {groupName}
-      </span>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Sub-header for stop groups (restaurants + activities)
 // ---------------------------------------------------------------------------
 function StopGroupHeader({ stop }: { stop: Stop }) {
-  const stopTheme = getStopTheme('maine', stop.id);
+  const stopTheme = getStopTheme(TRIP_ID, stop.id);
   return (
     <div style={{
       display: 'flex',
@@ -172,12 +151,12 @@ export function OverviewScreen() {
   }, [data]);
 
   // Grouped data via selectors
-  const flightTravelerGroups = useMemo(
-    () => groupFlightsByTraveler(data?.bookings ?? [], data?.groups ?? []),
+  const flightsByStop = useMemo(
+    () => groupFlightsByStop(data?.bookings ?? [], data?.stops ?? []),
     [data],
   );
-  const accomTravelerGroups  = useMemo(
-    () => groupAccommodationsByTraveler(data?.bookings ?? [], data?.groups ?? [], data?.stops ?? []),
+  const accomByStop = useMemo(
+    () => groupAccommodationsByStop(data?.bookings ?? [], data?.stops ?? []),
     [data],
   );
   const rentalCars        = useMemo(() => selectRentalCars(data?.bookings ?? [], data?.stops ?? []), [data]);
@@ -190,11 +169,11 @@ export function OverviewScreen() {
   // Section counts for anchor nav
   const navSections = useMemo<NavSection[]>(() => [
     { id: 'flights',        icon: <Icons.Flight size={13} weight="duotone" />,   label: 'Flights',      count: totalFlights },
-    { id: 'accommodations', icon: <Icons.Hotel size={13} weight="duotone" />,    label: 'Stays',        count: accomTravelerGroups.reduce((n, g) => n + g.bookings.length, 0) },
+    { id: 'accommodations', icon: <Icons.Hotel size={13} weight="duotone" />,    label: 'Stays',        count: accomByStop.reduce((n, g) => n + g.bookings.length, 0) },
     { id: 'rental-car',     icon: <Icons.Car size={13} weight="duotone" />,      label: 'Rental Car',   count: rentalCars.length },
     { id: 'restaurants',    icon: <Icons.Restaurant size={13} weight="duotone" />, label: 'Restaurants',  count: restaurantGroups.reduce((n, g) => n + g.places.length, 0) },
     { id: 'activities',     icon: <Icons.Hike size={13} weight="duotone" />,     label: 'Activities',   count: activityGroups.reduce((n, g) => n + g.places.length, 0) },
-  ], [totalFlights, accomTravelerGroups, rentalCars, restaurantGroups, activityGroups]);
+  ], [totalFlights, accomByStop, rentalCars, restaurantGroups, activityGroups]);
 
   // Anchor nav scroll tracking
   const [activeSection, setActiveSection] = useState<SectionId>('flights');
@@ -296,7 +275,7 @@ export function OverviewScreen() {
       return buildHotelDetailConfig(mergedBooking, bookingStop, data.stops, onBookingChange, hotelEnrichmentMap[mergedBooking.id]);
     }
     if (isRentalCar(mergedBooking)) {
-      return buildRentalCarDetailConfig(mergedBooking, bookingStop, data.stops, onBookingChange, returnBooking);
+      return buildRentalCarDetailConfig(mergedBooking, bookingStop, data.stops, onBookingChange, returnBooking, !!booking.linked_booking_id);
     }
     return buildBookingDetailConfig(mergedBooking, bookingStop);
   }, [selectedEntity, data, onBookingChange, onLegAircraftChange, bookingOverrides, hotelEnrichmentMap, flightStatus, enrichmentMap, trailEnrichmentMap]);
@@ -304,12 +283,12 @@ export function OverviewScreen() {
   // Expand handlers
   const handlePlaceExpand = useCallback((place: Place, rect: DOMRect) => {
     const stop = data?.stops.find(s => s.id === place.stop_id);
-    setSelectedEntity({ kind: 'place', id: place.id, originRect: rect, accent: stop?.accent ?? Colors.navy });
+    setSelectedEntity({ kind: 'place', id: place.id, originRect: rect, accent: resolveStopColor(stop) });
   }, [data]);
 
   const handleBookingExpand = useCallback((booking: Booking, rect: DOMRect) => {
     const stop = data?.stops.find(s => s.id === booking.stop_id);
-    setSelectedEntity({ kind: 'booking', id: booking.id, originRect: rect, accent: stop?.accent ?? Colors.navy });
+    setSelectedEntity({ kind: 'booking', id: booking.id, originRect: rect, accent: resolveStopColor(stop) });
   }, [data]);
 
   // Add to itinerary sheet
@@ -326,7 +305,7 @@ export function OverviewScreen() {
     );
   }
 
-  const accent = data.stops[0]?.accent ?? Colors.navy;
+  const accent = resolveStopColor(data.stops[0]);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: Colors.background, overflow: 'hidden' }}>
@@ -382,41 +361,20 @@ export function OverviewScreen() {
           icon={<Icons.Flight size={14} weight="duotone" color={TypeColors.flight} />}
           title="Flights"
           count={totalFlights}
-          isEmpty={totalFlights === 0}
+          isEmpty={flightsByStop.length === 0}
           emptyIcon={<Icons.Flight size={36} weight="duotone" color={TypeColors.flight} />}
           emptyText="No flights added yet"
         >
-          {flightTravelerGroups.map((group, gi) => (
-            <div key={group.groupName} style={{ display: 'flex', flexDirection: 'column', gap: Spacing.md }}>
-              {flightTravelerGroups.length > 1 && (
-                <div style={{ marginTop: gi > 0 ? Spacing.sm : 0 }}>
-                  <TravelerGroupHeader groupName={group.groupName} />
-                </div>
-              )}
-              {group.bookings.map((booking, i) => {
-                const mergedBooking = { ...booking, ...(bookingOverrides[booking.id] ?? {}) } as Booking;
-                const bookingStop = data.stops.find(s => s.id === booking.stop_id) ?? data.stops[0];
-                return (
-                  <ScrollReveal key={booking.id} index={i} root={scrollRef} margin="80px">
-                    <CardWithEdit onEdit={() => {
-                      const rect = document.querySelector(`[data-booking-id="${booking.id}"]`)?.getBoundingClientRect()
-                        ?? new DOMRect(0, 0, window.innerWidth, 100);
-                      handleBookingExpand(booking, rect);
-                    }}>
-                      <div data-booking-id={booking.id}>
-                        <BookingCard
-                          booking={mergedBooking}
-                          accent={bookingStop?.accent ?? accent}
-                          flightStatus={flightStatus}
-                          flightLoading={false}
-                          onExpand={(b, rect) => handleBookingExpand(b, rect)}
-                        />
-                      </div>
-                    </CardWithEdit>
-                  </ScrollReveal>
-                );
-              })}
-            </div>
+          {flightsByStop.map((group, gi) => (
+            <ScrollReveal key={group.stop.id} index={gi} root={scrollRef} margin="80px">
+              <FlightGroupCard
+                bookings={group.bookings.map(b => ({ ...b, ...(bookingOverrides[b.id] ?? {}) } as Booking))}
+                stop={group.stop}
+                groups={data.groups}
+                flightStatus={flightStatus}
+                onExpand={(b, rect) => handleBookingExpand(b, rect)}
+              />
+            </ScrollReveal>
           ))}
         </OverviewSection>
 
@@ -426,43 +384,21 @@ export function OverviewScreen() {
           sectionRef={el => { sectionRefs.current.accommodations = el; }}
           icon={<Icons.Hotel size={14} weight="duotone" color={TypeColors.stay} />}
           title="Stays"
-          count={accomTravelerGroups.reduce((n, g) => n + g.bookings.length, 0)}
-          isEmpty={accomTravelerGroups.length === 0}
+          count={accomByStop.reduce((n, g) => n + g.bookings.length, 0)}
+          isEmpty={accomByStop.length === 0}
           emptyIcon={<Icons.Hotel size={36} weight="duotone" color={TypeColors.stay} />}
           emptyText="No accommodations added yet"
         >
-          {accomTravelerGroups.map((group, gi) => (
-            <div key={group.groupName} style={{ display: 'flex', flexDirection: 'column', gap: Spacing.md }}>
-              {accomTravelerGroups.length > 1 && (
-                <div style={{ marginTop: gi > 0 ? Spacing.sm : 0 }}>
-                  <TravelerGroupHeader groupName={group.groupName} />
-                </div>
-              )}
-              {group.bookings.map((booking, i) => {
-                const mergedBooking = { ...booking, ...(bookingOverrides[booking.id] ?? {}) } as Booking;
-                const bookingStop = data.stops.find(s => s.id === booking.stop_id) ?? data.stops[0];
-                return (
-                  <ScrollReveal key={booking.id} index={i} root={scrollRef} margin="80px">
-                    <CardWithEdit onEdit={() => {
-                      const rect = document.querySelector(`[data-booking-id="${booking.id}"]`)?.getBoundingClientRect()
-                        ?? new DOMRect(0, 0, window.innerWidth, 100);
-                      handleBookingExpand(booking, rect);
-                    }}>
-                      <div data-booking-id={booking.id}>
-                        <HotelCard
-                          accent={bookingStop?.accent ?? accent}
-                          label={`${bookingStop?.city ?? ''} Stay`}
-                          booking={mergedBooking}
-                          enrichment={hotelEnrichmentMap[booking.id]}
-                          hideNote
-                          onExpand={(b, rect) => handleBookingExpand(b, rect)}
-                        />
-                      </div>
-                    </CardWithEdit>
-                  </ScrollReveal>
-                );
-              })}
-            </div>
+          {accomByStop.map((group, gi) => (
+            <ScrollReveal key={group.stop.id} index={gi} root={scrollRef} margin="80px">
+              <HotelGroupCard
+                bookings={group.bookings.map(b => ({ ...b, ...(bookingOverrides[b.id] ?? {}) } as Booking))}
+                stop={group.stop}
+                groups={data.groups}
+                enrichmentMap={hotelEnrichmentMap}
+                onExpand={(b: Booking, rect: DOMRect) => handleBookingExpand(b, rect)}
+              />
+            </ScrollReveal>
           ))}
         </OverviewSection>
 
@@ -480,6 +416,7 @@ export function OverviewScreen() {
           {rentalCars.map(({ booking, coverage }, i) => {
             const mergedBooking = { ...booking, ...(bookingOverrides[booking.id] ?? {}) } as Booking;
             const bookingStop = data.stops.find(s => s.id === booking.stop_id) ?? data.stops[0];
+            const bookingColor = resolveStopColor(bookingStop);
             return (
               <ScrollReveal key={booking.id} index={i}>
                 <CardWithEdit onEdit={() => {
@@ -490,7 +427,7 @@ export function OverviewScreen() {
                   <div data-booking-id={booking.id} style={{ position: 'relative' }}>
                     <BookingCard
                       booking={mergedBooking}
-                      accent={bookingStop?.accent ?? accent}
+                      accent={bookingColor}
                       flightStatus={{}}
                       flightLoading={false}
                       onExpand={(b, rect) => handleBookingExpand(b, rect)}
@@ -500,8 +437,8 @@ export function OverviewScreen() {
                       position: 'absolute',
                       bottom: Spacing.sm,
                       right: Spacing.sm + 34, // left of pencil button
-                      background: bookingStop?.accent ? bookingStop.accent + '18' : Colors.navyTint10,
-                      color: bookingStop?.accent ?? Colors.navy,
+                      background: bookingColor + '18',
+                      color: bookingColor,
                       borderRadius: `${Radius.full}px`,
                       padding: `2px ${Spacing.xs}px`,
                       fontSize: `${Typography.size.xs - 1}px`,
@@ -540,7 +477,7 @@ export function OverviewScreen() {
               )}
               <PlaceList
                 places={group.places}
-                accent={group.stop.accent}
+                accent={resolveStopColor(group.stop)}
                 enrichmentMap={enrichmentMap}
                 trailEnrichmentMap={trailEnrichmentMap}
                 isActivities={false}
@@ -598,7 +535,7 @@ export function OverviewScreen() {
               )}
               <PlaceList
                 places={group.places}
-                accent={group.stop.accent}
+                accent={resolveStopColor(group.stop)}
                 enrichmentMap={enrichmentMap}
                 trailEnrichmentMap={trailEnrichmentMap}
                 isActivities={true}

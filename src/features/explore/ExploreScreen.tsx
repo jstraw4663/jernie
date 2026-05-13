@@ -20,6 +20,7 @@ import type { SelectedEntity } from '../entityDetail/detailTypes';
 import { findEntityInItinerary } from '../../domain/trip';
 import { Icons } from '../../design/icons';
 import { Colors, Core, Spacing, Typography, Radius, Animation, TypeColors } from '../../design/tokens';
+import { resolveStopColor } from '../../design/tripPacks';
 
 // ---------------------------------------------------------------------------
 // Seeded shuffle — bucket changes every 4 hours so order is stable per session
@@ -169,7 +170,7 @@ export function ExploreScreen() {
   const addedPlaceIds = useAddedPlaceIds(data, customItems);
 
   const handlePlaceExpand = (place: Place, rect: DOMRect) => {
-    setSelectedEntity({ kind: 'place', id: place.id, originRect: rect, accent: stopMap[place.stop_id]?.accent ?? Colors.navy });
+    setSelectedEntity({ kind: 'place', id: place.id, originRect: rect, accent: resolveStopColor(stopMap[place.stop_id]) });
   };
 
   // Filtered places for the All Places list
@@ -207,11 +208,11 @@ export function ExploreScreen() {
     }));
   }, [allPlaces, activeFilter, activeStopId, shuffleSeed]);
 
-  const accent = data?.stops[0]?.accent ?? Colors.navy;
+  const accent = resolveStopColor(data?.stops[0]);
 
   const stopPillItems = useMemo(() => [
     { id: 'all', label: 'All Stops', emoji: '🗺️', accent },
-    ...(data?.stops ?? []).map(s => ({ id: s.id, label: s.city, emoji: s.emoji, accent: s.accent })),
+    ...(data?.stops ?? []).map(s => ({ id: s.id, label: s.city, emoji: s.emoji, accent: resolveStopColor(s) })),
   ], [data?.stops, accent]);
 
   if (!data) {

@@ -2,7 +2,7 @@
 // FloatingAddCTA sits outside the scroll container so it stays pinned while content scrolls.
 // vaul dismiss: scrollTop === 0 + drag down → sheet dismiss; scrollTop > 0 → normal scroll.
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, type FC } from 'react';
 import type { DetailConfig } from './detailTypes';
 import { DetailHero } from './components/DetailHero';
 import { DetailSection } from './components/DetailSection';
@@ -16,6 +16,29 @@ import { StarRating } from '../../components/StarRating';
 import { Colors, Core, Radius, Spacing, Typography } from '../../design/tokens';
 
 const COMPRESS_RANGE = 120;
+
+const TitleBrandLogo: FC<{ url: string }> = ({ url }) => {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <div style={{
+      background: '#ffffff',
+      borderRadius: 6,
+      padding: '5px 10px',
+      display: 'flex',
+      alignItems: 'center',
+      boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+      flexShrink: 0,
+    }}>
+      <img
+        src={url}
+        alt=""
+        onError={() => setFailed(true)}
+        style={{ height: 24, width: 'auto', display: 'block' }}
+      />
+    </div>
+  );
+};
 
 // For places: inject PhotoStrip between Notes and Reviews sections.
 // For all other kinds: photos first, then sections.
@@ -164,9 +187,10 @@ export function EntityDetail({ config, onClose, isCachedOnly = false, onAddToIti
             )}
           </div>
 
-          {/* Right: stars + price stacked */}
-          {(config.rating != null || config.price) && (
+          {/* Right: brand logo or stars + price stacked */}
+          {(config.titleLogoUrl || config.rating != null || config.price) && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: `${Spacing.xxs}px`, flexShrink: 0, paddingTop: 2 }}>
+              {config.titleLogoUrl && <TitleBrandLogo url={config.titleLogoUrl} />}
               {config.rating != null && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   <StarRating rating={config.rating} />
@@ -191,6 +215,7 @@ export function EntityDetail({ config, onClose, isCachedOnly = false, onAddToIti
           <QuickActions
             phone={config.phone}
             website={config.externalUrl}
+            websiteLabel={config.externalUrlLabel}
             lat={config.mapLat}
             lon={config.mapLon}
             addr={config.mapAddr}

@@ -19,7 +19,6 @@ const makeStop = (overrides: Partial<Stop> = {}): Stop => ({
   city: 'Portland',
   dates: 'May 22–24',
   emoji: '🦞',
-  accent: '#2D6A8F',
   summary: 'A great city.',
   lat: 43.66,
   lon: -70.25,

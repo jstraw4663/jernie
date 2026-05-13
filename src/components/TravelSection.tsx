@@ -1,10 +1,14 @@
 import type { ReactNode } from 'react';
-import { Icons } from '../design/icons';
 import type { Booking, Group, PlaceEnrichment, Stop } from '../types';
 import { Colors, Semantic, Brand, Core, Typography, Spacing, Radius } from '../design/tokens';
 import { ScrollReveal } from './ScrollReveal';
 import { PlaceIcon } from './PlaceIcon';
 import type { FlightStatus } from '../domain/trip';
+import { isRentalCar } from '../domain/trip';
+import { FlightGroupCard } from './FlightGroupCard';
+import { HotelGroupCard } from './HotelGroupCard';
+import { RentalCard } from './RentalCard';
+import { resolveStopColor } from '../design/tripPacks';
 
 // ── AlertBox ──────────────────────────────────────────────────
 
@@ -69,19 +73,20 @@ export function SecHead({ label }: { label: string }) {
 
 export function LegSummary({ stop }: { stop: Stop }) {
   if (!stop.summary) return null;
+  const legAccent = resolveStopColor(stop);
   return (
     <div style={{
       background: Colors.surfaceRaised,
       borderRadius: `${Radius.lg}px`,
       boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
-      borderLeft: `3px solid ${stop.accent}`,
+      borderLeft: `3px solid ${legAccent}`,
       padding: `${Spacing.md}px ${Spacing.base}px`,
       marginBottom: `${Spacing.xl}px`,
     }}>
       <div style={{
         fontSize: `${Typography.size.xs}px`,
         fontWeight: Typography.weight.bold,
-        color: stop.accent,
+        color: legAccent,
         letterSpacing: '0.12em',
         textTransform: 'uppercase' as const,
         fontFamily: Typography.family.sans,
@@ -97,130 +102,6 @@ export function LegSummary({ stop }: { stop: Stop }) {
         fontFamily: Typography.family.sans,
       }}>
         {stop.summary}
-      </div>
-    </div>
-  );
-}
-
-// ── HotelCard ─────────────────────────────────────────────────
-
-export interface HotelCardProps {
-  accent: string;
-  label: string;
-  booking: Booking;
-  enrichment?: PlaceEnrichment;
-  hideNote?: boolean;
-  onExpand?: (booking: Booking, rect: DOMRect) => void;
-}
-
-export function HotelCard({ accent, label, booking, enrichment, hideNote, onExpand }: HotelCardProps) {
-  return (
-    <div
-      onClick={onExpand ? (e) => onExpand(booking, (e.currentTarget as HTMLElement).getBoundingClientRect()) : undefined}
-      style={{
-        background: Colors.surfaceRaised,
-        borderRadius: `${Radius.lg}px`,
-        boxShadow: '0 1px 4px rgba(13,43,62,0.08), 0 2px 10px rgba(13,43,62,0.06)',
-        borderLeft: `3px solid ${accent}`,
-        cursor: onExpand ? 'pointer' : 'default',
-      }}
-    >
-      <div style={{ padding: `${Spacing.md}px ${Spacing.base}px` }}>
-        <div style={{
-          fontSize: `${Typography.size.xs}px`,
-          fontWeight: Typography.weight.bold,
-          color: accent,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase' as const,
-          fontFamily: Typography.family.sans,
-          marginBottom: `${Spacing.sm}px`,
-        }}>
-          {label}
-        </div>
-        <div style={{
-            fontWeight: Typography.weight.bold,
-            fontSize: `${Typography.size.base}px`,
-            color: Colors.textPrimary,
-            marginBottom: `${Spacing.xs}px`,
-            fontFamily: Typography.family.sans,
-          }}>
-            {booking.label}
-          </div>
-
-        {/* Google rating */}
-        {enrichment?.rating != null && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: `${Spacing.xs}px`,
-            marginBottom: `${Spacing.xs}px`,
-          }}>
-            <span style={{ color: Colors.gold, fontSize: `${Typography.size.sm}px` }}>★</span>
-            <span style={{
-              fontWeight: Typography.weight.semibold,
-              fontSize: `${Typography.size.sm}px`,
-              color: Colors.textPrimary,
-              fontFamily: Typography.family.sans,
-            }}>
-              {enrichment.rating.toFixed(1)}
-            </span>
-            {enrichment.user_ratings_total != null && (
-              <span style={{
-                fontSize: `${Typography.size.xs}px`,
-                color: Colors.textMuted,
-                fontFamily: Typography.family.sans,
-              }}>
-                ({enrichment.user_ratings_total.toLocaleString()})
-              </span>
-            )}
-          </div>
-        )}
-
-        {booking.addr && (
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: `${Spacing.xs}px`,
-            fontSize: `${Typography.size.xs}px`,
-            color: accent,
-            marginTop: `${Spacing.xs}px`,
-            marginBottom: `${Spacing.xs}px`,
-            opacity: 0.85,
-            fontFamily: Typography.family.sans,
-          }}>
-            <Icons.Pin size={11} weight="duotone" color={accent} /> {booking.addr}
-          </div>
-        )}
-
-        {/* Phone from enrichment */}
-        {enrichment?.phone && (
-          <div style={{ marginTop: `${Spacing.xs}px`, marginBottom: `${Spacing.xs}px`, fontSize: `${Typography.size.xs}px`, color: accent, fontFamily: Typography.family.sans, opacity: 0.85 }}>
-            <Icons.Phone size={11} weight="duotone" color={accent} /> {enrichment.phone}
-          </div>
-        )}
-
-        {booking.confirmation && (
-          <div style={{
-            fontSize: `${Typography.size.xs}px`,
-            color: Colors.textMuted,
-            marginBottom: `${Spacing.xs}px`,
-            fontFamily: Typography.family.sans,
-          }}>
-            <span style={{display:'inline-flex',alignItems:'center',gap:4}}><Icons.Theater size={11} weight="duotone" color={Colors.textMuted} /> Confirmation: <span style={{ fontWeight: Typography.weight.bold, color: Colors.textSecondary }}>{booking.confirmation}</span></span>
-          </div>
-        )}
-        {!hideNote && booking.note && (
-          <div style={{
-            color: Colors.textSecondary,
-            fontSize: `${Typography.size.sm}px`,
-            lineHeight: Typography.lineHeight.relaxed,
-            fontStyle: 'italic',
-            marginTop: `${Spacing.xs}px`,
-            fontFamily: Typography.family.sans,
-          }}>
-            {booking.note}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -401,54 +282,77 @@ export function BookingCard({ booking, accent, flightStatus, flightLoading, onEx
 interface TravelSectionProps {
   stop: Stop;
   stopBookings: Booking[];
+  allBookings?: Booking[];
   groups: Group[];
   flightStatus: Record<string, FlightStatus>;
   flightLoading: boolean;
-  lastUpdated: Record<string, Date>;
   onBookingExpand?: (booking: Booking, rect: DOMRect) => void;
   hotelEnrichmentMap?: Record<string, PlaceEnrichment>;
 }
 
-export function TravelSection({ stop, stopBookings, groups, flightStatus, flightLoading, lastUpdated, onBookingExpand, hotelEnrichmentMap }: TravelSectionProps) {
+export function TravelSection({ stop, stopBookings, allBookings, groups, flightStatus, flightLoading, onBookingExpand, hotelEnrichmentMap }: TravelSectionProps) {
+  const stopColor = resolveStopColor(stop);
   const sorted = [...stopBookings].sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999));
-  const hasFlights = stopBookings.some(b => b.type === "flight");
-
-  const flightBookings = stopBookings.filter(b => b.type === "flight" && b.flights);
-  const dateKeys = [...new Set(
-    flightBookings.flatMap(b => b.flights!.map(f => new Date(f.date).toISOString().split("T")[0]))
-  )];
-  const relevantTimestamps = dateKeys.map(dk => lastUpdated[dk]).filter(Boolean);
-  const mostRecent = relevantTimestamps.length > 0
-    ? new Date(Math.max(...relevantTimestamps.map(d => d.getTime())))
-    : null;
 
   const renderBooking = (b: Booking) => {
-    if (b.type === "accommodation") {
-      const groupName = b.group_ids
-        ? groups.find(g => g.id === b.group_ids![0])?.name
-        : "Party-Wide";
-      return <HotelCard key={b.id} accent={stop.accent} label={groupName + "'s Accommodations"} booking={b} enrichment={hotelEnrichmentMap?.[b.id]} onExpand={onBookingExpand}/>;
+    if (b.type === "transportation" && isRentalCar(b)) {
+      // Resolve linked booking: return card points to primary via linked_booking_id
+      let primaryBooking = b;
+      let returnBooking: Booking | null = null;
+      if (b.linked_booking_id) {
+        const primary = allBookings?.find(x => x.id === b.linked_booking_id) ?? null;
+        if (primary) { primaryBooking = primary; returnBooking = b; }
+      } else {
+        returnBooking = allBookings?.find(x => x.linked_booking_id === b.id) ?? null;
+      }
+      return (
+        <RentalCard
+          key={b.id}
+          booking={primaryBooking}
+          returnBooking={returnBooking}
+          stop={stop}
+          onExpand={onBookingExpand}
+        />
+      );
     }
-    return <BookingCard key={b.id} booking={b} accent={stop.accent} flightStatus={flightStatus} flightLoading={flightLoading} onExpand={onBookingExpand}/>;
+    return <BookingCard key={b.id} booking={b} accent={stopColor} flightStatus={flightStatus} flightLoading={flightLoading} onExpand={onBookingExpand}/>;
   };
 
+  const flightBookings = sorted.filter(b => b.type === "flight" && b.flights?.length);
+  const accommodations = sorted.filter(b => b.type === "accommodation");
+  const others = sorted.filter(b => b.type !== "accommodation" && !(b.type === "flight" && b.flights?.length));
+  const othersOffset = (flightBookings.length > 0 ? 1 : 0) + (accommodations.length > 0 ? 1 : 0);
+
   return (
-    <>
-      {hasFlights && mostRecent && (
-        <div style={{fontSize:"0.7rem",color:Core.textFaint,textAlign:"right",marginBottom:"10px"}}>
-          {!navigator.onLine?"Offline · ":""}Last checked: {mostRecent.toLocaleTimeString()}
-        </div>
+    <div style={{display:"flex",flexDirection:"column",gap:`${Spacing.sm}px`}}>
+      {flightBookings.length > 0 && (
+        <ScrollReveal key="flight-group" index={0}>
+          <FlightGroupCard
+            bookings={flightBookings}
+            stop={stop}
+            groups={groups}
+            flightStatus={flightStatus}
+            flightLoading={flightLoading}
+            onExpand={onBookingExpand}
+          />
+        </ScrollReveal>
       )}
-      {hasFlights && !mostRecent && (
-        <div style={{fontSize:"0.7rem",color:Core.textFaint,textAlign:"right",marginBottom:"10px"}}>Live status begins 48hrs before departure</div>
+      {accommodations.length > 0 && (
+        <ScrollReveal key="hotel-group" index={flightBookings.length > 0 ? 1 : 0}>
+          <HotelGroupCard
+            bookings={accommodations}
+            stop={stop}
+            groups={groups}
+            enrichmentMap={hotelEnrichmentMap ?? {}}
+            onExpand={onBookingExpand}
+          />
+        </ScrollReveal>
       )}
-      <div style={{display:"flex",flexDirection:"column",gap:`${Spacing.sm}px`}}>
-        {sorted.map((b, i) => (
-          <ScrollReveal key={b.id} index={i}>
-            {renderBooking(b)}
-          </ScrollReveal>
-        ))}
-      </div>
-    </>
+      {others.map((b, i) => (
+        <ScrollReveal key={b.id} index={i + othersOffset}>
+          {renderBooking(b)}
+        </ScrollReveal>
+      ))}
+    </div>
   );
 }
