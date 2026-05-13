@@ -3,6 +3,7 @@ import type { Place, PlaceEnrichment, Stop } from '../../types';
 import { PlaceCarouselCard } from './PlaceCarouselCard';
 import { useScrollCarousel } from '../../hooks/useScrollCarousel';
 import { Colors, Spacing, Typography, Radius, Animation } from '../../design/tokens';
+import { resolveStopColor } from '../../design/tripPacks';
 
 interface PlaceCarouselProps {
   label: string;
@@ -98,7 +99,7 @@ export function PlaceCarousel({ label, places, stopMap, enrichmentMap, addedPlac
               <PlaceCarouselCard
                 place={place}
                 stopName={stopMap[place.stop_id]?.city ?? ''}
-                accent={stopMap[place.stop_id]?.accent ?? Colors.navy}
+                accent={resolveStopColor(stopMap[place.stop_id])}
                 enrichment={enrichmentMap[place.id]}
                 isAdded={addedPlaceIds?.has(place.id)}
                 onClick={onCardClick}

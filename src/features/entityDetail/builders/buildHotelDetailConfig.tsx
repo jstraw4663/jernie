@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import type { Booking, PlaceEnrichment, Stop } from '../../../types';
 import { Icons } from '../../../design/icons';
-import { IconColors } from '../../../design/tokens';
+import { IconColors, Semantic } from '../../../design/tokens';
 import { ReviewCarousel } from '../components/ReviewCarousel';
 import type { DetailConfig, DetailRow, DetailSectionConfig } from '../detailTypes';
 import { Colors, Spacing, Radius, Typography } from '../../../design/tokens';
@@ -20,6 +20,189 @@ import { appleMapsUrl } from '../../../domain/trip';
 import { DateTimeRangeModule } from '../components/DateTimeRangeModule';
 import { DistanceModule } from '../components/DistanceModule';
 import { section } from './utils';
+import { resolveStopColor } from '../../../design/tripPacks';
+
+// ── StayTimeline ──────────────────────────────────────────────────────────
+// Read-only horizontal stay timeline in the detail sheet.
+// DateTimeRangeModule below handles editing.
+
+interface StayTimelineProps {
+  checkinDate: string | null;
+  checkinTime: string | null;
+  checkoutDate: string | null;
+  checkoutTime: string | null;
+  accent: string;
+}
+
+function fmtDetailDate(d: string | null): string {
+  if (!d) return 'TBD';
+  const dt = new Date(d + 'T12:00:00');
+  return dt.toLocaleString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function fmtDetailTime(t: string | null): string {
+  if (!t) return '';
+  const [hStr, mStr] = t.split(':');
+  const h = parseInt(hStr, 10);
+  const m = mStr ?? '00';
+  return `${h % 12 || 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+function nightsCount(start: string | null, end: string | null): number | null {
+  if (!start || !end) return null;
+  const n = Math.round((new Date(end + 'T12:00:00').getTime() - new Date(start + 'T12:00:00').getTime()) / 86_400_000);
+  return n > 0 ? n : null;
+}
+
+function StayTimeline({ checkinDate, checkinTime, checkoutDate, checkoutTime, accent }: StayTimelineProps) {
+  const nights = nightsCount(checkinDate, checkoutDate);
+  const checkinTbd = !checkinDate;
+  const checkoutTbd = !checkoutDate;
+
+  return (
+    <div style={{
+      background: Colors.surface2,
+      borderRadius: Radius.md,
+      padding: `${Spacing.md}px`,
+      marginBottom: `${Spacing.xs}px`,
+    }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(72px, auto) 1fr minmax(72px, auto)',
+        gridTemplateRows: '16px auto auto',
+        alignItems: 'center',
+        justifyItems: 'center',
+        rowGap: 4,
+      }}>
+        {/* Row 1: nights label above track */}
+        <div />
+        <div style={{
+          fontSize: `${Typography.size.xs}px`,
+          color: Colors.textMuted,
+          fontFamily: Typography.family.sans,
+          whiteSpace: 'nowrap' as const,
+        }}>
+          {nights != null ? `${nights} night${nights !== 1 ? 's' : ''}` : ''}
+        </div>
+        <div />
+
+        {/* Row 2: dot — bed-icon line — dot */}
+        <div style={{
+          width: 10, height: 10, borderRadius: '50%',
+          border: `2px solid ${accent}`,
+          background: Colors.surfaceRaised,
+        }} />
+        <div style={{ width: '100%', height: 1.5, background: Colors.border, position: 'relative' }}>
+          <span style={{
+            position: 'absolute', top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            display: 'inline-flex',
+            background: Colors.surface2,
+            padding: '0 3px',
+            lineHeight: 1,
+          }}>
+            <Icons.Hotel size={15} color={accent} weight="duotone" />
+          </span>
+        </div>
+        <div style={{
+          width: 10, height: 10, borderRadius: '50%',
+          border: `2px solid ${Semantic.success}`,
+          background: Colors.surfaceRaised,
+        }} />
+
+        {/* Row 3: check-in | — | check-out */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textAlign: 'center' as const }}>
+          <div style={{
+            fontSize: `${Typography.size.base}px`,
+            fontWeight: Typography.weight.bold,
+            color: checkinTbd ? Colors.textMuted : Colors.textPrimary,
+            fontFamily: Typography.family.sans,
+            lineHeight: 1,
+          }}>
+            {fmtDetailDate(checkinDate)}
+          </div>
+          <div style={{
+            fontSize: 10,
+            fontWeight: Typography.weight.semibold,
+            color: accent,
+            fontFamily: Typography.family.sans,
+            textTransform: 'uppercase' as const,
+            letterSpacing: '0.08em',
+          }}>
+            Check-in
+          </div>
+          {checkinTime && (
+            <div style={{ fontSize: 10, color: Colors.textMuted, fontFamily: Typography.family.sans }}>
+              {fmtDetailTime(checkinTime)}
+            </div>
+          )}
+        </div>
+
+        <div />
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, textAlign: 'center' as const }}>
+          <div style={{
+            fontSize: `${Typography.size.base}px`,
+            fontWeight: Typography.weight.bold,
+            color: checkoutTbd ? Colors.textMuted : Colors.textPrimary,
+            fontFamily: Typography.family.sans,
+            lineHeight: 1,
+          }}>
+            {fmtDetailDate(checkoutDate)}
+          </div>
+          <div style={{
+            fontSize: 10,
+            fontWeight: Typography.weight.semibold,
+            color: Semantic.success,
+            fontFamily: Typography.family.sans,
+            textTransform: 'uppercase' as const,
+            letterSpacing: '0.08em',
+          }}>
+            Check-out
+          </div>
+          {checkoutTime && (
+            <div style={{ fontSize: 10, color: Colors.textMuted, fontFamily: Typography.family.sans }}>
+              {fmtDetailTime(checkoutTime)}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── AmenityPills ──────────────────────────────────────────────────────────
+
+interface AmenityPillsProps {
+  amenities: string[];
+  accent: string;
+}
+
+function AmenityPills({ amenities, accent }: AmenityPillsProps) {
+  return (
+    <div style={{
+      display: 'flex',
+      flexWrap: 'wrap' as const,
+      gap: `${Spacing.xs}px`,
+      padding: `${Spacing.sm}px 0`,
+    }}>
+      {amenities.map((label) => (
+        <div key={label} style={{
+          background: `${accent}18`,
+          color: accent,
+          borderRadius: Radius.full,
+          padding: '4px 12px',
+          fontSize: `${Typography.size.xs}px`,
+          fontWeight: Typography.weight.bold,
+          fontFamily: Typography.family.sans,
+          whiteSpace: 'nowrap' as const,
+        }}>
+          {label}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ── Inline editable field ─────────────────────────────────────────────────
 // Rendered as a module row — styled <input> matching card surface aesthetics.
@@ -105,6 +288,7 @@ export function buildHotelDetailConfig(
   onBookingChange: (field: keyof Booking, value: string | null) => void,
   enrichment?: PlaceEnrichment,
 ): DetailConfig {
+  const stopColor = resolveStopColor(stop);
   // Brand logo + gradient (same pattern as buildBookingDetailConfig)
   const domain = (booking.url ? domainFromUrl(booking.url) : null)
     ?? labelToBrandDomain(booking.label);
@@ -114,6 +298,18 @@ export function buildHotelDetailConfig(
 
   // ── Your Stay section ─────────────────────────────────────────
   const stayRows: DetailRow[] = [
+    {
+      label: '', value: '',
+      component: (
+        <StayTimeline
+          checkinDate={booking.checkin_date ?? null}
+          checkinTime={booking.checkin_time ?? null}
+          checkoutDate={booking.checkout_date ?? null}
+          checkoutTime={booking.checkout_time ?? null}
+          accent={stopColor}
+        />
+      ),
+    },
     {
       label: '', value: '',
       component: (
@@ -232,6 +428,12 @@ export function buildHotelDetailConfig(
 
   const sections: DetailSectionConfig[] = [
     section('Your Stay', stayRows),
+    ...(enrichment?.amenities?.length
+      ? [section('Amenities', [{
+          label: '', value: '',
+          component: <AmenityPills amenities={enrichment.amenities} accent={stopColor} />,
+        }])]
+      : []),
     section('Location', locationRows),
     section('Booking', bookingRows),
     ...(moreRows.length > 0 ? [section('About', moreRows)] : []),
@@ -261,7 +463,7 @@ export function buildHotelDetailConfig(
     sections,
     externalUrl: websiteUrl ?? undefined,
     phone: enrichment?.phone ?? undefined,
-    stopAccent: stop.accent,
+    stopAccent: stopColor,
     stopLabel: stop.city,
     placeId: booking.id,
     googlePlaceId: enrichment?.google_place_id,

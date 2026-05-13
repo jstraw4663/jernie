@@ -17,12 +17,11 @@ import {
 } from 'framer-motion';
 import type { Stop } from '../types';
 import { Colors, Semantic, Spacing, Typography, Animation } from '../design/tokens';
-import { getStopPack } from '../design/tripPacks';
+import { resolveStopColor } from '../design/tripPacks';
 import { useSheetContext } from '../contexts/SheetContext';
 
-// Look up the Maine Pack color for a stop; fall back to trip.json accent.
 function resolveStopAccent(stop: Stop): string {
-  return getStopPack('maine', stop.id)?.primary ?? stop.accent;
+  return resolveStopColor(stop);
 }
 
 // ---------------------------------------------------------------------------

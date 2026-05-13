@@ -1,7 +1,7 @@
 # Jernie — Dev Context
 
 > Operational hub. Detailed context lives in supporting docs — load them only when the task requires.
-> Last updated: May 9, 2026 — v0.7.3
+> Last updated: May 13, 2026 — v0.7.4
 
 ---
 
@@ -58,12 +58,15 @@ APIs: Open-Meteo (weather, 3hr cache) · Anthropic + web_search (flight status, 
 | `src/features/entityDetail/components/QuickActions.tsx` | Contextual quick-action row in EntityDetail (directions, call, website, etc.) |
 | `src/features/explore/ExploreScreen.tsx` | Explore tab — carousels, search, filter, sort across all places |
 | `src/features/overview/OverviewScreen.tsx` | Overview tab — trip-wide management grouped by type (flights, stays, rental car, restaurants, activities) |
-| `src/features/overview/selectors.ts` | Pure grouping helpers — selectFlightBookings, groupAccommodationsByStop, selectRentalCars, etc. |
+| `src/features/overview/selectors.ts` | Pure grouping helpers — `groupFlightsByStop`, `groupAccommodationsByStop` (shared `StopBookingGroup` type + factory), `selectRentalCars`, etc. |
 | `src/features/overview/OverviewAnchorNav.tsx` | Sticky horizontal category jump row with IntersectionObserver scroll tracking |
 | `src/platform/` | Provider abstraction layer (Google Places, AllTrails) |
 | `src/components/EditableItinerary.tsx` | Itinerary — drag-reorder, edit mode, custom items (hotspot) |
 | `src/components/TimelineItem.tsx` | Timeline cards — animation state, category chips, confirm logic (hotspot) |
 | `src/components/TravelSection.tsx` | Bookings + hotel + flight rows (hotspot) |
+| `src/components/FlightGroupCard.tsx` | Consolidated flight card — one card per stop, shared gradient header (city + date), one row per flight booking (group label, route, times, status chip); each row taps to open detail sheet |
+| `src/components/RentalCard.tsx` | Dedicated rental car booking card — navy header, CSS-grid h-timeline with car icon, context-aware pickup/drop-off footer label |
+| `src/components/HotelGroupCard.tsx` | Consolidated hotel card — one card per stop, shared gradient header (city + date range), one row per accommodation booking (group label, hotel name, rating, amenity icons); each row taps to open detail sheet |
 | `src/components/ConfirmTimeSheet.tsx` | Confirm/unconfirm bottom sheet with time input + AM/PM toggle — opened from TimelineItem |
 | `src/components/NavigationSelectorSheet.tsx` | Map app picker sheet (Apple Maps / Google Maps / Uber) — opened from TimelineItem Navigate CTA |
 | `src/design/ActionIcons.tsx` | Inline SVG icons: NavigateIcon, CheckmarkIcon, EllipsisIcon |
@@ -120,7 +123,7 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 - **NavigationContext:** cross-tab navigation (e.g., Overview → Explore with filter) uses `useNavigation()` from `NavigationContext.tsx`; the one-shot payload travels via `navigation.ts` module state (safe because Explore remounts on tab switch via AnimatePresence key).
 - **ItineraryBadge:** use `<ItineraryBadge>` from `components/ItineraryBadge.tsx` for all add-to-itinerary / view-detail badges; never inline badge button logic in card components.
 - **ACTIVITY_CATEGORIES:** use the exported Set from `features/overview/selectors.ts` when filtering activities — never use `category !== 'restaurant'` (includes hotels).
-- **useTripTheme():** components inside the Jernie tab must consume stop/trip accent colors via `useTripTheme()` from `TripThemeContext.tsx` — never read `stop.accent` directly. Overview is the exception: it renders multiple stops simultaneously, so it uses the `getStopTheme(tripId, stopId)` standalone helper instead. Stop colors live in `src/design/tripPacks.ts` (not trip.json).
+- **useTripTheme():** components inside the Jernie tab must consume stop/trip accent colors via `useTripTheme()` from `TripThemeContext.tsx`. Overview (multiple stops rendered simultaneously) uses `getStopTheme(tripId, stopId)` standalone helper. All other components (cards, builders, sheets) call `resolveStopColor(stop)` from `tripPacks.ts` — this is the single call site for primary stop color with navy fallback. `Stop.accent` was removed from the type; stop colors live exclusively in `src/design/tripPacks.ts`.
 - **Token layers:** `Brand` (global identity) → `Core` (neutral foundation) → `Semantic` (universal UI states, never overridden) → `TypeColors` (category taxonomy) → trip/stop (dynamic, via `TripThemeContext`). Gold (`Semantic.confirmed`) is completion language only — never used as a stop/trip accent.
 - **Data split — trip.json vs Firestore vs RTDB:** trip.json = editorial identity (name, category, emoji, curator notes, must flag, hike metadata, itinerary schedule). Firestore = operational contact data (phone, addr, hours, website, rating, photos, reviews) fetched from Google Places, 24hr TTL. RTDB = live user state (reorder, time overrides, custom items, confirms). Never add phone to trip.json place objects — that belongs in Firestore enrichment. `addr` is the only contact field allowed in trip.json, and only for hike places (trailhead/parking address; AllTrails enrichment doesn't populate it).
 - **DetailConfig.rating / ratingCount / price:** rendered directly in the body title area of `EntityDetail.tsx` (right-aligned, same row as title/subtitle) — not in the Info section. Set from enrichment in `buildPlaceDetailConfig.tsx`.
@@ -131,7 +134,8 @@ These rules exist because ignoring them once caused 4 emergency hotfix PRs and p
 
 ## Current Status & Known Issues
 
-- **v0.7.3 (in progress):** TimelineItem redesign — CTA state machine (Confirm/Details/Navigate per trip phase + confirmed status); ConfirmTimeSheet + NavigationSelectorSheet new components; ActionIcons SVGs; mapNavigation util extracted from QuickActions; EditableItinerary slot-group headers + requestOpenDayId/requestScrollToItemId deep-link from Overview; PlaceMetaRow compact StarRating + subcategory; DayCard safe-area-aware scrollMarginTop
+- **v0.7.4 (in progress):** FlightGroupCard + HotelGroupCard + RentalCard — stop-grouped consolidated cards replacing per-booking cards; `Stop.accent` removed from type and trip.json, all color resolution now via `resolveStopColor(stop)` in `tripPacks.ts`; `StopBookingGroup` unified interface + `groupBookingsByStop` shared factory in selectors; `buildHotelDetailConfig` StayTimeline + AmenityPills; `buildRentalCarDetailConfig` JourneyTimeline, VehicleCard, Call/Navigate/Manage quick actions; `brandSupportPhone`/`brandAccountUrl`/`brandShortName` in brandAssets; `titleLogoUrl`/`externalUrlLabel` in DetailConfig; `pillVariant=soft` on DateTimeRangeModule; hotel amenities from Google Places API
+- **v0.7.3 shipped:** TimelineItem redesign — CTA state machine (Confirm/Details/Navigate per trip phase + confirmed status); ConfirmTimeSheet + NavigationSelectorSheet new components; ActionIcons SVGs; mapNavigation util extracted from QuickActions; EditableItinerary slot-group headers + requestOpenDayId/requestScrollToItemId deep-link from Overview; PlaceMetaRow compact StarRating + subcategory; DayCard safe-area-aware scrollMarginTop
 - **v0.7.2 shipped:** detail sheet rating/price in title area; `phone` removed from `Place` schema + all trip.json places; `addr` kept for hike trailheads only; data split enforced (editorial in trip.json, operational in Firestore)
 - **v0.7.1 shipped:** 5-layer color token refactor — `Brand/Core/Semantic/TypeColors` in `tokens.ts`; Maine trip pack in `tripPacks.ts`; `TripThemeContext` + `useTripTheme()`; stop accent colors wired through StopsBar, TimelineItem, FloatingAddCTA, OverviewScreen
 - **v0.7.0 shipped:** StopsBar/Trailhead (trail line, carved pill, scaling nodes); trail photos from AllTrails og:image (scraped on first enrichment, 30-day cache); FloatingAddCTA + QuickActions in EntityDetail; design system refresh across all components; flat shared Firestore enrichment; eager batch enrichment

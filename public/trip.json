@@ -64,7 +64,6 @@
       "city": "Portland, ME",
       "dates": "May 22–24",
       "emoji": "🦞",
-      "accent": "#2D6A8F",
       "summary": "Your introduction to Maine — two and a half days to eat your way through the best food city in New England. Land, drop bags, and get straight to it. Portland Head Light and the Old Port on day one, the Lucky Catch lobster cruise on day two, then north on Sunday morning. Don’t skip Eventide or Mr. Tuna. The lobster cruise is the highlight — gear up for it.",
       "lat": 43.6591,
       "lon": -70.2568,
@@ -78,7 +77,6 @@
       "city": "Bar Harbor, ME",
       "dates": "May 24–27",
       "emoji": "🏔️",
-      "accent": "#1B4D3E",
       "summary": "Three days in Acadia — the physical center of this trip. Hike hard, eat well, and get on the water. The Beehive is yours if you want it; the Jordan Pond Loop works for everyone. Cadillac at sunrise on Wednesday morning requires a Recreation.gov reservation set two days prior at 10am EST. Book Havana the moment you read this if you haven’t.",
       "lat": 44.3876,
       "lon": -68.2039,
@@ -92,7 +90,6 @@
       "city": "Southwest Harbor",
       "dates": "May 27–29",
       "emoji": "⚓",
-      "accent": "#7B3F2B",
       "summary": "The decompression leg — quieter, slower, and just as good. Southwest Harbor is the local side of MDI: no tour buses, real Maine character. The Claremont is exceptional. Hike Acadia Mountain or Beech Mountain in the afternoon, Bass Harbor Lighthouse at golden hour, dinner at Little Fern. Flight out of Bangor on Friday — Stacy’s group leaves by 10:30am, you’re on the 2:22pm.",
       "lat": 44.279,
       "lon": -68.3259,
@@ -152,7 +149,7 @@
       "icon": "🚗",
       "label": "Rental Car — Avis",
       "url": null,
-      "addr": null,
+      "addr": "1001 Westbrook St, Portland, ME 04102",
       "note": null,
       "confirmation": "08749981US2",
       "lines": [
@@ -161,7 +158,15 @@
         "Drop-off: Bangor International Airport (BGR) — May 29"
       ],
       "confirmation_link": null,
-      "flights": null
+      "flights": null,
+      "car_type": "fullsize_suv",
+      "pickup_airport": "PWM",
+      "dropoff_airport": "BGR",
+      "airport_pickup": true,
+      "pickup_date": "2026-05-22",
+      "pickup_time": null,
+      "return_date": "2026-05-29",
+      "return_time": null
     },
     {
       "id": "book-portland-hotel-jj",
@@ -249,17 +254,18 @@
       "icon": "🚗",
       "label": "Rental Car Drop-Off — Avis at BGR",
       "url": null,
-      "addr": "287 Godfrey Blvd, Bangor, ME 04401",
+      "addr": "299 Godfrey Blvd, Bangor, ME 04401",
       "note": null,
       "confirmation": null,
       "lines": [
         "Full-Size SUV return",
-        "📍 287 Godfrey Blvd, Bangor, ME 04401 (Bangor Intl Airport)",
+        "📍 299 Godfrey Blvd, Bangor, ME 04401 (Bangor Intl Airport)",
         "⏰ Allow ~30 min from The Claremont — plan checkout accordingly."
       ],
       "confirmation_link": null,
       "flights": null,
-      "linked_booking_id": "book-portland-car"
+      "linked_booking_id": "book-portland-car",
+      "dropoff_airport": "BGR"
     },
     {
       "id": "book-swh-hotel-jj",

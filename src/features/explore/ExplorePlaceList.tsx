@@ -5,6 +5,7 @@ import { RestaurantCard } from '../../components/RestaurantCard';
 import { ActivityCard } from '../../components/ActivityCard';
 import { ScrollReveal } from '../../components/ScrollReveal';
 import { Colors, Spacing, Typography, Radius } from '../../design/tokens';
+import { resolveStopColor } from '../../design/tripPacks';
 
 type SortKey = 'rating' | 'price-asc' | 'price-desc' | 'name';
 
@@ -96,7 +97,7 @@ export function ExplorePlaceList({ places, stopMap, enrichmentMap, sort, onSortC
       <div style={{ display: 'flex', flexDirection: 'column', gap: Spacing.sm, padding: `0 ${Spacing.base}px` }}>
         {sorted.map((place, i) => {
           const stop = stopMap[place.stop_id];
-          const accent = stop?.accent ?? Colors.navy;
+          const accent = resolveStopColor(stop);
           const enrichment = enrichmentMap[place.id];
           return (
             <ScrollReveal key={place.id} index={i} root={scrollRoot} margin="80px">

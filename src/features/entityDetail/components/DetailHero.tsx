@@ -146,7 +146,7 @@ export function DetailHero({
       {/* Brand logo (airline, hotel) — bottom right, fades with chip */}
       {logoUrl && <BrandLogo url={logoUrl} alt={title} opacity={chipOpacity} />}
 
-      {/* Title overlay — slides up from below into the compressed hero strip */}
+      {/* Title + logo overlay — slides up into the compressed strip. Logo sits right of pill, left of X. */}
       <div
         style={{
           position: 'absolute',
@@ -156,12 +156,15 @@ export function DetailHero({
           transform: `translateY(calc(-50% + ${(1 - compress) * 24}px))`,
           opacity: overlayOpacity,
           pointerEvents: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
         }}
       >
         <div
           style={{
-            display: 'inline-block',
-            maxWidth: '100%',
+            flex: '1 1 auto',
+            minWidth: 0,
             background: 'rgba(0,0,0,0.42)',
             backdropFilter: 'blur(8px)',
             WebkitBackdropFilter: 'blur(8px)',
@@ -201,7 +204,30 @@ export function DetailHero({
             </div>
           )}
         </div>
+        {logoUrl && <OverlayBrandLogo url={logoUrl} />}
       </div>
+    </div>
+  );
+}
+
+function OverlayBrandLogo({ url }: { url: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.95)',
+      borderRadius: 6,
+      padding: '4px 8px',
+      display: 'flex',
+      alignItems: 'center',
+      flexShrink: 0,
+    }}>
+      <img
+        src={url}
+        alt=""
+        onError={() => setFailed(true)}
+        style={{ height: 16, width: 'auto', display: 'block' }}
+      />
     </div>
   );
 }

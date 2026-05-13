@@ -90,12 +90,17 @@ export function domainFromUrl(url: string): string | null {
   }
 }
 
+// Brands where Clearbit logo quality is poor or unavailable — use direct source instead.
+const BRAND_LOGO_OVERRIDES: Record<string, string> = {
+  'avis.com': 'https://upload.wikimedia.org/wikipedia/commons/f/f3/AVIS_logo_2012.svg',
+};
+
 /**
- * Return a Clearbit logo URL for a domain.
- * Size param requests the nearest available square size.
+ * Return a logo URL for a domain.
+ * Falls back to Clearbit CDN when no override is defined.
  */
 export function brandLogoUrl(domain: string, size = 80): string {
-  return `https://logo.clearbit.com/${domain}?size=${size}`;
+  return BRAND_LOGO_OVERRIDES[domain] ?? `https://logo.clearbit.com/${domain}?size=${size}`;
 }
 
 // ── Brand color overrides ─────────────────────────────────────
@@ -117,4 +122,52 @@ const BRAND_COLORS: Record<string, string> = {
 export function brandColor(domain: string | null): string | null {
   if (!domain) return null;
   return BRAND_COLORS[domain] ?? null;
+}
+
+// ── Rental car support phones ─────────────────────────────────
+
+const BRAND_SUPPORT_PHONES: Record<string, string> = {
+  'avis.com':        '1-800-352-7900',
+  'hertz.com':       '1-800-654-3131',
+  'enterprise.com':  '1-855-266-9565',
+  'budget.com':      '1-800-214-6094',
+  'alamo.com':       '1-888-233-8749',
+  'nationalcar.com': '1-844-393-9989',
+};
+
+export function brandSupportPhone(domain: string | null): string | null {
+  if (!domain) return null;
+  return BRAND_SUPPORT_PHONES[domain] ?? null;
+}
+
+// ── Rental car account / manage URLs ─────────────────────────
+
+const BRAND_ACCOUNT_URLS: Record<string, string> = {
+  'avis.com':        'https://www.avis.com/en/account',
+  'hertz.com':       'https://www.hertz.com/rentacar/member/login',
+  'enterprise.com':  'https://www.enterprise.com/en/car-rental/profile/login.html',
+  'budget.com':      'https://www.budget.com/en/account',
+  'alamo.com':       'https://www.alamo.com/en/account',
+  'nationalcar.com': 'https://www.nationalcar.com/en/account',
+};
+
+export function brandAccountUrl(domain: string | null): string | null {
+  if (!domain) return null;
+  return BRAND_ACCOUNT_URLS[domain] ?? null;
+}
+
+// ── Rental car short display names ────────────────────────────
+
+const BRAND_SHORT_NAMES: Record<string, string> = {
+  'avis.com':        'AVIS',
+  'hertz.com':       'HERTZ',
+  'enterprise.com':  'ENTERPRISE',
+  'budget.com':      'BUDGET',
+  'alamo.com':       'ALAMO',
+  'nationalcar.com': 'NATIONAL',
+};
+
+export function brandShortName(domain: string | null, fallback: string): string {
+  if (!domain) return fallback;
+  return BRAND_SHORT_NAMES[domain] ?? fallback;
 }

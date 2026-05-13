@@ -10,7 +10,7 @@ import type { Booking, Place } from "./types";
 import { motion } from 'framer-motion';
 import { Animation, Typography } from "./design/tokens";
 import { TripThemeProvider } from "./contexts/TripThemeContext";
-import { getStopPack } from "./design/tripPacks";
+import { resolveStopColor } from "./design/tripPacks";
 import { useNavigation } from "./contexts/NavigationContext";
 import { navigation } from "./navigation";
 import { ACTIVITY_CATEGORIES } from "./features/overview/selectors";
@@ -194,7 +194,7 @@ export default function MaineGuide() {
   const weatherData = useWeatherEnrichment(tripId, data?.stops ?? []);
   const [flightStatus, setFlightStatus] = useState<Record<string, FlightStatus>>({});
   const [flightLoading, setFlightLoading] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Record<string, Date>>({});
+  const [, setLastUpdated] = useState<Record<string, Date>>({});
   const [travelOpen, setTravelOpen] = useState(true);
   const [eatOpen, setEatOpen] = useState(true);
   const [doOpen, setDoOpen] = useState(true);
@@ -303,7 +303,7 @@ export default function MaineGuide() {
       );
     }
     if (mergedBooking.type === 'accommodation') return buildHotelDetailConfig(mergedBooking, bookingStop, data.stops, onBookingChange, hotelEnrichmentMap[mergedBooking.id]);
-    if (isRentalCar(mergedBooking))             return buildRentalCarDetailConfig(mergedBooking, bookingStop, data.stops, onBookingChange, returnBooking);
+    if (isRentalCar(mergedBooking))             return buildRentalCarDetailConfig(mergedBooking, bookingStop, data.stops, onBookingChange, returnBooking, !!booking.linked_booking_id);
     return buildBookingDetailConfig(mergedBooking, bookingStop);
   }, [selectedEntity, data, onBookingChange, onLegAircraftChange, bookingOverrides, hotelEnrichmentMap, flightStatus, enrichmentMap, trailEnrichmentMap]);
 
@@ -365,10 +365,9 @@ export default function MaineGuide() {
   };
 
   const stop = data.stops.find(s => s.id === active)!;
-  // Derive accent from the Maine Pack theme (overrides legacy trip.json accent values).
-  // Components migrated to useTripTheme() read stop.primary directly from context;
-  // prop-drilled components still receive stopAccent so they also get the new colors.
-  const stopAccent = getStopPack('maine', active)?.primary ?? stop.accent;
+  // Derive accent from tripPacks — single source of truth for all stop colors.
+  // Components using useTripTheme() read from context; prop-drilled components get stopAccent.
+  const stopAccent = resolveStopColor(stop);
   const stopBookings = data.bookings.filter(b => b.stop_id === active);
   const stopPlaces = data.places.filter(p => p.stop_id === active);
   const stopAlerts = data.alerts.filter(a => a.stop_id === active);
@@ -479,10 +478,10 @@ export default function MaineGuide() {
             <TravelSection
               stop={stop}
               stopBookings={stopBookings}
+              allBookings={data.bookings}
               groups={data.groups}
               flightStatus={flightStatus}
               flightLoading={flightLoading}
-              lastUpdated={lastUpdated}
               onBookingExpand={handleBookingExpand}
               hotelEnrichmentMap={hotelEnrichmentMap}
             />
