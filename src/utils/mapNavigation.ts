@@ -23,7 +23,7 @@ export function buildDeepLinks(
   const pinName   = encodeURIComponent(label ?? addr ?? '');
   const addrQuery = encodeURIComponent(addr ?? label ?? '');
   return {
-    apple: hasCoords ? `maps://?ll=${lat},${lon}&q=${pinName}` : `maps://?q=${addrQuery}`,
+    apple: hasCoords ? `maps://?daddr=${lat},${lon}` : `maps://?daddr=${addrQuery}`,
     google: hasCoords
       ? `comgooglemaps://?center=${lat},${lon}&q=${pinName}`
       : `comgooglemaps://?q=${addrQuery}`,

@@ -39,6 +39,7 @@ export function FixMatchSheet({
   const [searchError, setSearchError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const search = useCallback(async () => {
     const q = query.trim();
@@ -68,12 +69,14 @@ export function FixMatchSheet({
 
   const handleSelect = async (result: SearchResult) => {
     setSavingId(result.id);
+    setSaveError(null);
     try {
       await onSelectGooglePlace(result.id);
       setSavedId(result.id);
       setTimeout(() => onClose(), 1200);
-    } catch {
+    } catch (err) {
       setSavingId(null);
+      setSaveError(err instanceof Error ? err.message : 'Save failed — try again');
     }
   };
 
@@ -82,7 +85,7 @@ export function FixMatchSheet({
   };
 
   return (
-    <Drawer.Root
+    <Drawer.NestedRoot
       open={isOpen}
       onOpenChange={open => { if (!open) onClose(); }}
     >
@@ -196,8 +199,20 @@ export function FixMatchSheet({
               </div>
             )}
 
-            {/* Results list */}
-            <div style={{ flex: 1, overflowY: 'auto' }}>
+            {/* Save error */}
+            {saveError && (
+              <div style={{
+                fontFamily: Typography.family.sans,
+                fontSize: `${Typography.size.xs}px`,
+                color: Semantic.error,
+              }}>
+                {saveError}
+              </div>
+            )}
+
+            {/* Results list — data-vaul-no-drag prevents the parent drawer's drag
+                handler from swallowing taps on result rows. */}
+            <div data-vaul-no-drag style={{ flex: 1, overflowY: 'auto' }}>
               {results.map(result => {
                 const isSaving = savingId === result.id;
                 const isSaved  = savedId  === result.id;
@@ -254,6 +269,6 @@ export function FixMatchSheet({
           </div>
         </Drawer.Content>
       </Drawer.Portal>
-    </Drawer.Root>
+    </Drawer.NestedRoot>
   );
 }

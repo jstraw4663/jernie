@@ -215,6 +215,8 @@ export interface PlaceReview {
 
 export interface PlaceEnrichment {
   google_place_id: string;
+  lat: number | null;
+  lon: number | null;
   rating: number | null;
   user_ratings_total: number | null;
   price_level: string | null;       // "$" | "$$" | "$$$" | "$$$$"
