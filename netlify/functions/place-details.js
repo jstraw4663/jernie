@@ -15,6 +15,7 @@
 const PLACES_BASE = 'https://places.googleapis.com/v1';
 const FIELD_MASK = [
   'id',
+  'location',
   'rating',
   'userRatingCount',
   'priceLevel',
@@ -26,7 +27,6 @@ const FIELD_MASK = [
   'reviews',
   'websiteUri',
   'editorialSummary',
-  'amenities',
   'parkingOptions',
   'accessibilityOptions',
 ].join(',');
@@ -67,7 +67,10 @@ async function fetchPlaceDetails(resourceName, apiKey) {
       'X-Goog-FieldMask': FIELD_MASK,
     },
   });
-  if (!res.ok) throw new Error(`Place Details failed: ${res.status}`);
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`Place Details failed: ${res.status} — ${errBody}`);
+  }
   return res.json();
 }
 
@@ -108,16 +111,12 @@ async function normalizeEnrichment(details, googlePlaceId, apiKey) {
     }));
 
   // Build amenities array from structured Google Places fields (hotel-relevant)
+  // Note: 'amenities' is not a valid Places API (New) field — use parkingOptions and
+  // accessibilityOptions instead. Hotel-specific amenities (pool, gym, etc.) are not
+  // available via the Places API (New).
   const amenityList = [];
-  const am = details.amenities ?? {};
   const pk = details.parkingOptions ?? {};
   const ac = details.accessibilityOptions ?? {};
-  if (am.fitnessCenter)                     amenityList.push('Fitness Center');
-  if (am.hotTub)                            amenityList.push('Hot Tub');
-  if (am.pool)                              amenityList.push('Pool');
-  if (am.restaurant)                        amenityList.push('Restaurant');
-  if (am.bar)                               amenityList.push('Bar');
-  if (am.kidsFriendly)                      amenityList.push('Family Friendly');
   if (pk.freeParkingLot || pk.freeGarage)   amenityList.push('Free Parking');
   if (pk.valetParking)                      amenityList.push('Valet Parking');
   if (pk.paidParkingLot || pk.paidGarage)   amenityList.push('Paid Parking');
@@ -125,6 +124,8 @@ async function normalizeEnrichment(details, googlePlaceId, apiKey) {
 
   return {
     google_place_id: googlePlaceId,
+    lat: details.location?.latitude ?? null,
+    lon: details.location?.longitude ?? null,
     rating: details.rating ?? null,
     user_ratings_total: details.userRatingCount ?? null,
     price_level: PRICE_MAP[details.priceLevel] ?? null,

@@ -1,6 +1,6 @@
 // buildPlaceDetailConfig — normalizes a Place + its parent Stop into a DetailConfig.
 //
-// Map: prefers place.lat/lon when set; falls back to stop coords, then addr-only deep-link.
+// Map: prefers place.lat/lon → enrichment lat/lon → addr-only deep-link. Never falls back to stop coords.
 
 import type { Place, Stop, PlaceEnrichment } from '../../../types';
 import type { DetailConfig, DetailRow, DetailSectionConfig } from '../detailTypes';
@@ -124,8 +124,8 @@ export function buildPlaceDetailConfig(place: Place, stop: Stop, _stops: Stop[] 
     heroPhotoUrl: photos?.[0] ?? undefined,
     photos: photos && photos.length > 1 ? photos.slice(1) : undefined,
     categoryChip: CATEGORY_LABELS[place.category] ?? 'Place',
-    mapLat: place.lat ?? stop.lat,
-    mapLon: place.lon ?? stop.lon,
+    mapLat: place.lat ?? enrichment?.lat ?? undefined,
+    mapLon: place.lon ?? enrichment?.lon ?? undefined,
     mapAddr: addr ?? undefined,
     sections,
     externalUrl: website ?? undefined,
