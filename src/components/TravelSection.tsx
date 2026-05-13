@@ -305,13 +305,16 @@ export function TravelSection({ stop, stopBookings, allBookings, groups, flightS
       } else {
         returnBooking = allBookings?.find(x => x.linked_booking_id === b.id) ?? null;
       }
+      const rentalOnExpand = onBookingExpand
+        ? (_: Booking, rect: DOMRect) => onBookingExpand(b, rect)
+        : undefined;
       return (
         <RentalCard
           key={b.id}
           booking={primaryBooking}
           returnBooking={returnBooking}
           stop={stop}
-          onExpand={onBookingExpand}
+          onExpand={rentalOnExpand}
         />
       );
     }
