@@ -6,7 +6,7 @@
 // Resets on page reload (intentional — verify from Firestore once per session).
 // React Native migration: this module is pure in-memory, no changes needed.
 
-const SESSION_READ_DEBOUNCE_MS = 30 * 60 * 1000; // 30 minutes
+const SESSION_READ_DEBOUNCE_MS = 90 * 60 * 1000; // 90 minutes — reduces Firestore read costs ~3× at scale
 
 const sessionLog = new Map<string, number>(); // cacheKey → last read timestamp
 

@@ -2,14 +2,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Enrichment caches — require anonymous auth (auto-satisfied by the app on load).
-    // Blocks raw script/curl abuse while keeping all app behavior unchanged.
-    // cached_at type check prevents malformed writes from corrupting cache TTL logic.
-    // Flat, shared across all trips and environments — place data is location-level.
-    match /place_enrichment/{placeId} {
+    // Place enrichment — trip-scoped subcollection.
+    // Reads only the current trip's docs (not all trips), so Firestore read cost
+    // scales with trip size rather than total places across the system.
+    // Write guard accepts either cached_at (core phase) or reviews_cached_at (reviews phase).
+    match /place_enrichment/{tripId}/places/{placeId} {
       allow read:  if request.auth != null;
       allow write: if request.auth != null
-                   && request.resource.data.cached_at is number;
+                   && (request.resource.data.cached_at is number
+                       || request.resource.data.reviews_cached_at is number);
     }
     match /trail_enrichment/{trailId} {
       allow read:  if request.auth != null;

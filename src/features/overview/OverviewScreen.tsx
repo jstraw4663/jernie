@@ -18,7 +18,7 @@ import { PlaceList } from '../../components/PlaceList';
 import { ScrollReveal } from '../../components/ScrollReveal';
 import { HotelGroupCard } from '../../components/HotelGroupCard';
 import { FlightGroupCard } from '../../components/FlightGroupCard';
-import { BookingCard } from '../../components/TravelSection';
+import { RentalCard } from '../../components/RentalCard';
 import type { SelectedEntity } from '../entityDetail/detailTypes';
 import type { Booking, Place, Stop } from '../../types';
 import { deriveFlightGroups, findEntityInItinerary, isRentalCar } from '../../domain/trip';
@@ -72,41 +72,6 @@ function StopGroupHeader({ stop }: { stop: Stop }) {
       }}>
         · {stop.dates}
       </span>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Card + pencil affordance wrapper
-// Both the card tap and the pencil button open the same detail sheet.
-// ---------------------------------------------------------------------------
-function CardWithEdit({ children, onEdit }: { children: React.ReactNode; onEdit: () => void }) {
-  return (
-    <div style={{ position: 'relative' }}>
-      {children}
-      <button
-        onClick={(e) => { e.stopPropagation(); onEdit(); }}
-        aria-label="Edit"
-        style={{
-          position: 'absolute',
-          top: Spacing.sm,
-          right: Spacing.sm,
-          width: 26,
-          height: 26,
-          borderRadius: `${Radius.full}px`,
-          border: `1px solid ${Colors.border}`,
-          background: Colors.background,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          fontSize: '10px',
-          zIndex: 1,
-          flexShrink: 0,
-        }}
-      >
-        <Icons.Edit size={11} weight="bold" />
-      </button>
     </div>
   );
 }
@@ -413,43 +378,21 @@ export function OverviewScreen() {
           emptyIcon={<Icons.Car size={36} weight="duotone" color={TypeColors.flight} />}
           emptyText="No rental car added yet"
         >
-          {rentalCars.map(({ booking, coverage }, i) => {
+          {rentalCars.map(({ booking }, i) => {
             const mergedBooking = { ...booking, ...(bookingOverrides[booking.id] ?? {}) } as Booking;
+            const returnBooking = data.bookings.find(b => b.linked_booking_id === booking.id) ?? null;
+            const mergedReturn = returnBooking
+              ? { ...returnBooking, ...(bookingOverrides[returnBooking.id] ?? {}) } as Booking
+              : null;
             const bookingStop = data.stops.find(s => s.id === booking.stop_id) ?? data.stops[0];
-            const bookingColor = resolveStopColor(bookingStop);
             return (
-              <ScrollReveal key={booking.id} index={i}>
-                <CardWithEdit onEdit={() => {
-                  const rect = document.querySelector(`[data-booking-id="${booking.id}"]`)?.getBoundingClientRect()
-                    ?? new DOMRect(0, 0, window.innerWidth, 100);
-                  handleBookingExpand(booking, rect);
-                }}>
-                  <div data-booking-id={booking.id} style={{ position: 'relative' }}>
-                    <BookingCard
-                      booking={mergedBooking}
-                      accent={bookingColor}
-                      flightStatus={{}}
-                      flightLoading={false}
-                      onExpand={(b, rect) => handleBookingExpand(b, rect)}
-                    />
-                    {/* Coverage badge */}
-                    <div style={{
-                      position: 'absolute',
-                      bottom: Spacing.sm,
-                      right: Spacing.sm + 34, // left of pencil button
-                      background: bookingColor + '18',
-                      color: bookingColor,
-                      borderRadius: `${Radius.full}px`,
-                      padding: `2px ${Spacing.xs}px`,
-                      fontSize: `${Typography.size.xs - 1}px`,
-                      fontWeight: Typography.weight.semibold,
-                      fontFamily: Typography.family.sans,
-                      whiteSpace: 'nowrap' as const,
-                    }}>
-                      {coverage}
-                    </div>
-                  </div>
-                </CardWithEdit>
+              <ScrollReveal key={booking.id} index={i} root={scrollRef} margin="80px">
+                <RentalCard
+                  booking={mergedBooking}
+                  returnBooking={mergedReturn}
+                  stop={bookingStop}
+                  onExpand={(b, rect) => handleBookingExpand(b, rect)}
+                />
               </ScrollReveal>
             );
           })}

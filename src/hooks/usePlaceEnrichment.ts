@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { ref as dbRef, get, set } from 'firebase/database';
 import { doc, setDoc } from 'firebase/firestore';
 import type { Place, PlaceEnrichment } from '../types';
@@ -10,6 +10,11 @@ const ENRICHABLE_CATEGORIES = new Set([
   'sight', 'shop', 'beach', 'hotel', 'activity', 'other',
   'hike', // photos via Google Places; trail metadata handled separately by useTrailEnrichment
 ]);
+
+// Place with a confirmed google_place_id — required for the reviews phase.
+interface ReviewablePlace extends Place {
+  google_place_id: string;
+}
 
 export function usePlaceEnrichment(
   tripId: string,
@@ -33,21 +38,76 @@ export function usePlaceEnrichment(
     });
   }, [tripId]);
 
+  // Phase 1 — Core: Pro-tier fields, 14-day TTL.
+  // Includes rating, hours, phone, photos, website. No Enterprise fields.
   const baseEnrichmentMap = useFirestoreEnrichment<PlaceEnrichment, Place>(tripId, places, {
     rootCollection: 'place_enrichment',
-    scoped: false,
+    scoped: true,
+    subcollection: ['places'],
     endpoint: '/.netlify/functions/place-details',
-    ttlMs: 24 * 60 * 60 * 1000,
+    ttlMs: 14 * 24 * 60 * 60 * 1000,
     filterEntities: ps => ps.filter(p => ENRICHABLE_CATEGORIES.has(p.category)),
     buildPayload: p => ({
       id: p.id,
       name: p.name,
       addr: p.addr ?? undefined,
-      // Pass the verified Place ID when an override exists so text search is skipped.
-      ...(overridesRef.current[p.id] ? { google_place_id: overridesRef.current[p.id] } : {}),
+      // Pass the verified Place ID when known — skips Text Search entirely.
+      // Sources in priority order: RTDB override (Fix Match), trip.json provider_id.
+      google_place_id: overridesRef.current[p.id] ?? p.provider_id ?? undefined,
     }),
-    label: 'usePlaceEnrichment',
+    label: 'usePlaceEnrichment:core',
   });
+
+  // Phase 2 — Reviews: Enterprise-tier fields only, 60-day TTL.
+  // Fetched separately so they don't elevate the core phase to Enterprise billing.
+  // Only fires for places where google_place_id is already resolved (no Text Search).
+  const reviewablePlaces = useMemo<ReviewablePlace[]>(() => {
+    return places.flatMap(p => {
+      const gid =
+        overridesRef.current[p.id] ??
+        baseEnrichmentMap[p.id]?.google_place_id ??
+        p.provider_id ??
+        null;
+      if (!gid || !ENRICHABLE_CATEGORIES.has(p.category)) return [];
+      return [{ ...p, google_place_id: gid }];
+    });
+  // baseEnrichmentMap included so reviews phase activates after core resolves google_place_id
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [places, baseEnrichmentMap]);
+
+  const reviewsEnrichmentMap = useFirestoreEnrichment<PlaceEnrichment, ReviewablePlace>(
+    tripId,
+    reviewablePlaces,
+    {
+      rootCollection: 'place_enrichment',
+      scoped: true,
+      subcollection: ['places'],
+      endpoint: '/.netlify/functions/place-details',
+      ttlMs: 60 * 24 * 60 * 60 * 1000,
+      ttlField: 'reviews_cached_at',
+      sessionKey: 'place_enrichment_reviews',
+      extraBody: { mode: 'reviews' },
+      filterEntities: ps => ps,
+      buildPayload: p => ({
+        id: p.id,
+        google_place_id: p.google_place_id,
+      }),
+      label: 'usePlaceEnrichment:reviews',
+    },
+  );
+
+  // Merge all three sources per-entity. Reviews data is sparse (only Enterprise fields)
+  // so it must be merged into base rather than replacing it.
+  const enrichmentMap = useMemo<Record<string, PlaceEnrichment>>(() => {
+    const merged: Record<string, PlaceEnrichment> = { ...baseEnrichmentMap };
+    for (const [id, reviews] of Object.entries(reviewsEnrichmentMap)) {
+      if (reviews) merged[id] = { ...(merged[id] ?? {} as PlaceEnrichment), ...reviews };
+    }
+    for (const [id, local] of Object.entries(localEnrichment)) {
+      if (local) merged[id] = { ...(merged[id] ?? {} as PlaceEnrichment), ...local };
+    }
+    return merged;
+  }, [baseEnrichmentMap, reviewsEnrichmentMap, localEnrichment]);
 
   // Saves a manual Google Place ID override, immediately re-fetches enrichment for that
   // place with the correct ID, and updates both local state and Firestore cache.
@@ -75,12 +135,9 @@ export function usePlaceEnrichment(
     const enrichment = data[placeId];
     if (!enrichment) throw new Error('No enrichment returned for this Place ID');
 
-    await setDoc(doc(firestore, 'place_enrichment', placeId), enrichment);
+    await setDoc(doc(firestore, 'place_enrichment', tripId, 'places', placeId), enrichment, { merge: true });
     setLocalEnrichment(prev => ({ ...prev, [placeId]: enrichment })); // immediate update — no TTL wait
   }, [tripId, places]);
 
-  return {
-    enrichmentMap: { ...baseEnrichmentMap, ...localEnrichment },
-    saveOverride,
-  };
+  return { enrichmentMap, saveOverride };
 }
