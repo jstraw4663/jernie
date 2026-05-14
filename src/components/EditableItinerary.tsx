@@ -70,6 +70,7 @@ interface EditableItineraryProps {
   setTextOverride: (itemId: string, text: string) => void;
   updateCustomItem: (id: string, patch: Partial<Pick<CustomItem, 'text' | 'time' | 'category' | 'addr'>>) => void;
   reservationTimes: Record<string, string>;
+  setReservationTime: (itemId: string, time: string) => void;
   scrollRef: RefObject<HTMLDivElement | null>;
   /** Open entity detail (place card or booking card) — handled in Jernie-PWA */
   onExpandPlace: (place: Place, rect: DOMRect) => void;
@@ -250,7 +251,7 @@ function DroppableSlotZone({ slotId }: { slotId: SlotId }) {
 // Inline read-only view. Long press triggers Edit Mode BottomSheet.
 // Drag reorder now lives inside the sheet (Bundle 3).
 
-function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reservationTime, tripPhase, index, isLast, animate, resolvedPlace, textOverride, onConfirm, onSetTime, onOpenDetail, onTapCard, isPulsing, itemRef }: {
+function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reservationTime, tripPhase, index, isLast, animate, resolvedPlace, textOverride, onOpenDetail, onTapCard, isPulsing, itemRef }: {
   item: ResolvedItem; accent: string;
   isLocked: boolean;
   onLongPress?: () => void;
@@ -262,8 +263,6 @@ function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reserv
   animate: boolean;
   resolvedPlace: Place | null;
   textOverride?: string;
-  onConfirm?: (value: boolean) => void;
-  onSetTime?: (time: string) => void;
   onOpenDetail: () => void;
   onTapCard?: (rect: DOMRect) => void;
   isPulsing?: boolean;
@@ -298,8 +297,6 @@ function SortableItem({ item, accent, isLocked, onLongPress, displayTime, reserv
           isLast={isLast}
           resolvedPlace={resolvedPlace}
           textOverride={textOverride}
-          onConfirm={onConfirm}
-          onSetTime={onSetTime}
           onOpenDetail={onOpenDetail}
           onTapCard={onTapCard}
           isPulsing={isPulsing}
@@ -367,7 +364,7 @@ function SheetSortableItem({ item, isSelected, isLocked, isDragDisabled, onToggl
 
 export function EditableItinerary({
   stop, data, confirms, onConfirm,
-  itineraryOrder, customItems, timeOverrides, textOverrides, reservationTimes,
+  itineraryOrder, customItems, timeOverrides, textOverrides, reservationTimes, setReservationTime,
   setDayOrder, moveItem, addCustomItem, deleteCustomItem, initializeOrder,
   setTimeOverride, setTextOverride, updateCustomItem,
   scrollRef, onExpandPlace, onExpandBooking,
@@ -952,8 +949,6 @@ export function EditableItinerary({
                                   reservationTime={reservationTimes[item.id] || ""}
                                   resolvedPlace={itemPlace}
                                   textOverride={textOverrides[item.id]}
-                                  onConfirm={(value) => onConfirm(item.id, value)}
-                                  onSetTime={(time) => setTimeOverride(item.id, time)}
                                   onOpenDetail={() => setDetailState({ item, resolvedPlace: itemPlace })}
                                   onTapCard={onTapCard}
                                   isPulsing={pulsingItemId === item.id}
@@ -1179,12 +1174,12 @@ export function EditableItinerary({
         resolvedPlace={detailState?.resolvedPlace ?? null}
         accent={stopColor}
         textOverride={detailState ? textOverrides[detailState.item.id] : undefined}
-        timeOverride={detailState ? timeOverrides[detailState.item.id] : undefined}
+        reservationTime={detailState ? (reservationTimes[detailState.item.id] || '') : undefined}
         isConfirmed={detailState ? (confirms[detailState.item.id] || (!detailState.item._isCustom && (detailState.item as ItineraryItem).locked)) : false}
         onClose={() => setDetailState(null)}
         onSetTextOverride={setTextOverride}
         onUpdateCustomItem={updateCustomItem}
-        onSetTimeOverride={setTimeOverride}
+        onSetReservationTime={setReservationTime}
         onDelete={() => { if (detailState) { deleteItem(detailState.item); setDetailState(null); } }}
         onConfirm={onConfirm}
       />

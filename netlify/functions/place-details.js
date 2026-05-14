@@ -1,19 +1,20 @@
 // place-details — Google Places API proxy.
 //
-// POST { places: Array<{ id, name, addr }> }
+// POST { places: Array<{ id, name?, addr?, google_place_id? }>, mode?: 'core' | 'reviews' }
 // Returns Record<placeId, PlaceEnrichment> — one entry per input place.
 // Individual failures return null for that entry and don't abort the batch.
 //
-// Uses the Places API (New):
-//   Text Search  → find google_place_id by name + address
-//   Place Details → fetch enrichment fields
-//   Photo URLs   → construct directly from photo resource names
+// Two modes (billed at different tiers — never mix fields across modes):
+//   core    (default) — Pro-tier fields; 14-day TTL client-side
+//   reviews            — Enterprise-tier fields only; 60-day TTL client-side
 //
-// Caching is handled client-side in Firestore (24hr TTL).
-// This function always fetches fresh data — it has no internal cache.
+// Caching is handled client-side in Firestore. This function always fetches fresh data.
 
 const PLACES_BASE = 'https://places.googleapis.com/v1';
-const FIELD_MASK = [
+
+// Pro-tier fields only. No Enterprise fields — keeping this mask clean is what
+// drops billing from Enterprise to Pro (5,000 free/month vs 1,000).
+const FIELD_MASK_CORE = [
   'id',
   'location',
   'rating',
@@ -24,8 +25,13 @@ const FIELD_MASK = [
   'currentOpeningHours',
   'regularOpeningHours',
   'photos',
-  'reviews',
   'websiteUri',
+].join(',');
+
+// Enterprise-tier fields. Fetched separately on a 60-day TTL so the core
+// refresh cycle stays at Pro pricing.
+const FIELD_MASK_REVIEWS = [
+  'reviews',
   'editorialSummary',
   'parkingOptions',
   'accessibilityOptions',
@@ -60,11 +66,11 @@ async function findPlaceId(name, addr, apiKey) {
   return { resourceName: place.name, placeId: place.id };
 }
 
-async function fetchPlaceDetails(resourceName, apiKey) {
+async function fetchPlaceDetails(resourceName, apiKey, fieldMask) {
   const res = await fetch(`${PLACES_BASE}/${resourceName}`, {
     headers: {
       'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask': FIELD_MASK,
+      'X-Goog-FieldMask': fieldMask,
     },
   });
   if (!res.ok) {
@@ -90,37 +96,17 @@ async function resolvePhotoUrl(photoName, apiKey) {
   }
 }
 
-async function normalizeEnrichment(details, googlePlaceId, apiKey) {
+async function normalizeCoreEnrichment(details, googlePlaceId, apiKey) {
   const currentHours = details.currentOpeningHours;
   const regularHours = details.regularOpeningHours;
   const hours   = currentHours?.weekdayDescriptions ?? regularHours?.weekdayDescriptions ?? null;
   const openNow = currentHours?.openNow             ?? regularHours?.openNow             ?? null;
 
-  // Resolve photo references to public CDN URLs in parallel (up to 10)
-  const photoNames = (details.photos ?? []).slice(0, 10).map(p => p.name);
+  // Resolve photo references to public CDN URLs in parallel (up to 5).
+  // Photo URLs are stored in Firestore and served to clients at no additional cost.
+  const photoNames = (details.photos ?? []).slice(0, 5).map(p => p.name);
   const resolvedPhotos = await Promise.all(photoNames.map(n => resolvePhotoUrl(n, apiKey)));
   const photos = resolvedPhotos.filter(Boolean);
-
-  const reviews = (details.reviews ?? [])
-    .slice(0, 5)
-    .map(r => ({
-      author: r.authorAttribution?.displayName ?? 'Anonymous',
-      rating: r.rating ?? 0,
-      text: r.text?.text ?? '',
-      time: r.relativePublishTimeDescription ?? '',
-    }));
-
-  // Build amenities array from structured Google Places fields (hotel-relevant)
-  // Note: 'amenities' is not a valid Places API (New) field — use parkingOptions and
-  // accessibilityOptions instead. Hotel-specific amenities (pool, gym, etc.) are not
-  // available via the Places API (New).
-  const amenityList = [];
-  const pk = details.parkingOptions ?? {};
-  const ac = details.accessibilityOptions ?? {};
-  if (pk.freeParkingLot || pk.freeGarage)   amenityList.push('Free Parking');
-  if (pk.valetParking)                      amenityList.push('Valet Parking');
-  if (pk.paidParkingLot || pk.paidGarage)   amenityList.push('Paid Parking');
-  if (ac.wheelchairAccessibleEntrance)      amenityList.push('Accessible');
 
   return {
     google_place_id: googlePlaceId,
@@ -135,23 +121,53 @@ async function normalizeEnrichment(details, googlePlaceId, apiKey) {
     open_now: openNow,
     hours,
     photos: photos.length > 0 ? photos : null,
-    reviews: reviews.length > 0 ? reviews : null,
-    editorial_summary: details.editorialSummary?.text ?? null,
-    amenities: amenityList.length > 0 ? amenityList : null,
     cached_at: Date.now(),
   };
 }
 
-async function enrichPlace(place, apiKey) {
+function normalizeReviewsEnrichment(details, googlePlaceId) {
+  const reviews = (details.reviews ?? [])
+    .slice(0, 5)
+    .map(r => ({
+      author: r.authorAttribution?.displayName ?? 'Anonymous',
+      rating: r.rating ?? 0,
+      text: r.text?.text ?? '',
+      time: r.relativePublishTimeDescription ?? '',
+    }));
+
+  const amenityList = [];
+  const pk = details.parkingOptions ?? {};
+  const ac = details.accessibilityOptions ?? {};
+  if (pk.freeParkingLot || pk.freeGarage)   amenityList.push('Free Parking');
+  if (pk.valetParking)                      amenityList.push('Valet Parking');
+  if (pk.paidParkingLot || pk.paidGarage)   amenityList.push('Paid Parking');
+  if (ac.wheelchairAccessibleEntrance)      amenityList.push('Accessible');
+
+  return {
+    google_place_id: googlePlaceId,
+    reviews: reviews.length > 0 ? reviews : null,
+    editorial_summary: details.editorialSummary?.text ?? null,
+    amenities: amenityList.length > 0 ? amenityList : null,
+    reviews_cached_at: Date.now(),
+  };
+}
+
+async function enrichPlace(place, apiKey, mode) {
   try {
-    // Skip text search when a verified google_place_id is already known (e.g. from Fix Match).
+    if (mode === 'reviews') {
+      if (!place.google_place_id) throw new Error('google_place_id required for reviews mode');
+      const details = await fetchPlaceDetails(`places/${place.google_place_id}`, apiKey, FIELD_MASK_REVIEWS);
+      return normalizeReviewsEnrichment(details, place.google_place_id);
+    }
+
+    // Core mode — skip Text Search when google_place_id is already known
     const { resourceName, placeId } = place.google_place_id
       ? { resourceName: `places/${place.google_place_id}`, placeId: place.google_place_id }
       : await findPlaceId(place.name, place.addr, apiKey);
-    const details = await fetchPlaceDetails(resourceName, apiKey);
-    return await normalizeEnrichment(details, placeId, apiKey);
+    const details = await fetchPlaceDetails(resourceName, apiKey, FIELD_MASK_CORE);
+    return await normalizeCoreEnrichment(details, placeId, apiKey);
   } catch (err) {
-    console.error(`[place-details] Failed for "${place.name}":`, err.message);
+    console.error(`[place-details] Failed for "${place.name}" (mode: ${mode}):`, err.message);
     return null;
   }
 }
@@ -192,8 +208,10 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Max 20 places per request' }) };
   }
 
+  const mode = body.mode === 'reviews' ? 'reviews' : 'core';
+
   // Enrich all places in parallel — individual failures return null
-  const results = await Promise.all(places.map(p => enrichPlace(p, apiKey)));
+  const results = await Promise.all(places.map(p => enrichPlace(p, apiKey, mode)));
 
   const enrichmentMap = {};
   places.forEach((p, i) => {

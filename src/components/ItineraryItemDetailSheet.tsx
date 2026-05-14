@@ -1,8 +1,14 @@
-// ItineraryItemDetailSheet — detail and edit sheet for any itinerary item.
+// ItineraryItemDetailSheet — unified detail, edit, and confirm sheet for any itinerary item.
+//
+// Three entry points all open this sheet: "Confirm" CTA, "✓ Confirmed" pill, and ··· ellipsis.
 //
 // Two modes driven by resolvedPlace:
-//   Place-linked:  shows linked place data (read-only) + editable label, time, confirm
-//   Custom:        editable type, title, time, address, notes; delete button
+//   Place-linked:  shows linked place data (read-only) + editable label, confirm
+//   Custom:        editable type, title, address, notes; delete button
+//
+// Time field: AM/PM numeric input — formats "730" → "7:30", optional.
+// Time saves to reservation_times (hard confirmed time) only on Confirm press.
+// Soft display times (Morning, Afternoon) are set via drag-and-drop only.
 //
 // Follows the mountFrames entrance pattern from BottomSheet.tsx.
 // PLATFORM NOTE: div/input/button → View/TextInput/Pressable on Expo migration.
@@ -52,6 +58,49 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+// ── Time parsing — accepts "730", "7", "1930", "7:30 PM" etc. ────────────────
+function parseAndFormat(raw: string): { display: string; period: 'AM' | 'PM' } {
+  const upper = raw.toUpperCase();
+  const explicitPM = upper.includes('PM');
+  const explicitAM = upper.includes('AM');
+  const digits = raw.replace(/\D/g, '').slice(0, 4);
+  if (!digits) return { display: '', period: 'AM' };
+
+  let h: number, m: number;
+  if (digits.length <= 2) {
+    h = parseInt(digits, 10);
+    m = 0;
+  } else {
+    m = parseInt(digits.slice(-2), 10);
+    h = parseInt(digits.slice(0, digits.length - 2), 10);
+  }
+  if (m > 59) m = 59;
+
+  let period: 'AM' | 'PM';
+  if (h >= 13) {
+    h -= 12;
+    period = 'PM';
+  } else if (explicitPM) {
+    period = 'PM';
+  } else if (explicitAM) {
+    if (h === 12) h = 0;
+    period = 'AM';
+  } else if (h === 0) {
+    h = 12;
+    period = 'AM';
+  } else if (h === 12) {
+    period = 'PM';
+  } else if (h >= 1 && h <= 6) {
+    period = 'PM';
+  } else {
+    period = 'AM'; // 7–11
+  }
+
+  if (h === 0) h = 12;
+  if (h > 12) h = 12;
+
+  return { display: `${h}:${String(m).padStart(2, '0')}`, period };
+}
 
 export interface ItineraryItemDetailSheetProps {
   isOpen: boolean;
@@ -59,12 +108,14 @@ export interface ItineraryItemDetailSheetProps {
   resolvedPlace: Place | null;
   accent: string;
   textOverride?: string;
-  timeOverride?: string;
+  /** Current hard reservation time from RTDB (reservation_times path) */
+  reservationTime?: string;
   isConfirmed?: boolean;
   onClose: () => void;
   onSetTextOverride: (id: string, text: string) => void;
   onUpdateCustomItem: (id: string, patch: Partial<Pick<CustomItem, 'text' | 'time' | 'category' | 'addr'>>) => void;
-  onSetTimeOverride: (id: string, time: string) => void;
+  /** Writes hard reservation time to reservation_times RTDB path */
+  onSetReservationTime: (id: string, time: string) => void;
   onDelete?: () => void;
   onConfirm?: (id: string, value: boolean) => void;
 }
@@ -75,12 +126,12 @@ export function ItineraryItemDetailSheet({
   resolvedPlace,
   accent,
   textOverride,
-  timeOverride,
+  reservationTime,
   isConfirmed,
   onClose,
   onSetTextOverride,
   onUpdateCustomItem,
-  onSetTimeOverride,
+  onSetReservationTime,
   onDelete,
   onConfirm,
 }: ItineraryItemDetailSheetProps) {
@@ -89,23 +140,32 @@ export function ItineraryItemDetailSheet({
 
   // Local draft state — committed on blur or explicit save
   const [titleDraft, setTitleDraft] = useState('');
-  const [blurbDraft, setBlurbDraft] = useState('');
-  const [timeDraft, setTimeDraft] = useState('');
   const [addrDraft, setAddrDraft] = useState('');
   const [categoryDraft, setCategoryDraft] = useState<PlaceCategory | ''>('');
 
+  // Reservation time — numeric input + AM/PM toggle; saved only on confirm press
+  const [timeInput, setTimeInput] = useState('');
+  const [period, setPeriod] = useState<'AM' | 'PM'>('AM');
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Reset drafts when item changes — intentional sync setState in effect (controlled form reset pattern)
+  // Reset drafts when item/sheet changes
   useEffect(() => {
     if (!item) return;
-    const { title, blurb } = parseItemText(textOverride ?? item.text ?? '');
+    const { title } = parseItemText(textOverride ?? item.text ?? '');
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTitleDraft(title);
-    setBlurbDraft(blurb);
-    setTimeDraft(timeOverride ?? item.time ?? '');
     setAddrDraft(customItem?.addr ?? '');
     setCategoryDraft((customItem?.category as PlaceCategory | undefined) ?? '');
+
+    if (reservationTime) {
+      const { display, period: p } = parseAndFormat(reservationTime);
+      setTimeInput(display);
+      setPeriod(p);
+    } else {
+      setTimeInput('');
+      setPeriod('AM');
+    }
   }, [item?.id, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset confirm dialog when sheet closes
@@ -121,25 +181,14 @@ export function ItineraryItemDetailSheet({
     ? `${resolvedPlace!.emoji} ${resolvedPlace!.name}`
     : (customItem?.category ? `${CATEGORY_OPTIONS.find(o => o.value === customItem.category)?.label ?? ''} ` : '') + (item.text || 'Custom item');
 
-  function commitLabel(title: string, blurb: string) {
+  function commitLabel(title: string) {
     if (!item) return;
     const t = capitalizeFirst(title.trim());
-    const b = capitalizeFirst(blurb.trim());
-    const combined = b ? `${t} · ${b}` : t;
     if (isCustom && customItem) {
-      onUpdateCustomItem(item.id, { text: combined });
+      onUpdateCustomItem(item.id, { text: t });
     } else {
-      onSetTextOverride(item.id, combined);
+      onSetTextOverride(item.id, t);
     }
-  }
-
-  function commitTime(val: string) {
-    if (!item) return;
-    const trimmed = val.trim();
-    if (isCustom && customItem) {
-      onUpdateCustomItem(item.id, { time: trimmed });
-    }
-    onSetTimeOverride(item.id, trimmed);
   }
 
   function commitAddr(val: string) {
@@ -150,6 +199,20 @@ export function ItineraryItemDetailSheet({
   function commitCategory(val: PlaceCategory | '') {
     if (!item || !customItem) return;
     onUpdateCustomItem(item.id, { category: val || undefined });
+  }
+
+  function handleTimeBlur() {
+    if (!timeInput.trim()) return;
+    const { display, period: detected } = parseAndFormat(timeInput);
+    setTimeInput(display);
+    setPeriod(detected);
+  }
+
+  function buildReservationTime(): string {
+    if (!timeInput.trim()) return '';
+    const { display } = parseAndFormat(timeInput);
+    if (!display) return '';
+    return `${display} ${period}`;
   }
 
   const inputStyle = {
@@ -165,6 +228,20 @@ export function ItineraryItemDetailSheet({
     boxSizing: 'border-box' as const,
     lineHeight: Typography.lineHeight.normal,
   };
+
+  const periodBtn = (p: 'AM' | 'PM'): React.CSSProperties => ({
+    width: 48,
+    height: 44,
+    borderRadius: `${Radius.md}px`,
+    border: `1px solid ${period === p ? accent : Colors.border}`,
+    background: period === p ? `${accent}15` : 'transparent',
+    color: period === p ? accent : Colors.textMuted,
+    fontSize: `${Typography.size.xs}px`,
+    fontWeight: period === p ? Typography.weight.semibold : Typography.weight.regular,
+    fontFamily: Typography.family.sans,
+    cursor: 'pointer',
+    flexShrink: 0,
+  });
 
   const deleteOverlay = onDelete ? (
     <ConfirmDialog
@@ -220,44 +297,38 @@ export function ItineraryItemDetailSheet({
             type="text"
             value={titleDraft}
             onChange={e => setTitleDraft(capitalizeFirst(e.target.value))}
-            onBlur={() => commitLabel(titleDraft, blurbDraft)}
-            onKeyDown={e => { if (e.key === 'Enter') { commitLabel(titleDraft, blurbDraft); (e.target as HTMLInputElement).blur(); } }}
+            onBlur={() => commitLabel(titleDraft)}
+            onKeyDown={e => { if (e.key === 'Enter') { commitLabel(titleDraft); (e.target as HTMLInputElement).blur(); } }}
             placeholder={hasPlaceLink ? resolvedPlace!.name : 'Item title…'}
             style={{ ...inputStyle, fontWeight: Typography.weight.semibold }}
           />
         </div>
 
-        {/* ── Details ── */}
+        {/* ── Reservation time — numeric + AM/PM toggle ── */}
         <div style={{ marginBottom: Spacing.md }}>
-          <FieldLabel>Details</FieldLabel>
-          <input
-            type="text"
-            value={blurbDraft}
-            onChange={e => setBlurbDraft(capitalizeFirst(e.target.value))}
-            onBlur={() => commitLabel(titleDraft, blurbDraft)}
-            onKeyDown={e => { if (e.key === 'Enter') { commitLabel(titleDraft, blurbDraft); (e.target as HTMLInputElement).blur(); } }}
-            placeholder="Optional note or detail…"
-            style={{
-              ...inputStyle,
-              fontStyle: 'italic',
-              color: Colors.textSecondary,
-              fontWeight: Typography.weight.regular,
-            }}
-          />
-        </div>
-
-        {/* ── Time ── */}
-        <div style={{ marginBottom: Spacing.md }}>
-          <FieldLabel>Time</FieldLabel>
-          <input
-            type="text"
-            value={timeDraft}
-            onChange={e => setTimeDraft(e.target.value)}
-            onBlur={() => commitTime(timeDraft)}
-            onKeyDown={e => { if (e.key === 'Enter') { commitTime(timeDraft); (e.target as HTMLInputElement).blur(); } }}
-            placeholder="e.g. 7:00 PM"
-            style={inputStyle}
-          />
+          <FieldLabel>Reservation time (optional)</FieldLabel>
+          <div style={{ display: 'flex', gap: `${Spacing.sm}px` }}>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={timeInput}
+              onChange={e => setTimeInput(e.target.value)}
+              onBlur={handleTimeBlur}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  handleTimeBlur();
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              placeholder="e.g. 730 or 7"
+              style={{ ...inputStyle, flex: 1, width: 'auto', height: 44 }}
+            />
+            {(['AM', 'PM'] as const).map(p => (
+              <button key={p} type="button" onClick={() => setPeriod(p)} style={periodBtn(p)}>
+                {p}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── Custom item fields ── */}
@@ -370,36 +441,42 @@ export function ItineraryItemDetailSheet({
           </div>
         )}
 
-        {/* ── Confirm toggle ── */}
+        {/* ── Confirm / Remove Confirmation ── */}
         {onConfirm && (
           <div style={{ marginBottom: Spacing.md }}>
             <button
+              type="button"
               onClick={() => {
-                const trimmedTime = timeDraft.trim();
-                if (trimmedTime) {
-                  if (isCustom && customItem) onUpdateCustomItem(item.id, { time: trimmedTime });
-                  onSetTimeOverride(item.id, trimmedTime);
+                if (isConfirmed) {
+                  onSetReservationTime(item.id, '');
+                  onConfirm(item.id, false);
+                } else {
+                  onSetReservationTime(item.id, buildReservationTime());
+                  onConfirm(item.id, true);
                 }
-                onConfirm(item.id, !isConfirmed);
+                onClose();
               }}
               style={{
                 width: '100%',
-                height: 44,
-                background: isConfirmed ? Semantic.confirmed : 'transparent',
-                color: isConfirmed ? Core.white : Semantic.confirmed,
-                border: `1.5px solid ${Semantic.confirmed}`,
-                borderRadius: Radius.lg,
+                background: isConfirmed ? accent : Semantic.confirmed,
+                color: Core.white,
+                border: 'none',
+                borderRadius: `${Radius.lg}px`,
+                padding: `${Spacing.base}px`,
                 fontSize: `${Typography.size.sm}px`,
-                fontFamily: Typography.family.sans,
                 fontWeight: Typography.weight.semibold,
+                fontFamily: Typography.family.sans,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: Spacing.xs,
+                boxShadow: isConfirmed
+                  ? `0 8px 22px ${accent}40, 0 1px 2px rgba(0,0,0,0.08)`
+                  : `0 8px 22px ${Semantic.confirmed}40, 0 1px 2px rgba(0,0,0,0.08)`,
               }}
             >
-              {isConfirmed ? '✓ Confirmed' : 'Confirm →'}
+              {isConfirmed ? 'Remove Confirmation' : 'Confirm'}
             </button>
           </div>
         )}

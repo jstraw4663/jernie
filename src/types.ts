@@ -225,11 +225,12 @@ export interface PlaceEnrichment {
   website: string | null;
   open_now: boolean | null;
   hours: string[] | null;           // ["Monday: 9:00 AM – 9:00 PM", ...]
-  photos: string[] | null;          // direct CDN photo URLs, up to 10
-  reviews: PlaceReview[] | null;    // up to 5 Google reviews
-  editorial_summary: string | null;
-  amenities: string[] | null;       // e.g. ["Free Parking", "Fitness Center", "Hot Tub"]
-  cached_at: number;                // Date.now() ms — used for 24hr TTL check
+  photos: string[] | null;          // direct CDN photo URLs, up to 5
+  reviews: PlaceReview[] | null;    // up to 5 Google reviews — Enterprise tier, 60-day TTL
+  editorial_summary: string | null; // Enterprise tier, 60-day TTL
+  amenities: string[] | null;       // e.g. ["Free Parking", "Valet Parking", "Accessible"] — Enterprise tier, 60-day TTL
+  cached_at: number;                // Date.now() ms — Pro-tier fields, 14-day TTL
+  reviews_cached_at?: number;       // Date.now() ms — Enterprise-tier fields (reviews, editorial, amenities), 60-day TTL
 }
 
 export interface Alert {
