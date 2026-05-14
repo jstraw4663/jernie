@@ -17,6 +17,23 @@ interface EnrichmentOptions<E extends { id: string }> {
   subcollection?: string[];
   endpoint: string;
   ttlMs: number;
+  /**
+   * Firestore field name used for the TTL staleness check. Defaults to 'cached_at'.
+   * Override to 'reviews_cached_at' for the Enterprise-tier reviews phase so its 60-day
+   * TTL is tracked independently from the core Pro-tier 14-day TTL.
+   */
+  ttlField?: string;
+  /**
+   * Key used for the session-level Firestore read debounce (refreshScheduler).
+   * Defaults to the computed inflightPrefix. Override when two hook instances read the
+   * same collection but should debounce independently (e.g. core vs reviews phases).
+   */
+  sessionKey?: string;
+  /**
+   * Extra fields merged into every POST request body alongside tripId and places.
+   * Use to pass mode: 'reviews' for the Enterprise enrichment phase.
+   */
+  extraBody?: Record<string, unknown>;
   filterEntities: (entities: E[]) => E[];
   buildPayload: (e: E) => object;
   label: string;
@@ -58,10 +75,12 @@ export function useFirestoreEnrichment<T extends { cached_at: number }, E extend
         ? collection(firestore, options.rootCollection, tripId, ...sub)
         : collection(firestore, options.rootCollection);
       const inflightPrefix = scoped ? `${tripId}:${options.rootCollection}` : options.rootCollection;
+      const sessionCacheKey = options.sessionKey ?? inflightPrefix;
+      const ttlField = options.ttlField ?? 'cached_at';
 
       let firestoreMap: Record<string, T> = {};
 
-      if (shouldReadFirestore(inflightPrefix)) {
+      if (shouldReadFirestore(sessionCacheKey)) {
         let snapshot;
         try {
           snapshot = await getDocs(colRef);
@@ -75,7 +94,7 @@ export function useFirestoreEnrichment<T extends { cached_at: number }, E extend
           firestoreMap[docSnap.id] = docSnap.data() as T;
         });
 
-        markRead(inflightPrefix);
+        markRead(sessionCacheKey);
 
         if (Object.keys(firestoreMap).length > 0) {
           setEnrichmentMap(prev => ({ ...prev, ...firestoreMap }));
@@ -87,7 +106,8 @@ export function useFirestoreEnrichment<T extends { cached_at: number }, E extend
       const now = Date.now();
       const needsRefresh = filtered.filter(e => {
         const cached = firestoreMap[e.id];
-        return !cached || (now - cached.cached_at) > options.ttlMs;
+        const cachedAt = cached ? (cached as Record<string, unknown>)[ttlField] as number | undefined : undefined;
+        return !cached || !cachedAt || (now - cachedAt) > options.ttlMs;
       });
 
       if (needsRefresh.length === 0) return;
@@ -108,7 +128,11 @@ export function useFirestoreEnrichment<T extends { cached_at: number }, E extend
               'Content-Type': 'application/json',
               'X-App-Token': import.meta.env.VITE_APP_SECRET ?? '',
             },
-            body: JSON.stringify({ tripId, places: batch.map(options.buildPayload) }),
+            body: JSON.stringify({
+              tripId,
+              places: batch.map(options.buildPayload),
+              ...options.extraBody,
+            }),
           })
             .then(r => {
               if (!r.ok) throw new Error(`HTTP ${r.status}`);

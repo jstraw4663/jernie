@@ -38,7 +38,6 @@ import type { ItineraryItem, CustomItem, Place, ItineraryCategory } from '../typ
 import { parseItemText } from '../utils/parseItemText';
 import { PlaceMetaRow } from './PlaceMetaRow';
 import { NavigationSelectorSheet } from './NavigationSelectorSheet';
-import { ConfirmTimeSheet } from './ConfirmTimeSheet';
 
 type ResolvedItem = (ItineraryItem & { _isCustom: false }) | (CustomItem & { _isCustom: true });
 
@@ -127,11 +126,7 @@ export interface TimelineItemProps {
   textOverride?: string;
   /** Navigation address from enrichment (Google Places) — same source as detail card navigate */
   navAddr?: string | null;
-  /** Direct confirm/un-confirm from the primary CTA */
-  onConfirm?: (value: boolean) => void;
-  /** Set reservation time (e.g. "7:30 PM") — wired from EditableItinerary */
-  onSetTime?: (time: string) => void;
-  /** Open the edit/detail sheet (overflow ··· button) */
+  /** Open the unified detail/confirm sheet (Confirm CTA, ✓ Confirmed pill, ··· ellipsis) */
   onOpenDetail?: () => void;
   /** Tap anywhere on card body — opens entity detail (place/booking) or edit sheet fallback */
   onTapCard?: (rect: DOMRect) => void;
@@ -153,14 +148,11 @@ export function TimelineItem({
   resolvedPlace,
   textOverride,
   navAddr,
-  onConfirm,
-  onSetTime,
   onOpenDetail,
   onTapCard,
   isPulsing,
 }: TimelineItemProps) {
   const [navSheetOpen, setNavSheetOpen] = useState(false);
-  const [confirmSheetOpen, setConfirmSheetOpen] = useState(false);
   const itItem = item as ItineraryItem;
 
   const { title: parsedTitle, blurb: parsedBlurb } = parseItemText(item.text);
@@ -192,8 +184,8 @@ export function TimelineItem({
       }}
       style={{ display: 'flex', flexDirection: 'column', paddingBottom: isLast ? 0 : 10 }}
     >
-      {/* ── Time header — pill above node circle + trailing hairline ── */}
-      {reservationTime && (
+      {/* ── Time header — solid stop-colored pill, only shown when confirmed with a hard time ── */}
+      {reservationTime && isConfirmed && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -328,7 +320,7 @@ export function TimelineItem({
             {isConfirmed && (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); setConfirmSheetOpen(true); }}
+                onClick={(e) => { e.stopPropagation(); onOpenDetail?.(); }}
                 style={{
                   flexShrink: 0,
                   height: 22,
@@ -440,7 +432,7 @@ export function TimelineItem({
                 onClick={(e) => {
                   e.stopPropagation();
                   if (variant === 'confirm') {
-                    setConfirmSheetOpen(true);
+                    onOpenDetail?.();
                   } else if (variant === 'navigate') {
                     setNavSheetOpen(true);
                   } else {
@@ -503,22 +495,6 @@ export function TimelineItem({
       lon={resolvedPlace?.lon}
       addr={navAddr ?? resolvedPlace?.addr}
       label={resolvedPlace?.name ?? title}
-    />
-    <ConfirmTimeSheet
-      isOpen={confirmSheetOpen}
-      isConfirmed={isConfirmed}
-      currentTime={reservationTime}
-      accent={accent}
-      onConfirm={(time) => {
-        if (time) onSetTime?.(time);
-        onConfirm?.(true);
-        setConfirmSheetOpen(false);
-      }}
-      onUnconfirm={() => {
-        onConfirm?.(false);
-        setConfirmSheetOpen(false);
-      }}
-      onClose={() => setConfirmSheetOpen(false)}
     />
     </>
   );

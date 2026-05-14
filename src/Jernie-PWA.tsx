@@ -179,7 +179,7 @@ export default function MaineGuide() {
   const tripId: string = import.meta.env.VITE_TRIP_ID ?? "maine-2026";
   const { confirms, packing, setConfirm, setPacking, resetPacking,
           itineraryOrder, customItems, timeOverrides, textOverrides, reservationTimes, initializeOrder, initializeConfirms, setDayOrder, moveItem,
-          addCustomItem, deleteCustomItem, setTimeOverride, setTextOverride, updateCustomItem,
+          addCustomItem, deleteCustomItem, setTimeOverride, setTextOverride, setReservationTime, updateCustomItem,
           setBookingField, bookingOverrides } = useSharedTripState(tripId);
   const addedPlaceIds = useAddedPlaceIds(data, customItems);
   const { isOnline } = useConnectivityState();
@@ -525,6 +525,7 @@ export default function MaineGuide() {
             itineraryOrder={itineraryOrder} customItems={customItems}
             timeOverrides={timeOverrides} textOverrides={textOverrides}
             reservationTimes={reservationTimes}
+            setReservationTime={setReservationTime}
             setDayOrder={setDayOrder} moveItem={moveItem}
             addCustomItem={addCustomItem} deleteCustomItem={deleteCustomItem}
             initializeOrder={initializeOrder}
