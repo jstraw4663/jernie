@@ -96,7 +96,7 @@ export function OverviewScreen() {
   const { enrichmentMap, saveOverride } = usePlaceEnrichment(TRIP_ID, allPlaces);
   const trailEnrichmentMap = useTrailEnrichment(TRIP_ID, allPlaces);
   const { enrichmentMap: hotelEnrichmentMap, saveOverride: hotelSaveOverride } = useBookingEnrichment(TRIP_ID, allAccommodations);
-  const addedPlaceIds = useAddedPlaceIds(data, customItems);
+  const addedPlaceIds = useAddedPlaceIds(data, customItems, itineraryOrder);
 
   // Flight status — read from localStorage cache written by Jernie tab
   const flightStatus = useMemo<Record<string, FlightStatus>>(() => {
