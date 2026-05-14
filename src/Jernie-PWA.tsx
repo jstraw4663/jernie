@@ -179,9 +179,9 @@ export default function MaineGuide() {
   const tripId: string = import.meta.env.VITE_TRIP_ID ?? "maine-2026";
   const { confirms, packing, setConfirm, setPacking, resetPacking,
           itineraryOrder, customItems, timeOverrides, textOverrides, reservationTimes, initializeOrder, initializeConfirms, setDayOrder, moveItem,
-          addCustomItem, deleteCustomItem, setTimeOverride, setTextOverride, setReservationTime, updateCustomItem,
+          addCustomItem, deleteCustomItem, clearItemState, setTimeOverride, setTextOverride, setReservationTime, updateCustomItem,
           setBookingField, bookingOverrides } = useSharedTripState(tripId);
-  const addedPlaceIds = useAddedPlaceIds(data, customItems);
+  const addedPlaceIds = useAddedPlaceIds(data, customItems, itineraryOrder);
   const { isOnline } = useConnectivityState();
   const { navigateToExplore } = useNavigation();
   const onExploreMore = useCallback(() => navigateToExplore({ filter: 'all' }), [navigateToExplore]);
@@ -527,7 +527,7 @@ export default function MaineGuide() {
             reservationTimes={reservationTimes}
             setReservationTime={setReservationTime}
             setDayOrder={setDayOrder} moveItem={moveItem}
-            addCustomItem={addCustomItem} deleteCustomItem={deleteCustomItem}
+            addCustomItem={addCustomItem} deleteCustomItem={deleteCustomItem} clearItemState={clearItemState}
             initializeOrder={initializeOrder}
             setTimeOverride={setTimeOverride} setTextOverride={setTextOverride}
             updateCustomItem={updateCustomItem}

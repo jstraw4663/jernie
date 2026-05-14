@@ -65,6 +65,7 @@ interface EditableItineraryProps {
   moveItem: (itemId: string, fromDayId: string, toDayId: string, insertAtIndex: number) => void;
   addCustomItem: (dayId: string, time: string, text: string, sourcePlaceId: string | null, category?: PlaceCategory) => void;
   deleteCustomItem: (itemId: string, dayId: string) => void;
+  clearItemState: (itemId: string) => void;
   initializeOrder: (days: TripData["itinerary_days"], items: TripData["itinerary_items"]) => void;
   setTimeOverride: (itemId: string, time: string) => void;
   setTextOverride: (itemId: string, text: string) => void;
@@ -365,7 +366,7 @@ function SheetSortableItem({ item, isSelected, isLocked, isDragDisabled, onToggl
 export function EditableItinerary({
   stop, data, confirms, onConfirm,
   itineraryOrder, customItems, timeOverrides, textOverrides, reservationTimes, setReservationTime,
-  setDayOrder, moveItem, addCustomItem, deleteCustomItem, initializeOrder,
+  setDayOrder, moveItem, addCustomItem, deleteCustomItem, clearItemState, initializeOrder,
   setTimeOverride, setTextOverride, updateCustomItem,
   scrollRef, onExpandPlace, onExpandBooking,
   requestOpenDayId, onRequestOpenDayConsumed,
@@ -809,6 +810,7 @@ export function EditableItinerary({
       deleteCustomItem(item.id, dayId);
     } else {
       setDayOrder(dayId, (itineraryOrder[dayId] || []).filter(id => id !== item.id));
+      clearItemState(item.id);
     }
   }
 
