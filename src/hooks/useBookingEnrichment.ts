@@ -26,9 +26,10 @@ export function useBookingEnrichment(
 
   const baseEnrichmentMap = useFirestoreEnrichment<PlaceEnrichment, Booking>(tripId, bookings, {
     rootCollection: 'place_enrichment',
-    scoped: false,
+    scoped: true,
+    subcollection: ['places'],
     endpoint: '/.netlify/functions/place-details',
-    ttlMs: 24 * 60 * 60 * 1000,
+    ttlMs: 14 * 24 * 60 * 60 * 1000,
     filterEntities: bs => bs.filter(b => b.type === 'accommodation'),
     buildPayload: b => ({
       id: b.id,
@@ -63,7 +64,7 @@ export function useBookingEnrichment(
     const enrichment = data[bookingId];
     if (!enrichment) throw new Error('No enrichment returned for this Place ID');
 
-    await setDoc(doc(firestore, 'place_enrichment', bookingId), enrichment);
+    await setDoc(doc(firestore, 'place_enrichment', tripId, 'places', bookingId), enrichment, { merge: true });
     setLocalEnrichment(prev => ({ ...prev, [bookingId]: enrichment })); // immediate update — no TTL wait
   }, [tripId, bookings]);
 
