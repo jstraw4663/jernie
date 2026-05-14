@@ -197,15 +197,31 @@ export function useSharedTripState(tripId: string) {
     update(ref(db), updates);
   }
 
-  // Remove custom item and its ID from order
+  // Remove custom item and its ID from order; atomically clears all per-item RTDB state.
   function deleteCustomItem(itemId: string, dayId: string) {
     const newOrder = (itineraryOrder[dayId] || []).filter(id => id !== itemId);
     const updates: Record<string, unknown> = {
       [`trips/${tripId}/state/itinerary_order/${dayId}`]: newOrder,
       [`trips/${tripId}/state/custom_items/${itemId}`]: null,
+      [`trips/${tripId}/state/confirms/${itemId}`]: null,
+      [`trips/${tripId}/state/reservation_times/${itemId}`]: null,
+      [`trips/${tripId}/state/time_overrides/${itemId}`]: null,
+      [`trips/${tripId}/state/text_overrides/${itemId}`]: null,
     };
     writeQueue.removeWhere(w => w.path === `trips/${tripId}/state/custom_items/${itemId}`);
     writeQueue.enqueue(`trips/${tripId}/state/itinerary_order/${dayId}`, newOrder);
+    update(ref(db), updates);
+  }
+
+  // Clear all per-item RTDB state for a curated item removed from the display order.
+  function clearItemState(itemId: string) {
+    const updates: Record<string, null> = {
+      [`trips/${tripId}/state/confirms/${itemId}`]: null,
+      [`trips/${tripId}/state/reservation_times/${itemId}`]: null,
+      [`trips/${tripId}/state/time_overrides/${itemId}`]: null,
+      [`trips/${tripId}/state/text_overrides/${itemId}`]: null,
+    };
+    writeQueue.enqueueMany(updates);
     update(ref(db), updates);
   }
 
@@ -277,6 +293,7 @@ export function useSharedTripState(tripId: string) {
     itineraryOrder, customItems, timeOverrides, textOverrides, reservationTimes,
     bookingOverrides,
     initializeOrder, initializeConfirms, setDayOrder, moveItem, addCustomItem, deleteCustomItem,
+    clearItemState,
     setTimeOverride, setTextOverride, setReservationTime, setBookingField,
     updateCustomItem,
   };

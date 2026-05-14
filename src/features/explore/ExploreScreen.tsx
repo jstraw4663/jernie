@@ -167,7 +167,7 @@ export function ExploreScreen() {
       : buildPlaceDetailConfig(place, stop, data.stops, enrichmentMap[place.id]);
   }, [selectedEntity, data, stopMap, enrichmentMap]);
 
-  const addedPlaceIds = useAddedPlaceIds(data, customItems);
+  const addedPlaceIds = useAddedPlaceIds(data, customItems, itineraryOrder);
 
   const handlePlaceExpand = (place: Place, rect: DOMRect) => {
     setSelectedEntity({ kind: 'place', id: place.id, originRect: rect, accent: resolveStopColor(stopMap[place.stop_id]) });
